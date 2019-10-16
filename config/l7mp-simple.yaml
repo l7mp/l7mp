@@ -4,13 +4,13 @@ admin:
   log_file: stdout
   access_log_path: /tmp/admin_access.log
 listeners:
-  - name: controller_listener
+  - name: controller-listener
     spec: { protocol: HTTP, port: 1234 }
     rules:
       - action:
           route:
             cluster: controller     # northbound: predefined INLINE/stream
-  - name: udp_listener
+  - name: udp-listener
     spec:
       protocol: UDP
       port: 9999
@@ -20,7 +20,7 @@ listeners:
     rules:
       - action:
           route:
-            cluster: udp_cluster
+            cluster: udp-cluster
             # cluster: stdio
             # ingress:
             #   - up
@@ -35,7 +35,7 @@ clusters:
     spec: { protocol: L7MPController }
   - name: stdio
     spec: { protocol: "Stdio" }
-  - name: udp_cluster
+  - name: udp-cluster
     spec:
       protocol: "UDP"
       port: 5556
