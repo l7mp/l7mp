@@ -1,0 +1,7 @@
+* implement stream debugger (inline json dump of stream contents)
+* jquery-based rules
+* stream statistics
+* expose statistics to prometheus (prometheus_listener)
+* expose statistics to jquery rules(this would allow simple qos/rate-limiting)
+* write openapi API definition and auto-generate HTTP routes
+* document!

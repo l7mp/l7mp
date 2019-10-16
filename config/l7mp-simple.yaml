@@ -1,0 +1,44 @@
+# js-yaml l7mp-simple.yaml  >l7mp-simple.json
+admin:
+  log_level: silly
+  log_file: stdout
+  access_log_path: /tmp/admin_access.log
+listeners:
+  - name: controller_listener
+    spec: { protocol: HTTP, port: 1234 }
+    rules:
+      - action:
+          route:
+            cluster: controller     # northbound: predefined INLINE/stream
+  - name: udp_listener
+    spec:
+      protocol: UDP
+      port: 9999
+      connect:
+        address: '127.0.0.1'
+        port: 5555
+    rules:
+      - action:
+          route:
+            cluster: udp_cluster
+            # cluster: stdio
+            # ingress:
+            #   - up
+            # egress:
+            #   - up
+clusters:
+  - name: up
+    spec: { protocol: "WebSocket", port: 8080 }
+    endpoints:
+      - spec: { address:  "127.0.0.1" }
+  - name: controller
+    spec: { protocol: L7MPController }
+  - name: stdio
+    spec: { protocol: "Stdio" }
+  - name: udp_cluster
+    spec:
+      protocol: "UDP"
+      port: 5556
+      bind: { address: '127.0.0.1', port: 3333 }
+    endpoints:
+      - spec: { address:  "127.0.0.1" }

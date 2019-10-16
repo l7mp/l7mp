@@ -1,0 +1,135 @@
+# TODO: finish this
+definitions:
+  io.l7mp.api.v1.Listener:
+    description: A socket that listens for incoming connection requests, an abstraction for an "ingress port".
+  io.l7mp.api.v1.ListenerList:
+    description: A list of Listener objects.
+    properties:
+      items:
+        description: Items is the list of Listeners.
+        items:
+          $ref: '#/definitions/io.l7mp.api.v1.Listener'
+        type: array
+    required:
+    - items
+    type: object
+  io.l7mp.api.v1.Cluster:
+    description: A socket that originates connections to external services, an abstraction for an "egress port".
+  io.l7mp.api.v1.ClusterList:
+    description: A list of Cluster objects.
+    properties:
+      items:
+        description: Items is the list of Clusters.
+        items:
+          $ref: '#/definitions/io.l7mp.api.v1.Cluster'
+        type: array
+    required:
+    - items
+    type: object
+  io.l7mp.api.v1.Session:
+    description: A socket that originates connections to external services, an abstraction for an "egress port".
+  io.l7mp.api.v1.SessionList:
+    description: A list of Session objects.
+    properties:
+      items:
+        description: Items is the list of Sessions.
+        items:
+          $ref: '#/definitions/io.l7mp.api.v1.Session'
+        type: array
+    required:
+    - items
+    type: object
+  io.l7mp.api.v1.Status:
+    description: General status info.
+paths:
+  /api/v1/listeners:
+    get:
+      consumes:
+      - '*/*'
+      description: list of objects of kind Listener
+      produces:
+      - application/json
+      - application/yaml
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/io.l7mp.api.v1.ListenerList'
+        # '401':
+        #   description: Unauthorized
+      schemes:
+      - http
+      tags:
+      - apps_v1
+    post:
+      consumes:
+      - '*/*'
+      description: create a Listener
+      parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/io.l7mp.api.v1.Listener'
+      produces:
+      - application/json
+      - application/yaml
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/io.l7mp.api.v1.Listener'
+        # '401':
+        #   description: Unauthorized
+      schemes:
+      - http
+      tags:
+      - apps_v1
+  /api/v1/clusters/{name}:
+    delete:
+      consumes:
+      - '*/*'
+      description: delete a Cluster
+      produces:
+      - application/json
+      - application/yaml
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/io.l7mp.api.v1.Status'
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/io.l7mp.api.v1.Status'
+        # '401':
+        #   description: Unauthorized
+      schemes:
+      - http
+      tags:
+      - apps_v1
+    get:
+      consumes:
+      - '*/*'
+      description: read the specified Cluster
+      produces:
+      - application/json
+      - application/yaml
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/io.l7mp.api.v1.Cluster'
+        # '401':
+        #   description: Unauthorized
+      schemes:
+      - http
+      tags:
+      - apps_v1
+    parameters:
+    - description: name of the Cluster
+      in: path
+      name: name
+      required: true
+      type: string
+      uniqueItems: true

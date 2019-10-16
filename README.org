@@ -1,0 +1,424 @@
+#+LaTeX_HEADER:\usepackage[margin=2cm]{geometry}
+#+LaTeX_HEADER:\usepackage{enumitem}
+#+LaTeX_HEADER:\renewcommand{\ttdefault}{pcr}
+#+LaTeX_HEADER:\lstdefinelanguage{yaml}{basicstyle=\ttfamily\scriptsize,frame=lrtb,framerule=1pt,framexleftmargin=1pt,showstringspaces=false}
+#+LaTeX_HEADER:\usepackage{etoolbox}
+#+LaTeX_HEADER:\makeatletter\patchcmd{\@verbatim}{\verbatim@font}{\verbatim@font\scriptsize}{}{}\makeatother
+#+LATEX:\setitemize{noitemsep,topsep=0pt,parsep=0pt,partopsep=0pt}
+#+OPTIONS: toc:nil author:nil ^:nil
+
+#+TITLE: L7MP: A programmable L7 meta-proxy
+
+* Objective
+
+- L7mp is a programmable L7 meta-proxy, an application-layer
+  equivalent of a "programmable L2/L3 switch":
+  - "L7", because the main unit of traffic is individual
+    transport-layer or application-layer connections (called
+    "sessions" in the context of L7mp);
+  - "meta", because new protocols may be defined on top of the
+    existing ones and instantiated dynamically using a standard
+    control-plane interface,
+  - "proxy", because the main objective is to connect
+    application-level traffic streams between sockets in a
+    protocol-agnostic manner (i.e., you can pipe the datagram-stream
+    from a UNIX domain socket to a WebSocket stream transparently to
+    the application layer),
+  - and programmable, because L7mp exposes a RESTful API to the
+    control plane that can be used to set up, manage, and tear-down
+    streams dynamically, or even to modify the route of "live"
+    data-plane streams.
+- below we sketch the main abstractions and the semantics for L7mp
+  (like "match-action" or "dataflow graph" for L2/L3)
+
+* Listeners
+
+- abstraction for an "ingress port":
+  - name: unique id
+  - spec: a listening address specification (protocol + specific params)
+  - rules: match-action rules to apply to connections
+  - stats
+- emits sessions dynamically (when request arrives), applies the
+  rule(s) successively until the first one matches, and applies the
+  corresponding route settings:
+  - singleton: emits a single session only
+  - server: can emit multiple sessions
+- meta-listener: a "module" consisting of a listener plus one or more
+  transforms that together behave as a single listener for, e.g., a
+  complex protocol: UDP + RTP parser = RTP/UDP listener
+
+* Clusters
+
+- abstraction for an "egress port":
+  - name: unique id
+  - spec: protocol and protocol-specific parameters valid for each endpoint
+  - endpoints: possibly multiple endpoints (fan-out)
+  - stats
+- a "drop" cluster can be  defined for /dev/null
+- cluster-endpoint associations/descriptors are exposed to the control
+  plane (rw):
+  - endpoints: e.g., cluster is a k8s "service" and endpoint is the
+    set of pods running the service
+  - health-check: protocol-specific, supposedly in-band (TUN/TAP: BFD,
+    WS: ping, TCP: keepalive, etc.)
+  - circuit breaking (timeouts)
+  - retries: configurable number of trials for ack'ed protocols
+  - load-balancing: round-robin + deterministic (first endpoint
+    always) + multicast (to a set of endpoints) + broadcast (all
+    endpoints)
+- meta-cluster: a "module" consisting of one or more transforms plus a
+  cluster that together behave as a single cluster for, e.g., a complex
+  protocol: RTP deparser + UDP = RTP/UDP cluster
+
+* Sessions
+
+- abstraction for a single dataplane "flow", the unit of routing and
+  monitoring:
+  - name: a unique protocol specific ID (e.g., IP 5-tuple for a TCP
+    session)
+  - metadata: user-defined metadata (set of transformers)
+  - route: describes the sequence of transforms to be applied to the
+    session, manipulated using rules
+  - status: CONNECT/ESTABLISHED/DISCONNECT
+  - stats:
+- the metadata and the route can be matched/rewritten using rules and
+  session transforms
+- the session payload can be transformed using dgram/stream
+  transforms, separately in the uplink/downlink direction
+- session ID may be communicated through a local/remote transformer
+  in-band (HTTP/WebSocket headers) using an "json encap/decap"
+  transformer
+- the data-plane maintains a complete inventory of sessions and the
+  control plane can query and remove sessions (but it cannot create
+  them directly, only indirectly via creating listeners that will
+  themselves emit sessions asynchronously) and modify attributes
+  (e.g., modifying the route should immediately re-route the session)
+
+* Rules
+
+- abstraction of dataplane "match-action" rules:
+  - name: unique rule id, optional (set automatically) if rule occurs
+    is inline (inside a listener), otherwise required
+  - match: match-conditions on session id and metadata (optional, if
+    missing then rule matches all sessions)
+  - route: rewrite the session's route list if the conditions match
+  - action: modifications to the metadata and the route
+- semantics: matches on session IDs (and possibly other user defined
+  per-session metadata) and rewrites metadata and/or assigns/modifies
+  routes
+
+* Route
+
+- abstraction for the "forwarding policy" for a session (a session
+  can have only one active route):
+  - cluster: the endpoint of the route (starting point is the
+    listener)
+  - session: list of session transforms to apply during session
+    setup/disconnect
+  - ingress: list of stream/dgram transformers to be applied in the
+    listener->cluster direction
+  - egress: list of stream/dgram transformers to be applied in the
+    cluster->listener direction
+- the route is exposed to the control plane and it can be modified
+  dynamically: in that case the session should be rerouted immediately
+  (but update model is "eventually consistent")
+
+* Transform(er)s
+
+- abstraction for an "action": transform a session metadata or payload:
+  - name: unique id; if name matches the name of a cluster then a
+    transform over that cluster is automatically created (if it has
+    not already been created), otherwise name is mandatory
+  - type: type of transform (some types are built-in)
+  - params: parameters for the transform (optional)
+- may transform session metadata (called only during session
+  setup/disconnect) or payload (stream/datagram)
+- can work either inline or remotely using a transform protocol
+  cluster
+  - local transform: runs inside the proxy
+    - INLINE/stream: rewrite stream
+    - INLINE/datagram: rewrite datagram stream
+  - remote transformer: run the transformer in a remote pod in a
+    "bump-in-the-wire" fashion, sending/receiving session descriptors
+    via a transformer
+- meta-transform: a "module" consisting of one or more transforms that
+  together behave as a single transform (example)
+
+* Modules
+
+- TODO
+
+* Control/Monitoring
+
+- static config read from a file on init
+- controller: a HTTP listener routed to the predefined "controller"
+  cluster that accepts queries/updates from the control plane
+- monitor: a HTTP listener routed to the predefined
+  "monitor_responder" cluster that accepts queries from Prometheus and
+  outputs formatted stats
+
+* Protocols
+
+|---------------+-------------------+------------------+-------+-----------+-------------|
+| Protocol      | Session ID        | Type             | Role  | Mode      | Re/To/Lb    |
+|---------------+-------------------+------------------+-------+-----------+-------------|
+| UDP-singleton | IP 5-tuple        | datagram         | l/c/t | singleton | no/yes/yes  |
+| UDP-server    | IP 5-tuple        | datagram         | l     | server    | no/yes/yes  |
+| TCP           | IP 5-tuple        | stream           | l/c/t | server    | yes/yes/yes |
+| HTTP          | IP 5-tuple + HTTP | stream/session   | l/c/t | server    | yes/yes/yes |
+| WS            | IP 5-tuple + HTTP | datagram         | l/c/t | server    | yes/yes/yes |
+| STDIO         | N/A               | stream/session   | t     | singleton | no/no/no    |
+| UNIX/stream   | file desc/path    | stream           | l/c/t | server    | no/no/no    |
+| UNIX/dgram    | file desc/path    | datagram/session | l/c/t | singleton | no/no/no    |
+| PIPE          | file desc/path    | stream           | l/c/t | singleton | no/no/no    |
+| AF_PACKET     | file desc         | datagram         | l/c/t | singleton | no/no/no    |
+| PORT          | tun/tap/port      | datagram         | l/c/t | singleton | no/no/no    |
+| INLINE/stream | N/A               | stream           | t     | singleton | no/no/no    |
+| INLINE/dgram  | N/A               | datagram         | t     | singleton | no/no/no    |
+|---------------+-------------------+------------------+-------+-----------+-------------|
+
+- protocol:
+  - UDP-singleton is a "connected" UDP server, while UDP_server is a
+    listener-only protocol that emits a new session for each IP
+    5-tuple
+  - STDIO is a (transform-only) protocol for communicating with a
+    forked process through STDIO/STDOUT
+  - INLINE/stream and INLINE/dgram are transforms-only protocols for
+    built-in transformers (node-js Transform objects)
+- session id: unique descriptor of a session emitted by the
+  protocol's listener
+- type:
+  - session: receives/rewrites session metadata, called at
+    session-setup time
+  - stream: segmentation/message boundaries not preserved
+  - datagram: segmentation/message boundaries preserved
+- streams can run on top of datagram protocols but not the other way
+  around (warn!)
+- mode:
+  - server: listen+accept -> new session
+  - singleton: can emit a single session only
+- role:
+  - listener (l): protocol supports listeners to emit sessions
+  - cluster (c): protocol supports clusters to forward sessions to
+  - transform (t): bump-in-the-wire transformation of session
+    metadata or payload (stream/datagram)
+- Re: Retries, To: Timeout, Lb: load-balance
+
+* Status
+
+**** TODO Framework: clusters, listeners, routes, sessions, rules, object hierarchy
+**** TODO static config
+**** TODO UDP, WebSocket, and UDS stream/dgram protocols (c/l/t)
+**** DONE full wildcard match
+**** TODO session transforms
+**** TODO QUIC/HTTP3
+
+* Examples
+
+** Example 1: HTTP3/QUIC Gateway to Kubernetes/Istio
+
+*** Objective
+
+- ingress gateway that translates QUIC calls from the
+- NB: HTTP3/QUIC support is TODO
+
+*** TODO Pipeline
+
+*** Config
+
+- static config
+#+BEGIN_SRC yaml
+  admin:
+    log_level: info
+    log_file: /tmp/l7mp.log
+    access_log_path: /tmp/admin_access.log
+  listeners:
+    - name: monitor_listener
+      spec: { protocol: HTTP, port: 1235 }
+      rules:
+        - action:
+            route:
+              cluster: monitor_responder
+    - name: http3_listener
+      spec: { protocol: HTTP3, port: 443 }
+      rules:
+        - match:
+            HTTP:
+              path:
+                prefix: "auth/"
+          action:
+            route:
+              cluster: auth
+        - action:
+            route:
+              cluster: frontend
+  clusters:
+    - name: monitor_responder
+      spec: { protocol: PROMETHEUS }
+    - name: auth
+      spec: { protocol: HTTP, port: 8888 }
+      endpoints:
+        spec: { address: "auth.default.svc.cluster.local" }
+    - name: frontend
+      spec: { protocol: HTTP, port: 80 }
+      endpoints:
+        spec: { address: "nginx.default.svc.cluster.local" }
+#+END_SRC
+
+** Example 2: REST Converter
+
+*** Objective
+
+- push reports (e.g., from an IoT device) received on UDP into the
+  cluster as REST API calls
+- NB: UDP_server support is TODO
+
+*** TODO Pipeline
+
+*** Config
+
+- static config
+#+BEGIN_SRC yaml
+  admin:
+    log_level: info
+    log_file: /tmp/l7mp.log
+    access_log_path: /tmp/admin_access.log
+  listeners:
+    - name: monitor_listener
+      spec: { protocol: HTTP, port: 1235 }
+      rules:
+        - action:
+            route:
+              cluster: monitor_responder
+    - name: udp_listener
+      spec: { protocol: UDP_server, port: 999 }
+      rules:
+        - action:
+            metadata:
+              HTTP:
+                method: POST
+                url:
+                  path: "/topics/jsontest"
+                headers:
+                  content_type: "application/vnd.kafka.json.v2+json"
+            route:
+              cluster: kafka
+              ingress:
+                - http_set
+                - json_encap
+  clusters:
+    - name: monitor_responder
+      protocol: PROMETHEUS
+    - name: kafka_rest
+      spec: { protocol: HTTP, port: 8888 }
+      endpoints:
+        spec: { dest: "auth.default.svc.cluster.local" }
+  transforms:
+    - name: json_encap
+      type: JSON_ENCAP # built-in (datagram-type)
+#+END_SRC
+
+** Example 3: SIP/RTP Media Plane
+
+*** Objective
+
+- process VoIP calls as RTP streams in Kubernetes/Istio
+
+*** Pipeline
+
+:              UNIX/dgram        WS: 8888          UNIX/dgram
+:              ingress:up      transcode:up       egress: down
+:                 A |               A |               A |
+:  +----------+   | |               | |               | |   +------------------+
+:  |          |---+ +---------------+ +---------------+ +-->|                  |
+:  |UDP-l:1234|                                             |UDP-c:1.1.1.1/4321|
+:  |          |<--+ +---------------+ +---------------+ +---|                  |
+:  +----------+   | |               | |               | |   +------------------+
+:                 | V               | V               | V
+:             UNIX/dgram         WS: 8888          UNIX/dgram
+:             egress:down     transcode:down      ingress:down
+
+*** Config
+
+- static config
+#+BEGIN_SRC yaml
+  admin:
+    log_level: debug
+    log_file: stdout
+    access_log_path: /tmp/admin_access.log
+  listeners:
+    - name: controller_listener
+      spec: { protocol: HTTP, port: 1234 }
+      rules:
+        - action:
+            route:
+              cluster: controller   # northbound: predefined INLINE/stream
+    - name: monitor_listener
+      spec: { protocol: HTTP, port: 1235 }
+      rules:
+        - action:
+            route:
+              cluster: monitor_responder   # predefined INLINE/stream
+  clusters:
+    - name: controller
+      spec: { protocol: L7MPController }
+    - name: monitor_responder
+      spec: { protocol: PROMETHEUS }
+    - name: "drop"
+      spec: { protocol: DROP }
+    - name: "ingress:up"
+      spec: { protocol: UNIX }
+      endpoints:
+        - spec: { path: "/tmp/ingress_up.sock" }
+    - name: "egress:up"
+      spec: { protocol: UNIX }
+      endpoints:
+        - spec: { path: "/tmp/egress_up.sock" }
+    - name: "ingress:down"
+      spec: { protocol: UNIX }
+      endpoints:
+        - spec: { path: "/tmp/ingress_down.sock" }
+    - name: "egress:down"
+      spec: { protocol: UNIX }
+      endpoints:
+        - spec: { path: "/tmp//egress_down.sock" }
+    - name: "transcode:up"
+      spec: { protocol: WS, port: 8888 }
+      endpoints:
+        - spec: { address: "transcode1.default.svc.cluster.local" }
+    - name: "transcode:down"
+      spec: { protocol: WS, port: 8888 }
+      endpoints:
+        - spec: { address: "transcode2.default.svc.cluster.local" }
+#+END_SRC
+
+- adding a session: A: 1.2.3.4:5000 -> B: 4.3.2.1:5001
+#+BEGIN_SRC yaml
+  listeners:
+    - name: user_1_2_l
+      spec: { protocol: UDP, port: 5000, range: "1.2.3.4", sourceport: 5000 }
+      rules:
+        - action:
+            route:
+              cluster: user_1_2_c
+              ingress:
+                - "ingress:up"   # demo: manually add a transform
+                - "transcode:up" # automatically creates a transform for cluster
+                - "egress:up"    # automatically creates a transform for cluster
+              egress:
+                - "ingress:down"   # automatically creates a transform for cluster
+                - "transcode:down" # automatically creates a transform for cluster
+                - "egress:down"    # automatically creates a transform for cluster
+  clusters:
+    - name: user_1_2_c
+      spec: { protocol: UDP, port: 5001, connect: {port: 5001} }
+      endpoints:
+        - spec: { address: "4.3.2.1" }
+  transforms:
+    - name: "ingress:up"
+      type: CLUSTER
+      params:
+        cluster: "ingress:up"
+#+END_SRC
+
+** TODO Example 4: Istio
