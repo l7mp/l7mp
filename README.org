@@ -396,7 +396,7 @@
 #+BEGIN_SRC yaml
   listeners:
     - name: user_1_2_l
-      spec: { protocol: UDP, port: 5000, range: "1.2.3.4", sourceport: 5000 }
+      spec: { protocol: UDP, port: 5000, connect: {address: "1.2.3.4", port: 5000} }
       rules:
         - action:
             route:
@@ -411,7 +411,7 @@
                 - "egress:down"    # automatically creates a transform for cluster
   clusters:
     - name: user_1_2_c
-      spec: { protocol: UDP, port: 5001, connect: {port: 5001} }
+      spec: { protocol: UDP, port: 5001, bind: {port: 5001} }
       endpoints:
         - spec: { address: "4.3.2.1" }
   transforms:
