@@ -110,17 +110,22 @@ class HTTPListener extends Listener {
         let metadata = {
             name: name,
             IP: {
-                src_addr: req.socket.address.address,
-                dst_addr: req.socket.address.remoteAddress,
+                src_addr: req.connection.remoteAddress,
+                dst_addr: req.connection.localAddress,
             },
             TCP: {
-                src_port: req.socket.address.port,
-                dst_port: req.socket.address.remotePort,
+                src_port: req.connection.remotePort,
+                dst_port: req.connection.localPort,
             },
             HTTP: {
                 version: req.httpVersion,
                 method:  req.method,
-                url:     query,
+                url:     { protocol: query.protocol || '',
+                           host: query.host || '',
+                           port: query.port || '',
+                           path: query.path || '',
+                           query: query.query || '',
+                         },
                 headers: req.headers,
             },
             status: 'CONNECT',
@@ -131,7 +136,7 @@ class HTTPListener extends Listener {
             stream: miss.duplex(res, req, {objectMode: false})
         };
 
-        let priv = { req: req, res: res };
+        var priv = { req: req, res: res };
         this.emit('connection', metadata, listener, priv);
     }
 
@@ -214,7 +219,7 @@ class WebSocketListener extends Listener {
             stream: duplex
         };
 
-        let priv = { socket: socket, req: req };
+        var priv = { socket: socket, req: req };
         this.emit('connection', metadata, listener, priv);
     }
 
@@ -278,7 +283,7 @@ class UDPSingletonListener extends Listener {
                 dst_addr: this.local_address,
             },
             UDP: {
-                src_port: this.remote_address,
+                src_port: this.remote_port,
                 dst_port: this.local_port,
             },
             status: 'CONNECT',

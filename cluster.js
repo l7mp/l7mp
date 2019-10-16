@@ -260,16 +260,14 @@ class Cluster {
 
         this.endpoints = [];
         if(c.endpoints)
-            c.endpoints.forEach( (e) => {
-                this.endpoints.push( this.addEndPoint(e) );
-            });
+            c.endpoints.forEach( (e) => this.addEndPoint(e) );
     }
 
     toJSON(){
         log.silly('Cluster.toJSON:', `"${this.name}"`);
         return {
             name:         this.name,
-            protocol:     this.protocol,
+            spec:         this.spec,
             type:         this.type,
             endpoints:    this.endpoints,
             loadbalancer: this.loadbalancer || 'none',
@@ -398,6 +396,7 @@ class L7MPControllerCluster extends Cluster {
         var handler = this.api.route(req);
         handler(req, res);
         l7mp.deleteSession(s.name);
+        log.info('L7MPControllerCluster.connect', `Request processed`);
         return Promise.resolve();
     }
 

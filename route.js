@@ -159,8 +159,8 @@ util.inherits(Route, EventEmitter);
 Route.index = 0;
 
 Route.create = (r) => {
-    log.silly("Route.create:",
-              `${r.listener.origin.name} -> ${r.cluster.origin.name}`);
+    log.info("Route.create:",
+             `${r.listener.origin.name} -> ${r.cluster.origin.name}`);
     return new Route(r);
 }
 

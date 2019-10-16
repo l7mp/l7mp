@@ -22,44 +22,51 @@
 
 'use strict';
 
-const log        = require('npmlog');
-const http       = require('http');
-const parser     = require('url');
-const bodyParser = require('body-parser');
+const log          = require('npmlog');
+const http         = require('http');
+const parser       = require('url');
+const jsonBody     = require("body/json");
+const pathToRegexp = require("path-to-regexp");
+
+const json_indent  = 4;
+// for no indentation:
+// const json_indent  = null;
 
 // L7MP REST API def
 class L7mpAPI {
     instantiate(){
         this.get('/api/v1/', (req, res) => {
-            log.silly("L7mp.api.get(/api/v1/)");
+            log.info("L7mp.api.get(/api/v1/)");
             res.writeHead(200, {'Content-Type': 'application/json'});
-            res.write(JSON.stringify(l7mp));
+            res.write(JSON.stringify(l7mp, null, json_indent));
             res.end();
         });
 
         this.get('/api/v1/admin', (req, res) => {
-            log.silly("L7mp.api.get(/api/v1/admin)");
+            log.info("L7mp.api.get(/api/v1/admin)");
             res.writeHead(200, {'Content-Type': 'application/json'});
-            res.write(JSON.stringify(l7mp.admin));
+            res.write(JSON.stringify(l7mp.admin, null, json_indent));
             res.end();
         });
 
         // listeners: create
         this.post('/api/v1/listeners', (req, res) => {
-            log.silly("L7mp.api.post(/api/v1/listeners)");
-            bodyParser.json(req, res, (err) => {
+            log.info("L7mp.api.post(/api/v1/listeners)");
+            jsonBody(req, res, (err, body) => {
                 if (err) {
                     res.statusCode = err.status || 500;
                     res.end(err[req.headers['x-error-property'] ||
                                 'message']);
                 } else {
                     try {
-                        l7mp.addListener(req.body);
+                        // drop root node
+                        body = body['listener'];
+                        l7mp.addListener(body);
                         res.statusCode = 200;
                         res.end('OK');
                     } catch(e) {
                         res.statusCode = 400;
-                        res.end('Error:' + e.msg);
+                        res.end('Error: ' + e.msg);
                     }
                 }
             });
@@ -67,51 +74,133 @@ class L7mpAPI {
 
         // listeners: list
         this.get('/api/v1/listeners', (req, res) => {
-            log.silly("L7mp.api.get(/api/v1/listeners)");
+            log.info("L7mp.api.get(/api/v1/listeners)");
             res.writeHead(200, {'Content-Type': 'application/json'});
-            res.write(JSON.stringify(l7mp.listeners));
+            res.write(JSON.stringify(l7mp.listeners, null, json_indent));
             res.end();
         });
 
         // listeners: query
         this.get('/api/v1/listeners/:name', (req, res) => {
-            log.silly("L7mp.api.get(/api/v1/listeners/:name)");
-            if(req.params && req.params.name){
-                let l = l7mp.getListener(req.params.name);
-                if(l){
-                    res.writeHead(200, {'Content-Type': 'application/json'});
-                    res.write(JSON.stringify(l));
-                    res.end();
-                }
+            log.info("L7mp.api.get(/api/v1/listeners/:name)");
+            let x;
+            if(req.params && req.params.name &&
+               (x = l7mp.getListener(req.params.name))){
+                res.writeHead(200, {'Content-Type': 'application/json'});
+                res.write(JSON.stringify(x, null, json_indent));
+                res.end();
             } else {
                 res.statusCode = 400;
-                res.end('Error:' + 'Unknown Listener');
+                res.end('Error: ' + 'Unknown Listener');
             }
         });
 
+        // clusters: create
+        this.post('/api/v1/clusters', (req, res) => {
+            log.info("L7mp.api.post(/api/v1/clusters)");
+            jsonBody(req, res, (err, body) => {
+                if (err) {
+                    res.statusCode = err.status || 500;
+                    res.end(err[req.headers['x-error-property'] ||
+                                'message']);
+                } else {
+                    try {
+                        // drop root node
+                        body = body['cluster'];
+                        l7mp.addCluster(body);
+                        res.statusCode = 200;
+                        res.end('OK');
+                    } catch(e) {
+                        res.statusCode = 400;
+                        res.end('Error: ' + e.msg);
+                    }
+                }
+            });
+        });
+
+        // listeners: delete
+        this.del('/api/v1/listeners/:name', (req, res) => {
+            log.info("L7mp.api.delete(/api/v1/listeners/:name)");
+            let x;
+            if(req.params && req.params.name &&
+               (x = l7mp.deleteListener(req.params.name))){
+                res.statusCode = 200;
+                res.end('OK');
+            } else {
+                res.statusCode = 400;
+                res.end('Error: ' + `Unknown Listener`);
+            }
+        });
+
+        // clusters: list
         this.get('/api/v1/clusters', (req, res) => {
-            log.silly("L7mp.api.get(/api/v1/clusters)");
+            log.info("L7mp.api.get(/api/v1/clusters)");
             res.writeHead(200, {'Content-Type': 'application/json'});
-            res.write(JSON.stringify(l7mp.clusters));
+            res.write(JSON.stringify(l7mp.clusters, null, json_indent));
             res.end();
         });
 
+        // clusters: query
+        this.get('/api/v1/clusters/:name', (req, res) => {
+            log.info("L7mp.api.get(/api/v1/clusters/:name)");
+            let x;
+            if(req.params && req.params.name &&
+               (x = l7mp.getCluster(req.params.name))){
+                res.writeHead(200, {'Content-Type': 'application/json'});
+                res.write(JSON.stringify(x, null, json_indent));
+                res.end();
+            } else {
+                res.statusCode = 400;
+                res.end('Error: ' + 'Unknown Cluster');
+            }
+        });
+
+        // clusters: delete
+        this.del('/api/v1/clusters/:name', (req, res) => {
+            log.info("L7mp.api.delete(/api/v1/clusters/:name)");
+            let x;
+            if(req.params && req.params.name &&
+               (x = l7mp.deleteCluster(req.params.name))){
+                res.statusCode = 200;
+                res.end('OK');
+            } else {
+                res.statusCode = 400;
+                res.end('Error: ' + `Unknown Cluster`);
+            }
+        });
+
+        // sessions: list
         this.get('/api/v1/sessions', (req, res) => {
-            log.silly("L7mp.api.get(/api/v1/sessions)");
+            log.info("L7mp.api.get(/api/v1/sessions)");
             res.writeHead(200, {'Content-Type': 'application/json'});
-            res.write(JSON.stringify(l7mp.sessions));
+            res.write(JSON.stringify(l7mp.sessions, null, json_indent));
             res.end();
         });
 
+        // sessions: delete
+        this.del('/api/v1/sessions/:name', (req, res) => {
+            log.info("L7mp.api.delete(/api/v1/sessions/:name)");
+            let x;
+            if(req.params && req.params.name &&
+               (x = l7mp.deleteSession(req.params.name))){
+                res.statusCode = 200;
+                res.end('OK');
+            } else {
+                res.statusCode = 400;
+                res.end('Error: ' + `Unknown Session`);
+            }
+        });
+
+        // rules: list
         this.get('/api/v1/rules', (req, res) => {
-            log.silly("L7mp.api.get(/api/v1/rules)");
+            log.info("L7mp.api.get(/api/v1/rules)");
             res.writeHead(200, {'Content-Type': 'application/json'});
-            res.write(JSON.stringify(l7mp.rules));
+            res.write(JSON.stringify(l7mp.rules, null, json_indent));
             res.end();
         });
 
         // this.get('/api/v1/transforms', (req, res) => {
-        //     log.silly("L7mp.api.get(/api/v1/transforms)");
+        //     log.info("L7mp.api.get(/api/v1/transforms)");
         //     res.writeHead(200, {'Content-Type': 'application/json'});
         //     res.write(JSON.stringify(l7mp.transforms));
         //     res.end();
@@ -121,18 +210,42 @@ class L7mpAPI {
     ///////////////////////
 
     constructor(){
-        this.handlers = { get: {}, post: {}, put: {}, del: {} };
+        this.handlers = { get: [], post: [], put: [], 'delete': [] };
         this.instantiate();
     }
 
-    register(method, url, callback) {
-        this.handlers[method.toLowerCase()][url] = callback;
+    register(method, template, _callback) {
+        method = method.toLowerCase();
+        var handlers = this.handlers[method];
+        if(handlers.find( ({def}) => def === template)){
+            log.error('L7api.register', 'Cannot register URI template',
+                      `${method}:${template}: Template already exists`);
+        }
+        let _keys = [];
+        let _regexp = pathToRegexp(template, _keys);
+        handlers.push( { def: template,
+                         keys: _keys,
+                         regexp: _regexp,
+                         callback: _callback } );
     }
 
-    route(req) {
+    route(req, res) {
+        log.silly('l7mp.api:route', `Received request for ${req.url}`);
+        var handler;
+        let method = req.method.toLowerCase();
         let url = parser.parse(req.url, true);
-        var handler = this.handlers[req.method.toLowerCase()][url.pathname];
-        if (!handler) { handler = this.missing(req); }
+        let handlers = this.handlers[method];
+        for(let i = 0; i < handlers.length; i++){
+            let q = handlers[i].regexp.exec(url.pathname);
+            if(q){
+                if(!req.params) req.params = {};
+                for(let j = 0; j < handlers[i].keys.length; j++)
+                    req.params[handlers[i].keys[j].name] = q[j+1]; // curious
+                handler = handlers[i].callback;
+                break;
+            }
+        }
+        if (!handler) { handler = this.missing; }
         return handler;
     }
 
@@ -160,8 +273,8 @@ class L7mpAPI {
 
     missing(req, res){
         res.writeHead(404, {'Content-Type': 'text/plain'});
-        res.write("L7mp.api: No route registered for " + url.pathname);
-        res.close();
+        res.write(`L7mp.api: No route for URI: ${req.method.toUpperCase()}:${req.url}\n`);
+        res.end();
     }
 };
 

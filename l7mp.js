@@ -35,6 +35,8 @@ const Session    = require('./session.js').Session;
 const Rule       = require('./rule.js').Rule;
 const Route      = require('./route.js').Route;
 
+const L7mpAPI    = require('./l7mp-api.js').L7mpAPI;
+
 const hostname   = os.hostname();
 
 global.dump = function dump(o){
@@ -142,7 +144,7 @@ class L7mp {
     }
 
     applyAdmin(admin) {
-        log.silly('L7mp.applyAdmin', dump(admin));
+        log.info('L7mp.applyAdmin', dump(admin));
         log.level = 'log_level' in admin ? admin.log_level : log.level;
         if('log_file' in admin){
             switch(admin.log_file){
@@ -159,7 +161,7 @@ class L7mp {
     }
 
     addListener(l) {
-        log.silly('L7mp.addListener', dump(l));
+        log.info('L7mp.addListener', dump(l));
 
         if(this.getListener(l.name)){
             let e = 'Listener "${l.name}" already defined'
@@ -195,8 +197,17 @@ class L7mp {
         return this.listeners.find( ({name}) => name === n );
     }
 
+    deleteListener(n){
+        log.info('L7mp.deleteListener: TODO: actually delete the listener!');
+        let i = this.listeners.findIndex( ({name}) => name === n);
+        if(i >= 0){
+            this.listeners.splice(i, 1);
+            return 1;
+        }
+    }
+
     addCluster(c) {
-        log.silly('L7mp.addCluster', dump(c));
+        log.info('L7mp.addCluster', dump(c));
 
         if(this.getCluster(c.name)){
             let e = 'Cluster "${c.name}" already defined';
@@ -214,8 +225,17 @@ class L7mp {
         return this.clusters.find( ({name}) => name === n );
     }
 
+    deleteCluster(n){
+        log.info('L7mp.deleteCluster: TODO: actually delete the cluster!');
+        let i = this.clusters.findIndex( ({name}) => name === n);
+        if(i >= 0){
+            this.clusters.splice(i, 1);
+            return 1;
+        }
+    }
+
     addRule(r) {
-        log.silly('L7mp.addRule', dump(r));
+        log.info('L7mp.addRule', dump(r));
 
         if(r.name && this.getRule(r.name)){
             let e = 'Rule "${r.name}" already defined';
@@ -254,7 +274,7 @@ class L7mp {
     }
 
     deleteSession(n){
-        log.silly('L7mp.deleteSession: TODO: actually delete the session!');
+        log.info('L7mp.deleteSession: TODO: actually delete the session!');
         let i = this.sessions.findIndex( ({name}) => name === n);
         if(i >= 0){
             let j = this.routes.findIndex(
@@ -262,6 +282,7 @@ class L7mp {
             if(j>0)
                 this.routes.splice(i, 1);
             this.sessions.splice(i, 1);
+            return 1;
         }
     }
 

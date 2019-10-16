@@ -15,10 +15,11 @@
     "license": "MIT",
     "homepage": "https://github.com/rg0now/l7mp",
     "dependencies": {
-        "body-parser": "^1.19.0",
+        "body": "^5.1.0",
         "jq-web": "^0.5.0",
         "mississippi": "^4.0.0",
         "p-event": "^4.1.0",
+        "path-to-regexp": "^3.1.0",
         "underscore": "^1.9.1",
         "ws": "^7.1.2"
     }

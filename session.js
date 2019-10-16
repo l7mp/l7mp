@@ -46,12 +46,12 @@ const StreamCounter = require('./stream-counter.js').StreamCounter;
 
 class Session {
     constructor(m, l, p){
-        this.metadata      = m;
-        this.name          = m.name;  // id
-        this.listener      = l;
-        this.route         = undefined;
-        this.stats         = { counter: new StreamCounter() };
-        this._priv         = p || {};
+        this.metadata = m;
+        this.name     = m.name;  // id
+        this.listener = l;
+        this.route    = undefined;
+        this.stats    = { counter: new StreamCounter() };
+        this.priv     = p || {};
     }
 
     toJSON(){
