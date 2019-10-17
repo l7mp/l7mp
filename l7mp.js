@@ -202,7 +202,10 @@ class L7mp {
         let i = this.listeners.findIndex( ({name}) => name === n);
         if(i >= 0){
             this.listeners.splice(i, 1);
-            return 1;
+        } else {
+            let e = `Unknown listener "${n}"`;
+            log.warn(`L7mp.deleteListener:`, e );
+            throw new Error(e);
         }
     }
 
@@ -230,7 +233,10 @@ class L7mp {
         let i = this.clusters.findIndex( ({name}) => name === n);
         if(i >= 0){
             this.clusters.splice(i, 1);
-            return 1;
+        } else {
+            let e = `Unknown cluster "${n}"`;
+            log.warn(`L7mp.deleteCluster:`, e );
+            throw new Error(e);
         }
     }
 
@@ -280,10 +286,14 @@ class L7mp {
             let j = this.routes.findIndex(
                 ({name}) => name === this.sessions[i].name);
             if(j>0)
-                this.routes.splice(i, 1);
+                this.routes.splice(j, 1);
             this.sessions.splice(i, 1);
-            return 1;
+            return;
         }
+
+        let e = `Unknown session "${n}"`;
+        log.warn(`L7mp.deleteSession:`, e );
+        throw new Error(e);
     }
 
     getSession(n){

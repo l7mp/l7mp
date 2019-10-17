@@ -11,13 +11,13 @@ components:
       type: object
       properties:
         admin:
-          $ref: '#/definitions/io.l7mp.api.v1.Admin'
+          $ref: '#/components/schemas/io.l7mp.api.v1.Admin'
         listeners:
-          $ref: '#/definitions/io.l7mp.api.v1.ListenerList'
+          $ref: '#/components/schemas/io.l7mp.api.v1.ListenerList'
         clusters:
-          $ref: '#/definitions/io.l7mp.api.v1.ClusterList'
+          $ref: '#/components/schemas/io.l7mp.api.v1.ClusterList'
         sessions:
-          $ref: '#/definitions/io.l7mp.api.v1.SessionList'
+          $ref: '#/components/schemas/io.l7mp.api.v1.SessionList'
       required:
         - admin
         - listeners
@@ -33,7 +33,7 @@ components:
       description: A list of Listener objects.
       type: array
       items:
-        $ref: '#/definitions/io.l7mp.api.v1.Listener'
+        $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
     io.l7mp.api.v1.Cluster:
       description: A socket that originates connections to external services, an abstraction for an "egress port".
       type: object
@@ -41,7 +41,7 @@ components:
       description: A list of Cluster objects.
       type: array
       items:
-        $ref: '#/definitions/io.l7mp.api.v1.Cluster'
+        $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
     io.l7mp.api.v1.Session:
       description: A socket that originates connections to external services, an abstraction for an "egress port".
       type: object
@@ -49,9 +49,18 @@ components:
       description: A list of Session objects.
       type: array
       items:
-        $ref: '#/definitions/io.l7mp.api.v1.Session'
+        $ref: '#/components/schemas/io.l7mp.api.v1.Session'
     io.l7mp.api.v1.Status:
       description: General status info.
+      type: object
+    io.l7mp.api.v1.Error:
+      description: Error info.
+      type: object
+      properties:
+        status:
+          type: integer
+        err:
+          type: string
 paths:
   /api/v1/:
     get:
@@ -59,7 +68,7 @@ paths:
       operationId: getConf
       responses:
         '200':
-          description: OK
+          description: Full configuration
           content:
             'application/json':
               schema:
@@ -71,7 +80,7 @@ paths:
       operationId: getAdmin
       responses:
         '200':
-          description: OK
+          description: Static configuration
           content:
             'application/json':
               schema:
@@ -87,10 +96,17 @@ paths:
               $ref: '#/components/schemas/io.l7mp.api.v1.Admin'
       responses:
         '200':
-          description: OK
-      responses:
+          description: Status
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
         '400':
           description: Invalid configuration
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
   # Listener API
   /api/v1/listeners:
     get:
@@ -114,7 +130,17 @@ paths:
               $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
       responses:
         '200':
-          description: OK
+          description: Status
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+        '400':
+          description: Invalid configuration
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
   /api/v1/listeners/{name}:
     get:
       description: Get a named Listener object
@@ -127,13 +153,17 @@ paths:
             type: string
       responses:
         '200':
-          description: OK
+          description: Status
           content:
             'application/json':
               schema:
-              $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
-        '400'
-          description: Invalid listener
+                $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
+        '400':
+          description: Invalid configuration
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
     delete:
       description: Delete a named Listener object
       operationId: deleteListener
@@ -145,11 +175,17 @@ paths:
             type: string
       responses:
         '200':
-          description: OK
-        '202':
-          description: Accepted
-        '400'
-          description: Invalid listener
+          description: Status
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+        '400':
+          description: Invalid configuration
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
   # Cluster API
   /api/v1/clusters:
     get:
@@ -173,7 +209,17 @@ paths:
               $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
       responses:
         '200':
-          description: OK
+          description: Status
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+        '400':
+          description: Invalid configuration
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
   /api/v1/clusters/{name}:
     get:
       description: Get a named Cluster object
@@ -186,13 +232,17 @@ paths:
             type: string
       responses:
         '200':
-          description: OK
+          description: Status
           content:
             'application/json':
               schema:
-              $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
-        '400'
-          description: Invalid cluster
+                $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
+        '400':
+          description: Invalid configuration
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
     delete:
       description: Delete a named Cluster object
       operationId: deleteCluster
@@ -204,11 +254,17 @@ paths:
             type: string
       responses:
         '200':
-          description: OK
-        '202':
-          description: Accepted
-        '400'
-          description: Invalid cluster
+          description: Status
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+        '400':
+          description: Invalid configuration
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
   # Session API
   /api/v1/sessions:
     get:
@@ -233,13 +289,17 @@ paths:
             type: string
       responses:
         '200':
-          description: OK
+          description: Status
           content:
             'application/json':
               schema:
-              $ref: '#/components/schemas/io.l7mp.api.v1.Session'
-        '400'
-          description: Invalid session
+                $ref: '#/components/schemas/io.l7mp.api.v1.Session'
+        '400':
+          description: Invalid configuration
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
     delete:
       description: Delete a named Session object
       operationId: deleteSession
@@ -251,8 +311,14 @@ paths:
             type: string
       responses:
         '200':
-          description: OK
-        '202':
-          description: Accepted
-        '400'
-          description: Invalid session
+          description: Status
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+        '400':
+          description: Invalid configuration
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Error'

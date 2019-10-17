@@ -18,9 +18,11 @@
         "body": "^5.1.0",
         "jq-web": "^0.5.0",
         "mississippi": "^4.0.0",
+        "openapi-backend": "^2.3.4",
         "p-event": "^4.1.0",
         "path-to-regexp": "^3.1.0",
         "underscore": "^1.9.1",
-        "ws": "^7.1.2"
+        "ws": "^7.1.2",
+        "yamljs": "^0.3.0"
     }
 }

@@ -35,7 +35,9 @@ const pTimeout     = require('p-timeout');
 const pEvent       = require('p-event');
 
 const StreamCounter = require('./stream-counter.js').StreamCounter;
-const L7mpAPI       = require('./l7mp-api.js').L7mpAPI;
+// old-style API
+// const L7mpAPI       = require('./l7mp-api.js').L7mpAPI;
+const L7mpOpenAPI   = require('./l7mp-openapi.js').L7mpOpenAPI;
 const utils         = require('./utils.js');
 
 //------------------------------------
@@ -378,7 +380,7 @@ class L7MPControllerCluster extends Cluster {
             loadbalancer: 'none',
             type:         'session'
         });
-        this.api = new L7mpAPI();
+        this.openapi = new L7mpOpenAPI();
     }
 
     toJSON(){
@@ -393,10 +395,12 @@ class L7MPControllerCluster extends Cluster {
         log.silly('L7MPControllerCluster.connect', `Session: "${s.name}"`);
         var req = s.priv.req;
         var res = s.priv.res;
-        var handler = this.api.route(req);
-        handler(req, res);
-        l7mp.deleteSession(s.name);
+
+        this.openapi.handleRequest(req, res);
+
         log.info('L7MPControllerCluster.connect', `Request processed`);
+
+        l7mp.deleteSession(s.name);
         return Promise.resolve();
     }
 
@@ -404,6 +408,42 @@ class L7MPControllerCluster extends Cluster {
         return Promise.reject('L7MPControllerCluster.stream: Not supported');
     }
 };
+
+// old API bindings
+// class L7MPControllerCluster extends Cluster {
+//     constructor(c) {
+//         super( {
+//             name:         c.name || 'L7MPControllerCluster',
+//             spec:         { protocol: 'L7MPController' },
+//             loadbalancer: 'none',
+//             type:         'session'
+//         });
+//         this.api = new L7mpAPI();
+//     }
+
+//     toJSON(){
+//         log.silly('L7MPControllerCluster.toJSON:', `"${this.name}"`);
+//         return {
+//             name:      this.name,
+//             protocol:  this.protocol
+//         };
+//     }
+
+//     connect(s){
+//         log.silly('L7MPControllerCluster.connect', `Session: "${s.name}"`);
+//         var req = s.priv.req;
+//         var res = s.priv.res;
+//         var handler = this.api.route(req);
+//         handler(req, res);
+//         l7mp.deleteSession(s.name);
+//         log.info('L7MPControllerCluster.connect', `Request processed`);
+//         return Promise.resolve();
+//     }
+
+//     stream(s){
+//         return Promise.reject('L7MPControllerCluster.stream: Not supported');
+//     }
+// };
 
 class StdioCluster extends Cluster {
     constructor(c) {
