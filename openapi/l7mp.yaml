@@ -1,135 +1,258 @@
 # TODO: finish this
-definitions:
-  io.l7mp.api.v1.Listener:
-    description: A socket that listens for incoming connection requests, an abstraction for an "ingress port".
-  io.l7mp.api.v1.ListenerList:
-    description: A list of Listener objects.
-    properties:
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: L7mp control plane API
+  description: A programming interface for controlling L7mp
+components:
+  schemas:
+    io.l7mp.api.v1.Config:
+      description: Full L7mp static and runtime configuration
+      type: object
+      properties:
+        admin:
+          $ref: '#/definitions/io.l7mp.api.v1.Admin'
+        listeners:
+          $ref: '#/definitions/io.l7mp.api.v1.ListenerList'
+        clusters:
+          $ref: '#/definitions/io.l7mp.api.v1.ClusterList'
+        sessions:
+          $ref: '#/definitions/io.l7mp.api.v1.SessionList'
+      required:
+        - admin
+        - listeners
+        - clusters
+        - sessions
+    io.l7mp.api.v1.Admin:
+      description: Static configuration
+      type: object
+    io.l7mp.api.v1.Listener:
+      description: A socket that listens for incoming connection requests, an abstraction for an "ingress port".
+      type: object
+    io.l7mp.api.v1.ListenerList:
+      description: A list of Listener objects.
+      type: array
       items:
-        description: Items is the list of Listeners.
-        items:
-          $ref: '#/definitions/io.l7mp.api.v1.Listener'
-        type: array
-    required:
-    - items
-    type: object
-  io.l7mp.api.v1.Cluster:
-    description: A socket that originates connections to external services, an abstraction for an "egress port".
-  io.l7mp.api.v1.ClusterList:
-    description: A list of Cluster objects.
-    properties:
+        $ref: '#/definitions/io.l7mp.api.v1.Listener'
+    io.l7mp.api.v1.Cluster:
+      description: A socket that originates connections to external services, an abstraction for an "egress port".
+      type: object
+    io.l7mp.api.v1.ClusterList:
+      description: A list of Cluster objects.
+      type: array
       items:
-        description: Items is the list of Clusters.
-        items:
-          $ref: '#/definitions/io.l7mp.api.v1.Cluster'
-        type: array
-    required:
-    - items
-    type: object
-  io.l7mp.api.v1.Session:
-    description: A socket that originates connections to external services, an abstraction for an "egress port".
-  io.l7mp.api.v1.SessionList:
-    description: A list of Session objects.
-    properties:
+        $ref: '#/definitions/io.l7mp.api.v1.Cluster'
+    io.l7mp.api.v1.Session:
+      description: A socket that originates connections to external services, an abstraction for an "egress port".
+      type: object
+    io.l7mp.api.v1.SessionList:
+      description: A list of Session objects.
+      type: array
       items:
-        description: Items is the list of Sessions.
-        items:
-          $ref: '#/definitions/io.l7mp.api.v1.Session'
-        type: array
-    required:
-    - items
-    type: object
-  io.l7mp.api.v1.Status:
-    description: General status info.
+        $ref: '#/definitions/io.l7mp.api.v1.Session'
+    io.l7mp.api.v1.Status:
+      description: General status info.
 paths:
+  /api/v1/:
+    get:
+      description: Get the full configuration
+      operationId: getConf
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Config'
+  # Static config API
+  /api/v1/admin:
+    get:
+      description: Get the static configuration
+      operationId: getAdmin
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Admin'
+    post:
+      description: Apply static configuration
+      operationId: applyAdmin
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/io.l7mp.api.v1.Admin'
+      responses:
+        '200':
+          description: OK
+      responses:
+        '400':
+          description: Invalid configuration
+  # Listener API
   /api/v1/listeners:
     get:
-      consumes:
-      - '*/*'
-      description: list of objects of kind Listener
-      produces:
-      - application/json
-      - application/yaml
+      description: Get a list of Listener objects
+      operationId: getListeners
       responses:
         '200':
           description: OK
-          schema:
-            $ref: '#/definitions/io.l7mp.api.v1.ListenerList'
-        # '401':
-        #   description: Unauthorized
-      schemes:
-      - http
-      tags:
-      - apps_v1
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.ListenerList'
     post:
-      consumes:
-      - '*/*'
-      description: create a Listener
-      parameters:
-      - in: body
-        name: body
+      description: Create a Listener
+      operationId: addListener
+      requestBody:
         required: true
-        schema:
-          $ref: '#/definitions/io.l7mp.api.v1.Listener'
-      produces:
-      - application/json
-      - application/yaml
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
       responses:
         '200':
           description: OK
+  /api/v1/listeners/{name}:
+    get:
+      description: Get a named Listener object
+      operationId: getListener
+      parameters:
+        - name: name
+          in: path
+          required: true
           schema:
-            $ref: '#/definitions/io.l7mp.api.v1.Listener'
-        # '401':
-        #   description: Unauthorized
-      schemes:
-      - http
-      tags:
-      - apps_v1
-  /api/v1/clusters/{name}:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+              $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
+        '400'
+          description: Invalid listener
     delete:
-      consumes:
-      - '*/*'
-      description: delete a Cluster
-      produces:
-      - application/json
-      - application/yaml
+      description: Delete a named Listener object
+      operationId: deleteListener
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: OK
-          schema:
-            $ref: '#/definitions/io.l7mp.api.v1.Status'
         '202':
           description: Accepted
-          schema:
-            $ref: '#/definitions/io.l7mp.api.v1.Status'
-        # '401':
-        #   description: Unauthorized
-      schemes:
-      - http
-      tags:
-      - apps_v1
+        '400'
+          description: Invalid listener
+  # Cluster API
+  /api/v1/clusters:
     get:
-      consumes:
-      - '*/*'
-      description: read the specified Cluster
-      produces:
-      - application/json
-      - application/yaml
+      description: Get a list of Cluster objects
+      operationId: getClusters
       responses:
         '200':
           description: OK
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.ClusterList'
+    post:
+      description: Create a Cluster
+      operationId: addCluster
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
+      responses:
+        '200':
+          description: OK
+  /api/v1/clusters/{name}:
+    get:
+      description: Get a named Cluster object
+      operationId: getCluster
+      parameters:
+        - name: name
+          in: path
+          required: true
           schema:
-            $ref: '#/definitions/io.l7mp.api.v1.Cluster'
-        # '401':
-        #   description: Unauthorized
-      schemes:
-      - http
-      tags:
-      - apps_v1
-    parameters:
-    - description: name of the Cluster
-      in: path
-      name: name
-      required: true
-      type: string
-      uniqueItems: true
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+              $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
+        '400'
+          description: Invalid cluster
+    delete:
+      description: Delete a named Cluster object
+      operationId: deleteCluster
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '202':
+          description: Accepted
+        '400'
+          description: Invalid cluster
+  # Session API
+  /api/v1/sessions:
+    get:
+      description: Get a list of Session objects
+      operationId: getSessions
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.SessionList'
+  /api/v1/sessions/{name}:
+    get:
+      description: Get a named Session object
+      operationId: getSession
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+              $ref: '#/components/schemas/io.l7mp.api.v1.Session'
+        '400'
+          description: Invalid session
+    delete:
+      description: Delete a named Session object
+      operationId: deleteSession
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '202':
+          description: Accepted
+        '400'
+          description: Invalid session

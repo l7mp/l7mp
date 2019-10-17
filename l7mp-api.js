@@ -49,6 +49,14 @@ class L7mpAPI {
             res.end();
         });
 
+        // listeners: list
+        this.get('/api/v1/listeners', (req, res) => {
+            log.info("L7mp.api.get(/api/v1/listeners)");
+            res.writeHead(200, {'Content-Type': 'application/json'});
+            res.write(JSON.stringify(l7mp.listeners, null, json_indent));
+            res.end();
+        });
+
         // listeners: create
         this.post('/api/v1/listeners', (req, res) => {
             log.info("L7mp.api.post(/api/v1/listeners)");
@@ -70,14 +78,6 @@ class L7mpAPI {
                     }
                 }
             });
-        });
-
-        // listeners: list
-        this.get('/api/v1/listeners', (req, res) => {
-            log.info("L7mp.api.get(/api/v1/listeners)");
-            res.writeHead(200, {'Content-Type': 'application/json'});
-            res.write(JSON.stringify(l7mp.listeners, null, json_indent));
-            res.end();
         });
 
         // listeners: query
