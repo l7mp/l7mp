@@ -59,7 +59,7 @@ class L7mp {
     toJSON(){
         log.silly('L7MP.toJSON:', `"${this.name}"`);
         return {
-            admin:      this.admin,
+            admin:      this.getAdmin(),
             listeners:  this.listeners,
             clusters:   this.clusters,
             rules:      this.rules,
@@ -112,17 +112,15 @@ class L7mp {
     }
 
     readConfig(config){
-        this.static_config = config;
-
-        if('admin' in this.static_config){
-            this.applyAdmin(this.static_config.admin);
-        }
+        // may throw
+        this.static_config = JSON.parse(fs.readFileSync(config));
+        this.applyAdmin(this.static_config.admin);
     }
 
     run(){
         // console.dir(config);
         if(!this.static_config)
-            log.error('l7mp.run', 'Set static config first!');
+            log.error('l7mp.run', 'Set static configuration first!');
 
         if('listeners' in this.static_config){
             this.static_config.listeners.forEach(
@@ -145,19 +143,34 @@ class L7mp {
 
     applyAdmin(admin) {
         log.info('L7mp.applyAdmin', dump(admin));
-        log.level = 'log_level' in admin ? admin.log_level : log.level;
+        this.admin.log_level = log.level = 'log_level' in admin ?
+            admin.log_level : log.level;
         if('log_file' in admin){
+            this.admin.log_file = admin.log_file;
             switch(admin.log_file){
-            case 'stdout': this.log_stream = process.stdout; break;
-            case 'stderr': this.log_stream = process.stderr; break;
-            default:
-                this.log_stream = fs.createWriteStream(admin.log_file);
+            case 'stdout':
+                this.admin.log_stream = process.stdout;
                 break;
+            case 'stderr':
+                this.admin.log_stream = process.stderr;
+                break;
+            default:
+                this.admin.log_stream =
+                    fs.createWriteStream(admin.log_file);
             }
         }
         if('access_log_path' in admin){
+            this.admin.access_log_path = admin.access_log_path;
             log.warn('L7mp.applyAdmin: access_log_path', 'TODO');
         }
+    }
+
+    getAdmin(){
+        var admin = { log_level: this.admin.log_level };
+        if(this.admin.log_file) admin.log_file = this.admin.log_file;
+        if(this.admin.access_log_path)
+            admin.access_log_path = this.admin.access_log_path;
+        return admin;
     }
 
     addListener(l) {
@@ -378,13 +391,12 @@ log.on('log.error', (msg) => {
 global.l7mp = new L7mp();
 var config = argv.c;
 try {
-    config = JSON.parse(fs.readFileSync(config));
+    l7mp.readConfig(config);
 } catch(e) {
     log.error(`Could not read static configuration ${config}`, e);
 }
 
 // applies config.admin
-l7mp.readConfig(config);
 
 // override loglevel
 log.level = 'l' in argv ? argv.l : 'silly';

@@ -62,7 +62,7 @@ components:
         err:
           type: string
 paths:
-  /api/v1/:
+  /api/v1/config:
     get:
       description: Get the full configuration
       operationId: getConf

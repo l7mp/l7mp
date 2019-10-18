@@ -58,7 +58,7 @@ class L7mpOpenAPI {
         this.api.registerHandler('getAdmin', (ctx, req, res) => {
             log.info("L7mp.api.getAdmin");
             res.status = 200;
-            res.message = l7mp.admin;
+            res.message = l7mp.getAdmin();
         });
 
         this.api.registerHandler('getListeners', (ctx, req, res) => {
