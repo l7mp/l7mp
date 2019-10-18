@@ -37,7 +37,7 @@ const json_indent  = 4;
 class L7mpOpenAPI {
     constructor(){
         this.api = new OpenAPIBackend({
-            definition: './l7mp-openapi.yaml',
+            definition: './openapi/l7mp-openapi.yaml',
             strict: true,
             // validate: true,
             validate: false,
@@ -239,16 +239,23 @@ class L7mpOpenAPI {
                 case 'application/x-json':
                 case 'text/json':
                 case 'text/x-json':
+                    log.silly('l7mp.openapi: handleRequest',
+                              'Received JSON reuqest');
                     req.body = JSON.parse(body);
                     break;
                 case 'text/yaml':
                 case 'text/x-yaml':
                 case 'application/yaml':
                 case 'application/x-yaml':
+                    log.silly('l7mp.openapi: handleRequest',
+                              'Received YAML reuqest');
                     req.body = YAML.parse(body);
                     break;
                 default:
-                    req.body = '';
+                    let e = 'Unknown content type: ' +
+                        (req.headers['content-type'] || 'N/A');
+                    log.silly('l7mp.openapi: handleRequest', e);
+                    throw new Error(e);
                 }
 
                 await this.api.handleRequest(ctx, req, res);

@@ -35,8 +35,6 @@ const pTimeout     = require('p-timeout');
 const pEvent       = require('p-event');
 
 const StreamCounter = require('./stream-counter.js').StreamCounter;
-// old-style API
-// const L7mpAPI       = require('./l7mp-api.js').L7mpAPI;
 const L7mpOpenAPI   = require('./l7mp-openapi.js').L7mpOpenAPI;
 const utils         = require('./utils.js');
 

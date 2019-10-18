@@ -35,8 +35,6 @@ const Session    = require('./session.js').Session;
 const Rule       = require('./rule.js').Rule;
 const Route      = require('./route.js').Route;
 
-const L7mpAPI    = require('./l7mp-api.js').L7mpAPI;
-
 const hostname   = os.hostname();
 
 global.dump = function dump(o){
