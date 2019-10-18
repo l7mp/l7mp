@@ -252,10 +252,14 @@ class L7mpOpenAPI {
                     req.body = YAML.parse(body);
                     break;
                 default:
-                    let e = 'Unknown content type: ' +
-                        (req.headers['content-type'] || 'N/A');
-                    log.silly('l7mp.openapi: handleRequest', e);
-                    throw new Error(e);
+                    req.body = body;
+                    if(req.method === 'POST' || req.method === 'PUT'){
+                        // we request a known payload
+                        let e = 'Unknown content type: ' +
+                            (req.headers['content-type'] || 'N/A');
+                        log.silly('l7mp.openapi: handleRequest', e);
+                        throw new Error(e);
+                    }
                 }
 
                 await this.api.handleRequest(ctx, req, res);
