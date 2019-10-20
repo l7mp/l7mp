@@ -93,13 +93,15 @@ class L7mp {
         if(s.route.type === 'session'){
             log.warn('L7mp.route', 'TODO: Fully implement session mode');
             await s.route.destination.origin.connect(s);
-            s.metadata.status = 'ESTABLISHED';
+            // s.metadata.status = 'ESTABLISHED';
+            l7mp.deleteSession(s.name);
             return;
         }
 
         s.route.pipeline(s).then(
             // set up event listeners
             (route) => s.setRoute(route),
+            // on error
             (e) => {
                 log.warn('L7mp.route', `${e.message}`);
                 listener.origin.reject(s, e);
@@ -110,6 +112,7 @@ class L7mp {
     }
 
     readConfig(config){
+        log.silly('L7mp.readConfig');
         // may throw
         this.static_config = JSON.parse(fs.readFileSync(config));
         this.applyAdmin(this.static_config.admin);
@@ -120,6 +123,7 @@ class L7mp {
         if(!this.static_config)
             log.error('l7mp.run', 'Set static configuration first!');
 
+        log.silly('L7mp.run');
         if('listeners' in this.static_config){
             this.static_config.listeners.forEach(
                 (l) => this.addListener(l)
@@ -164,6 +168,7 @@ class L7mp {
     }
 
     getAdmin(){
+        log.silly('L7mp.getAdmin');
         var admin = { log_level: this.admin.log_level };
         if(this.admin.log_file) admin.log_file = this.admin.log_file;
         if(this.admin.access_log_path)
@@ -175,7 +180,7 @@ class L7mp {
         log.info('L7mp.addListener', dump(l));
 
         if(this.getListener(l.name)){
-            let e = 'Listener "${l.name}" already defined'
+            let e = `Listener "${l.name}" already defined`;
             log.warn(`L7mp.addListener:`, e );
             throw new Error(e);
         }
@@ -224,7 +229,7 @@ class L7mp {
         log.info('L7mp.addCluster', dump(c));
 
         if(this.getCluster(c.name)){
-            let e = 'Cluster "${c.name}" already defined';
+            let e = `Cluster "${c.name}" already defined`;
             log.warn('L7mp.addCluster', e);
             throw new Error(e);
         }
@@ -255,7 +260,7 @@ class L7mp {
         log.info('L7mp.addRule', dump(r));
 
         if(r.name && this.getRule(r.name)){
-            let e = 'Rule "${r.name}" already defined';
+            let e = `Rule "${r.name}" already defined`;
             log.warn('L7mp.addRule', e);
             throw new Error(e);
         }
@@ -291,20 +296,21 @@ class L7mp {
     }
 
     deleteSession(n){
-        log.info('L7mp.deleteSession: TODO: actually delete the session!');
+        log.info('L7mp.deleteSession:', `"${n}"`,
+                 'TODO: actually delete the session!');
         let i = this.sessions.findIndex( ({name}) => name === n);
-        if(i >= 0){
-            let j = this.routes.findIndex(
-                ({name}) => name === this.sessions[i].name);
-            if(j>0)
-                this.routes.splice(j, 1);
-            this.sessions.splice(i, 1);
-            return;
+        if(i < 0){
+            let e = `Unknown session "${n}"`;
+            log.warn(`L7mp.deleteSession:`, e );
+            throw new Error(e);
         }
 
-        let e = `Unknown session "${n}"`;
-        log.warn(`L7mp.deleteSession:`, e );
-        throw new Error(e);
+         try{
+            this.deleteRoute(this.sessions[i].route.name);
+        } catch(e){
+            log.error('catch', e);
+        }
+        this.sessions.splice(i, 1);
     }
 
     getSession(n){
@@ -330,6 +336,7 @@ class L7mp {
         r.listener = l;
 
         let ro = Route.create(r);
+        log.silly('L7mp.addRoute:', `${ro.name} created`);
 
         for(let dir of ['ingress', 'egress']){
             if(!r[dir]) continue;
@@ -351,6 +358,22 @@ class L7mp {
         return ro;
     }
 
+    getRoute(n){
+        log.silly('L7mp.getRoute:', n);
+        return this.routes.find( ({name}) => name === n );
+    }
+
+    // internal, not to be called from the API
+    deleteRoute(n){
+        log.silly('L7mp.deleteRoute:', n);
+        let i = this.routes.findIndex(({name}) => name === n);
+        if(i >= 0){
+            this.routes[i].end();
+            this.routes.splice(i, 1);
+            return;
+        }
+    }
+
     checkRoute(r, to){
         // incompatible: session with everyting: this is an error
         if(r.type === 'session' && to.type !== 'session')
@@ -364,11 +387,6 @@ class L7mp {
                      'Can no longer enforce datagam boundaries');
             r.type = 'stream';
         }
-    }
-
-    deleteRoute(n){
-        log.warn('L7mp.deleteRoute:', 'Internel error: deleteRoute is ',
-                 'implicit with deleteSession');
     }
 
 };

@@ -85,7 +85,7 @@ class L7mpOpenAPI {
                 let result = l7mp.addListener(req.body.listener);
                 res.status = 200;
                 res.message = { status: 200, err: 'OK' };
-            } catch(e){
+            } catch(e) {
                 res.status = 400;
                 res.message = { status: 400, err: e.msg };
             }
@@ -98,7 +98,7 @@ class L7mpOpenAPI {
                     l7mp.deleteListener(ctx.request.params.name);
                 res.status = 200;
                 res.message = { status: 200, err: 'OK' };
-            } catch(e){
+            } catch(e) {
                 res.status = 400;
                 res.message = { status: 400, err: e.msg };
             }
@@ -128,7 +128,7 @@ class L7mpOpenAPI {
                 let result = l7mp.addCluster(req.body.cluster);
                 res.status = 200;
                 res.message = { status: 200, err: 'OK' };
-            } catch(e){
+            } catch(e) {
                 res.status = 400;
                 res.message = { status: 400, err: e.msg };
             }
@@ -141,7 +141,7 @@ class L7mpOpenAPI {
                     l7mp.deleteCluster(ctx.request.params.name);
                 res.status = 200;
                 res.message = { status: 200, err: 'OK' };
-            } catch(e){
+            } catch(e) {
                 res.status = 400;
                 res.message = { status: 400, err: e.msg };
             }
@@ -168,13 +168,13 @@ class L7mpOpenAPI {
         this.api.registerHandler('deleteSession', (ctx, req, res) => {
             log.info("L7mp.api.deleteSession");
             try {
-                let result =
-                    l7mp.deleteSession(ctx.request.params.name);
+                l7mp.deleteSession(ctx.request.params.name);
                 res.status = 200;
                 res.message = { status: 200, err: 'OK' };
-            } catch(e){
+            } catch(e) {
                 res.status = 400;
-                res.message = { status: 400, err: e.msg };
+                res.message = { status: 400,
+                                err: e.msg ? e.msg : e };
             }
         });
 
@@ -264,7 +264,7 @@ class L7mpOpenAPI {
 
                 await this.api.handleRequest(ctx, req, res);
 
-            } catch(e){
+            } catch(e) {
                 res.writeHead(500,
                               {'Content-Type': 'application/json'});
                 res.end(JSON.stringify( {

@@ -204,21 +204,37 @@ class UDPEndPoint extends EndPoint {
         var socket = udp.createSocket({type: 'udp4', reuseAddr: true});
         this.socket = socket;
 
-        // connect: added in 12.0, need to mimic this with send in older node-js
-        // socket.connect(this.port, this.address);  // will emit 'error' if unsuccessfull
-        log.info('UDPCluster:',
-                 `"${this.name}" Cannot "connect" socket, using direct sendto!`);
+        // for old node.js
+        // // connect: added in 12.0, need to mimic this with send in
+        // // older node-js socket.connect(this.port, this.address);
+        // // will emit 'error' if unsuccessfull
+        // log.info('UDPCluster:',
+        //          `"${this.name}" Cannot "connect" socket,`,
+        //          `using direct sendto!`);
 
-        socket.bind(
-            {
-                port: this.local_port,
-                address: this.local_address,
-                exclusive: false
-            },
-            // re-emit as 'open', otherwise we lose the socket in pEvent
-            () => socket.emit('open', socket, this.remote_address
-                              , this.remote_port)
-        );
+        socket.bind({
+            port: this.local_port,
+            address: this.local_address,
+            exclusive: false
+        }, () => {
+            log.silly('UDPCluster:',
+                      `"${this.name}" bound to ${this.local_address}:` +
+                      `${this.local_port}`)
+
+            socket.connect(this.remote_port, this.remote_addesss,
+                           () => {
+                               log.info('UDPEndPoint:',
+                                        `"${this.name}" connected`,
+                                        `for ${this.remote_address}:`+
+                                        `${this.remote_port} on`,
+                                        `${this.local_address}:`+
+                                        `${this.local_port}`);
+
+                               // re-emit as 'open', otherwise we lose
+                               // the socket in pEvent
+                               socket.emit('open', socket);
+                           });
+        });
 
         return socket;
     }
@@ -358,14 +374,14 @@ class UDPCluster extends Cluster {
         return this.connect(s).then( (args) => {
             // multiArg!
             var socket = args[0];
-            var remote_address = args[1];
-            var remote_port    = args[2];
-            log.silly('UDPCluster.stream:', `Connecting to`,
-                      `${remote_address}:${remote_port}`);
-            return utils.socket2dgramstream(socket, {
-                address: remote_address,
-                port: remote_port
-            })
+            // var remote_address = args[1];
+            // var remote_port    = args[2];
+
+            this.stream = new utils.DgramStream(socket);
+
+            log.silly('UDPCluster.stream:', `Created`);
+
+            return this.stream;
         });
     }
 };
@@ -396,9 +412,8 @@ class L7MPControllerCluster extends Cluster {
 
         this.openapi.handleRequest(req, res);
 
-        log.info('L7MPControllerCluster.connect', `Request processed`);
+        log.silly('L7MPControllerCluster.connect', `Request processed`);
 
-        l7mp.deleteSession(s.name);
         return Promise.resolve();
     }
 

@@ -247,25 +247,43 @@ class UDPSingletonListener extends Listener {
         this.remote_port    = this.spec.connect.port;
 
         var socket = udp.createSocket({type: 'udp4', reuseAddr: true});
+
+        socket.once('listening', () => {
+            setImmediate(() => {
+                socket.emit('listening');
+            })});
+
         socket.on('error', (e) => {
             log.warn('UDPSingletonListener.new: Error:', e);
             return;
         });
 
-        socket.bind({ port: this.local_port,
-                      address: this.local_address,
-                      exclusive: false });
+        socket.bind({
+            port: this.local_port,
+            address: this.local_address,
+            exclusive: false
+        }, () => {
+            log.silly('UDPListener:',
+                      `"${this.name}" bound to ${this.local_address}:` +
+                      `${this.local_port}`)
 
-        this.socket = utils.socket2dgramstream(socket, {
-            address: this.remote_address,
-            port: this.remote_port
+            socket.connect(this.remote_port, this.remote_addesss,
+                           () => {
+                               log.info('UDPSingletonListener:',
+                                        `"${this.name}" connected`,
+                                        `for ${this.remote_address}:`+
+                                        `${this.remote_port} on`,
+                                        `${this.local_address}:`+
+                                        `${this.local_port}`);
+
+                               this.socket = socket;
+                               this.stream =
+                                   new utils.DgramStream(socket);
+
+                               this.stream.once('listening', () =>
+                                                this.onRequest());
+                           });
         });
-
-        log.info('UDPSingletonListener:', `"${this.name}" running`,
-                 `for ${this.remote_address}:${this.remote_port} on`,
-                 `${this.local_address}:${this.local_port}`);
-
-        this.socket.on('listening', () => this.onRequest());
     }
 
     onRequest(){
@@ -291,7 +309,7 @@ class UDPSingletonListener extends Listener {
 
         let listener = {
             origin: this,
-            stream: this.socket,
+            stream: this.stream,
         };
 
         this.emit('connection', metadata, listener);

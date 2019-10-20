@@ -76,15 +76,15 @@ class Session {
 
     onClose(o, s){
         log.info('Session.onClose',
-                 `TODO: Close event on session "${this.name}" from `,
-                 `origin: ${o.name}`);
+                 `TODO: Close event on session "${this.name}"`);
+        //  from`, `origin: ${o.name}`);
         this.metadata.status = 'DISCONNECT';
     }
 
     onError(e, o, s){
         log.info('Session.onError',
-                 `TODO: Error event on session "${this.name}" from `,
-                 `origin: ${o.name}: ${e}`);
+                 `TODO: Error event on session "${this.name}"`);
+        //from`, `origin: ${o.name}: ${e}`);
         this.metadata.status = 'DISCONNECT';
     }
 };

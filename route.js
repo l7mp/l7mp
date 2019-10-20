@@ -143,16 +143,42 @@ class Route {
     pipeline_finish(source, dest, chain, dir){
         var from = source;
         chain.forEach( (to) => {
-            from.stream.pipe(to.stream);
             log.silly("Route.pipeline:", `${dir} pipe:`,
                       `${from.origin.name} ->`,
                       `${to.origin.name}`);
+            from.stream.pipe(to.stream);
             from = to;
         });
-        from.stream.pipe(dest.stream);
         log.silly("Route.pipeline:", `${dir} pipe:`,
                   `${from.origin.name} ->`,
                   `${dest.origin.name}`);
+        from.stream.pipe(dest.stream);
+    }
+
+    all_streams(){
+        let streams = [];
+        if(this.source.stream)
+            streams.push(this.source.stream);
+        if(this.destination && this.destination.stream)
+            streams.push(this.destination.stream);
+        for(let dir of ['ingress', 'egress'])
+            if(this.chain && this.chain[dir])
+                this.chain[dir].forEach( (e) => {
+                    if(e.stream)
+                        streams.push(e.stream);
+                });
+        return streams;
+    }
+
+    end(){
+        if(this.type === 'session')
+            return;
+        let queue = this.all_streams();
+        log.silly('Route.destroy:', `${this.name}:`,
+                  `deleting ${queue.length} streams`);
+        queue.forEach( (s) => {
+            s.end();
+        });
     }
 };
 util.inherits(Route, EventEmitter);
