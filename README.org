@@ -165,7 +165,7 @@
 | UDP-singleton | IP 5-tuple        | datagram         | l/c/t | singleton | no/yes/yes  |
 | UDP-server    | IP 5-tuple        | datagram         | l     | server    | no/yes/yes  |
 | TCP           | IP 5-tuple        | stream           | l/c/t | server    | yes/yes/yes |
-| HTTP          | IP 5-tuple + HTTP | stream/session   | l/c/t | server    | yes/yes/yes |
+| HTTP          | IP 5-tuple        | session          | l/c/t | server    | yes/yes/yes |
 | WS            | IP 5-tuple + HTTP | datagram         | l/c/t | server    | yes/yes/yes |
 | STDIO         | N/A               | stream/session   | t     | singleton | no/no/no    |
 | UNIX/stream   | file desc/path    | stream           | l/c/t | server    | no/no/no    |
