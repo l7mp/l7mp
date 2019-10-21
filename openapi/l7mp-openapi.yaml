@@ -26,9 +26,118 @@ components:
     io.l7mp.api.v1.Admin:
       description: Static configuration
       type: object
+      properties:
+        log_level:
+          type: string
+          description: Log verbosity, one of, from the most talkative, "silly", "verbose", "info", "notice", "warn", "error", and "silent" (not recommended). Default is "info".
+        log_file:
+          type: string
+          description: File to write log messages to. Default is "stderr".
+        access_log_path:
+          type: string
+          description: Access log (currently unimplemented).
     io.l7mp.api.v1.Listener:
       description: A socket that listens for incoming connection requests, an abstraction for an "ingress port".
       type: object
+      required:
+        - name
+        - spec
+        - rules
+      properties:
+        name:
+          type: string
+        spec:
+          oneOf:
+            - $ref: '#/components/schemas/io.l7mp.api.v1.HTTPListenerSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.UDPSingletonListenerSpec'
+        rules:
+          $ref: '#/components/schemas/io.l7mp.api.v1.RuleList'
+    io.l7mp.api.v1.HTTPListenerSpec:
+      description: 'A HTTP server specification that accepts HTTP requests at a specified port.
+      - protocol: HTTP
+      - session ID: IP 5-tuple
+      - type: session
+      - mode: server
+      '
+      type: object
+      required:
+        - protocol
+        - port
+      properties:
+        protocol:
+          enum:  # fixed value
+            - HTTP
+          description: The protocol, must be "HTTP".
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          description: The local port on which the server accepts connection requests.
+        path:
+          type: string
+          description: HTTP URL for to serve.
+    io.l7mp.api.v1.WebSocketListenerSpec:
+      description: 'A WebSocket server specification that accepts HTTP/WebSocket requests at a specified port.
+      - protocol: WebSocket
+      - session ID: IP 5-tuple
+      - type: datagram
+      - mode: server
+      '
+      type: object
+      required:
+        - protocol
+        - port
+      properties:
+        protocol:
+          enum:  # fixed value
+            - WebSocket
+          description: The protocol, must be "WebSocket".
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          description: The local port on which the server accepts connection requests.
+        path:
+          type: string
+          description: HTTP URL for to serve.
+    io.l7mp.api.v1.UDPSingletonListenerSpec:
+      description: 'A connected UDP listener that accepts UDP datagrams from a specified remote address-port pair.
+      - protocol: UDP
+      - session ID: IP 5-tuple
+      - type: datagram
+      - mode: singleton
+      '
+      type: object
+      required:
+        - protocol
+        - port
+        - connect
+      properties:
+        protocol:
+          description: The protocol, must be "UDP".
+          enum:  # fixed value
+            - UDP
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          description: The local port on which the server accepts connection requests.
+        connect:
+          type: object
+          description: Remote address-port pair to connect to.
+          required:
+            - address
+            - port
+          properties:
+            address:
+              description: Remote address to connect to.
+              type: string
+            port:
+              description: Remote port to connect to.
+              type: integer
+              minimum: 1
+              maximum: 65535
     io.l7mp.api.v1.ListenerList:
       description: A list of Listener objects.
       type: array
@@ -50,6 +159,14 @@ components:
       type: array
       items:
         $ref: '#/components/schemas/io.l7mp.api.v1.Session'
+    io.l7mp.api.v1.Rule:
+      description: A math-action rule that defines the route of a connection through the L7mp pipeline.
+      type: object
+    io.l7mp.api.v1.RuleList:
+      description: A list of Rule objects.
+      type: array
+      items:
+        $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
     io.l7mp.api.v1.Status:
       description: General status info.
       type: object
@@ -62,6 +179,7 @@ components:
         err:
           type: string
 paths:
+  # Full config API
   /api/v1/config:
     get:
       description: Get the full configuration
@@ -73,6 +191,28 @@ paths:
             'application/json':
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Config'
+    post:
+      description: Reload configuration.
+      operationId: setConf
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/io.l7mp.api.v1.Config'
+      responses:
+        '200':
+          description: Status
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+        '400':
+          description: Invalid configuration
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
   # Static config API
   /api/v1/admin:
     get:
