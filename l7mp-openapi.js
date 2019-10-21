@@ -55,6 +55,19 @@ class L7mpOpenAPI {
             res.message = l7mp;
         });
 
+        this.api.registerHandler('setConf', (ctx, req, res) => {
+            log.info("L7mp.api.setConf");
+            try {
+                l7mp.static_config = req.body.config;
+                let result = l7mp.run();
+                res.status = 200;
+                res.message = { status: 200, err: 'OK' };
+            } catch(e) {
+                res.status = 400;
+                res.message = { status: 400, err: e.msg };
+            }
+        });
+
         this.api.registerHandler('getAdmin', (ctx, req, res) => {
             log.info("L7mp.api.getAdmin");
             res.status = 200;

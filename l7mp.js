@@ -119,10 +119,6 @@ class L7mp {
     }
 
     run(){
-        // console.dir(config);
-        if(!this.static_config)
-            log.error('l7mp.run', 'Set static configuration first!');
-
         log.silly('L7mp.run');
         if('listeners' in this.static_config){
             this.static_config.listeners.forEach(
@@ -398,7 +394,7 @@ if(!('c' in argv)){
     process.exit(1);
 }
 
-log.stream = process.stdout;
+log.stream = process.stderr;
 log.on('log.error', (msg) => {
     console.error(`Error: ${msg.prefix}: ${msg.message}`);
     process.exit(1);
@@ -416,5 +412,8 @@ try {
 
 // override loglevel
 log.level = 'l' in argv ? argv.l : 'silly';
+
+if(!l7mp.static_config)
+    log.error('No static configuration found');
 
 l7mp.run();
