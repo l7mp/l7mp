@@ -197,6 +197,8 @@ As per the =retries= setting in the route, L7mp will automatically
 retry the connection at most 200 times, waiting each time 1000 ms for
 the stream to be successfully established.
 
+** Test the connection
+
 To complete the connection, fire up a
 [[https://github.com/vi/websocat][websocat]] echo server on
 =localhost:8080=:
@@ -204,8 +206,6 @@ To complete the connection, fire up a
 #+BEGIN_SRC sh
 websocat -v -v -v -v -v ws-l:0.0.0.0:8080 mirror:
 #+END_SRC
-
-** Test the connection
 
 Start a =socat= sender (don't forget to bind the sender to 5555,
 otherwise L7mp, which connects back to this port, will not accept the
@@ -314,8 +314,9 @@ other way around (warn!)
 
 * Documentation
 
-- [[API model][openapi/README.md]] and the [[http://htmlpreview.github.com/?https://github.com/rg0now/l7mp/blob/master/openapi/index.html][REST API endpoints]]
-- Main concepts
+- [[https://github.com/rg0now/l7mp/blob/master/openapi/README.md][API model]] and the REST API
+  [[https://github.com/rg0now/l7mp/blob/master/openapi/index.html][endpoints]]
+- Main [[https://github.com/rg0now/l7mp/blob/master/openapi/README.md][concepts]]
 
 
 * Examples
