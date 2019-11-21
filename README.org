@@ -163,11 +163,11 @@ On session creation, L7mp will demultiplex the bidirectional stream at
 the listener into two uni-directional streams: the /ingress stream/
 (in the direction from the listener to the cluster) will be routed
 through the WebSocket cluster =up=, which may then readily transform
-the stream and send the results back, which will then be piped to the
-cluster =user-1-2-c=.  In the /egress direction/ (from the cluster
-back to the listener), not transformation occurs.  The ingress and the
-egress routes are specified and handled separately, and both can
-contain an arbitrary number of Transform clusters.
+the stream and send the results back.  The returned stream is then
+piped to the cluster =user-1-2-c=.  In the /egress direction/ (from
+the cluster back to the listener), not transformation occurs.  The
+ingress and the egress routes are specified and handled separately,
+and both can contain an arbitrary number of Transform clusters.
 
 ** Retries and timeouts
 
