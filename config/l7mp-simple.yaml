@@ -32,7 +32,7 @@ clusters:
     endpoints:
       - spec: { address:  "127.0.0.1" }
   - name: controller
-    spec: { protocol: L7MPController }
+    spec: { protocol: L7mpController }
   - name: stdio
     spec: { protocol: "Stdio" }
   - name: udp-cluster

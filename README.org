@@ -11,23 +11,16 @@
 
 * Objective
 
-- L7mp is a programmable L7 meta-proxy, an application-layer
-  equivalent of a "programmable L2/L3 switch":
-  - "L7", because the main unit of traffic is individual
-    transport-layer or application-layer connections (called
-    "sessions" in the context of L7mp);
-  - "meta", because new protocols may be defined on top of the
-    existing ones and instantiated dynamically using a standard
-    control-plane interface,
-  - "proxy", because the main objective is to connect
-    application-level traffic streams between sockets in a
-    protocol-agnostic manner (i.e., you can pipe the datagram-stream
-    from a UNIX domain socket to a WebSocket stream transparently to
-    the application layer),
-  - and programmable, because L7mp exposes a RESTful API to the
-    control plane that can be used to set up, manage, and tear-down
-    streams dynamically, or even to modify the route of "live"
-    data-plane streams.
+- L7mp is a media-plane service proxy optimized for persistent,
+  long-lived L4-L7 streams
+  - "L7": the main unit of traffic is transport/application-layer
+    connections/sessions
+  - "meta": new protocols may be defined on top of the existing ones
+  - "proxy": connect application-level traffic streams in a
+    protocol-agnostic manner (you can pipe a UNIX domain socket to a
+    WebSocket stream transparently)
+  - "programmable": exposes a RESTful API to the control plane to
+    query, manage, or modify data-plane streams
 - below we sketch the main abstractions and the semantics for L7mp
   (like "match-action" or "dataflow graph" for L2/L3)
 

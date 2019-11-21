@@ -1,9 +1,13 @@
-# TODO: finish this
 openapi: 3.0.0
+
 info:
   version: 1.0.0
   title: L7mp control plane API
   description: A programming interface for controlling L7mp
+
+servers:
+  - url: '/io.l7mp.api.v1'
+
 components:
   schemas:
     io.l7mp.api.v1.Config:
@@ -13,16 +17,25 @@ components:
         admin:
           $ref: '#/components/schemas/io.l7mp.api.v1.Admin'
         listeners:
-          $ref: '#/components/schemas/io.l7mp.api.v1.ListenerList'
+          description: A list of Listener objects.
+          type: array
+          items:
+            $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
         clusters:
-          $ref: '#/components/schemas/io.l7mp.api.v1.ClusterList'
+          description: A list of Cluster objects.
+          type: array
+          items:
+            $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
         sessions:
-          $ref: '#/components/schemas/io.l7mp.api.v1.SessionList'
+          description: A list of Session objects.
+          type: array
+          items:
+            $ref: '#/components/schemas/io.l7mp.api.v1.Session'
       required:
         - admin
         - listeners
         - clusters
-        - sessions
+
     io.l7mp.api.v1.Admin:
       description: Static configuration
       type: object
@@ -36,6 +49,7 @@ components:
         access_log_path:
           type: string
           description: Access log (currently unimplemented).
+
     io.l7mp.api.v1.Listener:
       description: A socket that listens for incoming connection requests, an abstraction for an "ingress port".
       type: object
@@ -45,69 +59,73 @@ components:
         - rules
       properties:
         name:
+          description: Name (required).
           type: string
         spec:
+          description: Listener specification (required).
           oneOf:
             - $ref: '#/components/schemas/io.l7mp.api.v1.HTTPListenerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.UDPSingletonListenerSpec'
         rules:
-          $ref: '#/components/schemas/io.l7mp.api.v1.RuleList'
+          description: A list of Rule objects (required).
+          type: array
+          items:
+            $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+
     io.l7mp.api.v1.HTTPListenerSpec:
-      description: 'A HTTP server specification that accepts HTTP requests at a specified port.
-      - protocol: HTTP
-      - session ID: IP 5-tuple
-      - type: session
-      - mode: server
-      '
+      description: |
+        A HTTP server specification that accepts HTTP requests at a specified port.
+        - protocol: HTTP
+        - session ID: IP 5-tuple
+        - type: session
+        - mode: server
       type: object
       required:
         - protocol
         - port
       properties:
         protocol:
+          type: string
           enum:  # fixed value
             - HTTP
           description: The protocol, must be "HTTP".
         port:
-          type: integer
-          minimum: 1
-          maximum: 65535
-          description: The local port on which the server accepts connection requests.
+          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
         path:
           type: string
-          description: HTTP URL for to serve.
+          description: HTTP URL to serve.
+
     io.l7mp.api.v1.WebSocketListenerSpec:
-      description: 'A WebSocket server specification that accepts HTTP/WebSocket requests at a specified port.
-      - protocol: WebSocket
-      - session ID: IP 5-tuple
-      - type: datagram
-      - mode: server
-      '
+      description: |
+        A WebSocket server specification that accepts HTTP/WebSocket requests at a specified port.
+        - protocol: WebSocket
+        - session ID: IP 5-tuple
+        - type: datagram
+        - mode: server
       type: object
       required:
         - protocol
         - port
       properties:
         protocol:
+          type: string
           enum:  # fixed value
             - WebSocket
           description: The protocol, must be "WebSocket".
         port:
-          type: integer
-          minimum: 1
-          maximum: 65535
-          description: The local port on which the server accepts connection requests.
+          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
         path:
           type: string
           description: HTTP URL for to serve.
+
     io.l7mp.api.v1.UDPSingletonListenerSpec:
-      description: 'A connected UDP listener that accepts UDP datagrams from a specified remote address-port pair.
-      - protocol: UDP
-      - session ID: IP 5-tuple
-      - type: datagram
-      - mode: singleton
-      '
+      description: |
+        A connected UDP listener that accepts UDP datagrams from a specified remote address-port pair.
+        - protocol: UDP
+        - session ID: IP 5-tuple
+        - type: datagram
+        - mode: singleton
       type: object
       required:
         - protocol
@@ -116,60 +134,187 @@ components:
       properties:
         protocol:
           description: The protocol, must be "UDP".
+          type: string
           enum:  # fixed value
             - UDP
         port:
-          type: integer
-          minimum: 1
-          maximum: 65535
-          description: The local port on which the server accepts connection requests.
+          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
         connect:
-          type: object
-          description: Remote address-port pair to connect to.
-          required:
-            - address
-            - port
-          properties:
-            address:
-              description: Remote address to connect to.
-              type: string
-            port:
-              description: Remote port to connect to.
-              type: integer
-              minimum: 1
-              maximum: 65535
-    io.l7mp.api.v1.ListenerList:
-      description: A list of Listener objects.
-      type: array
-      items:
-        $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
+          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.AddressPortPair'
+
     io.l7mp.api.v1.Cluster:
       description: A socket that originates connections to external services, an abstraction for an "egress port".
       type: object
-    io.l7mp.api.v1.ClusterList:
-      description: A list of Cluster objects.
-      type: array
-      items:
-        $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
+      required:
+        - name
+        - spec
+      properties:
+        name:
+          type: string
+        spec:
+          oneOf:
+            - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.UDPSingletonClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.L7mpControllerSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
+        endpoints:
+          description: A list of EndPoint objects.
+          type: array
+          items:
+            $ref: '#/components/schemas/io.l7mp.api.v1.EndPoint'
+
+    io.l7mp.api.v1.WebSocketClusterSpec:
+      description: A WebSocket cluster specification that forwards HTTP/WebSocket connections to an upstream cluster.
+      type: object
+      required:
+        - protocol
+        - port
+      properties:
+        protocol:
+          type: string
+          enum:  # fixed value
+            - WebSocket
+          description: The protocol, must be "WebSocket".
+        port:
+          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
+
+    io.l7mp.api.v1.UDPSingletonClusterSpec:
+      description: A UDP sender socket that forwards UDP connections to an upstream cluster, connecting to a well-defined remote address-port pair.
+      type: object
+      required:
+        - protocol
+        - port
+      properties:
+        protocol:
+          description: The protocol, must be "UDP".
+          type: string
+          enum:  # fixed value
+            - UDP
+        port:
+          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
+        bind:
+          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.AddressPortPair'
+
+    io.l7mp.api.v1.L7mpControllerSpec:
+      description: A virtual cluster that accepts L7mp controller REST API calls.
+      type: object
+      required:
+        - protocol
+      properties:
+        protocol:
+          description: The protocol, must be "L7mpController".
+          type: string
+          enum:  # fixed value
+            - L7mpController
+
+    io.l7mp.api.v1.StdioClusterSpec:
+      description: A virtual cluster that writes the stream routed to it to the proxy standard output and pipes back standard input into the stream. Useful for debugging.
+      type: object
+      required:
+        - protocol
+      properties:
+        protocol:
+          description: The protocol, must be "stdio".
+          type: string
+          enum:  # fixed value
+            - stdio
+
     io.l7mp.api.v1.Session:
       description: A socket that originates connections to external services, an abstraction for an "egress port".
       type: object
-    io.l7mp.api.v1.SessionList:
-      description: A list of Session objects.
-      type: array
-      items:
-        $ref: '#/components/schemas/io.l7mp.api.v1.Session'
+
+    io.l7mp.api.v1.EndPoint:
+      description: A particular upstream backend that accepts connects through a Cluster.
+      type: object
+      required:
+        - spec
+      properties:
+        name:
+          description: Name (optional, a unique endpoint name will be assigned automatically if not specified.)
+          type: string
+        spec:
+          oneOf:
+            - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketEndPointSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.UDPSingletonEndPointSpec'
+
+    io.l7mp.api.v1.WebSocketEndPointSpec:
+      description: A WebSocket endpoint specification.
+      type: object
+      required:
+        - address
+      properties:
+        address:
+          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
+
+    io.l7mp.api.v1.UDPSingletonEndPointSpec:
+      description: A UDP endpoint specification.
+      type: object
+      required:
+        - address
+      properties:
+        address:
+          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
+
+    io.l7mp.api.v1.Route:
+      description: The route to be assigned to a session in a math-action rule.
+      type: object
+      required:
+        - cluster
+      properties:
+        cluster:
+          description: The "destination" cluster of the route (required).
+          type: string
+        ingress:
+          description: The set of transforms to be applied in the "ingress" (upstream, from the listener to the cluster) direction (optional).
+          type: array
+          items:
+            description: A transformer cluster.
+            type: string
+        egress:
+          description: The set of transforms to be applied in the "eress" (downstream, from the cluster to the listener) direction (optional).
+          type: array
+          items:
+            description: A transformer cluster.
+            type: string
+
+    io.l7mp.api.v1.Match:
+      description: The "filter" part of a math-action rule that filters on session metadata.
+      type: object
+
+    io.l7mp.api.v1.Action:
+      description: The "action" part of a math-action rule that assigns a route to the matched sessions.
+      type: object
+      required:
+        - route
+      properties:
+        metadata:
+          description: JSON query for manipulating session metadata (optional).
+          type: object
+        route:
+          $ref: '#/components/schemas/io.l7mp.api.v1.Route'
+
     io.l7mp.api.v1.Rule:
       description: A math-action rule that defines the route of a connection through the L7mp pipeline.
       type: object
-    io.l7mp.api.v1.RuleList:
-      description: A list of Rule objects.
-      type: array
-      items:
-        $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+      required:
+        - action
+      properties:
+        match:
+          $ref: '#/components/schemas/io.l7mp.api.v1.Match'
+        action:
+          $ref: '#/components/schemas/io.l7mp.api.v1.Action'
+
     io.l7mp.api.v1.Status:
       description: General status info.
       type: object
+      properties:
+        status:
+          description: Status code.
+          type: integer
+        error:
+          description: Error.
+          type: string
+
     io.l7mp.api.v1.Error:
       description: Error info.
       type: object
@@ -178,6 +323,29 @@ components:
           type: integer
         err:
           type: string
+
+    io.l7mp.api.v1.Parameter.Address:
+      description: A network layer (IP/IPv6) address or domain name.
+      type: string
+
+    io.l7mp.api.v1.Parameter.Port:
+      description: The valid transport protocol port.
+      type: integer
+      minimum: 1
+      maximum: 65535
+
+    io.l7mp.api.v1.Parameter.AddressPortPair:
+      description: A pair of a network layer (IP/IPv6) address/domain name and a transport layer port.
+      type: object
+      required:
+        - address
+        - port
+      properties:
+        address:
+          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
+        port:
+          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
+
 paths:
   # Full config API
   /api/v1/config:
@@ -258,7 +426,10 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.ListenerList'
+                description: A list of Listener objects.
+                type: array
+                items:
+                  $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
     post:
       description: Create a Listener
       operationId: addListener
@@ -337,7 +508,10 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.ClusterList'
+                description: A list of Cluster objects.
+                type: array
+                items:
+                  $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
     post:
       description: Create a Cluster
       operationId: addCluster
@@ -416,7 +590,10 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.SessionList'
+                description: A list of Session objects.
+                type: array
+                items:
+                  $ref: '#/components/schemas/io.l7mp.api.v1.Session'
   /api/v1/sessions/{name}:
     get:
       description: Get a named Session object
