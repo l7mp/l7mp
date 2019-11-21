@@ -76,14 +76,15 @@ node l7mp.js -c config/l7mp-simple.yaml -l warn
 #+END_SRC
 
 Configuration is accepted either in YAML format (if the extension is
-=.yaml) or JSON (otherwise).  Command line arguments override static
-configuration parameters. The sample configuration will fire up a HTTP
-listener at port 1234 and route it to the L7mp controller that serves
-the L7mp REST API.
+=.yaml=) or JSON (otherwise).  Command line arguments override static
+configuration parameters.
 
 ** Query configuration
 
-Test API access. This will dump the full current configuration back in json
+The sample configuration will fire up a HTTP listener at port 1234 and
+route it to the L7mp controller that serves the L7mp REST API.
+
+Test API access. This will dump the full current configuration back in json:
 
 #+BEGIN_SRC sh
 curl http://localhost:1234/api/v1/config
@@ -103,8 +104,8 @@ curl http://localhost:1234/api/v1/sessions
 The session was created by L7mp because the static configuration
 installs a UDP listener and connects it to a specified remote peer
 (=UDPSigletonListener=), and this Listener immediately generates a new
-session. You can remote this session named =session-name= via the
-below REST API call.
+session. You can delete this session (suppose its name is
+=session-name=) via the below REST API call.
 
 #+BEGIN_SRC sh
 curl -iX DELETE http://localhost:1234/api/v1/sessions/<session-name>
@@ -154,14 +155,15 @@ EOF
 #+END_SRC
 
 There is an important quirk here, namely that the ingress route
-contains an Transformer cluster called =up= (this cluster has been
+contains a Transformer cluster called =up=; this cluster has been
 specified statically in the sample configuration file to connect to
-the remote server =ws://localhost:8080=).  This then results that on
-session creation L7mp will demultiplex the bidirectional stream at the
-listener into two uni-directional streams: the /ingress stream/ (in
-the direction from the listener to the cluster) will be routed through
-the WebSocket cluster =up=, which may then readily transform the
-stream and send the results back, which will then be piped to the
+the remote server =ws://localhost:8080=.
+
+On session creation, L7mp will demultiplex the bidirectional stream at
+the listener into two uni-directional streams: the /ingress stream/
+(in the direction from the listener to the cluster) will be routed
+through the WebSocket cluster =up=, which may then readily transform
+the stream and send the results back, which will then be piped to the
 cluster =user-1-2-c=.  In the /egress direction/ (from the cluster
 back to the listener), not transformation occurs.  The ingress and the
 egress routes are specified and handled separately, and both can
