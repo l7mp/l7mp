@@ -9,202 +9,292 @@
 
 #+TITLE: L7MP: A programmable L7 meta-proxy
 
-* Objective
+/L7mp is under construction, with many advertised features untested,
+not working as promised, or completely missing./
 
-- L7mp is a media-plane service proxy optimized for persistent,
-  long-lived L4-L7 streams
-  - "L7": the main unit of traffic is transport/application-layer
-    connections/sessions
-  - "meta": new protocols may be defined on top of the existing ones
-  - "proxy": connect application-level traffic streams in a
-    protocol-agnostic manner (you can pipe a UNIX domain socket to a
-    WebSocket stream transparently)
-  - "programmable": exposes a RESTful API to the control plane to
-    query, manage, or modify data-plane streams
-- below we sketch the main abstractions and the semantics for L7mp
-  (like "match-action" or "dataflow graph" for L2/L3)
+L7mp is /a programmable, multi-protocol service proxy/ optimized for
+persistent, long-lived media streams and telco use cases:
 
-* Listeners
+- "L7", because the main unit of traffic is transport- and
+  application-layer connections/sessions;
+- "meta", because new protocols can dynamically added on top of
+  primitive protocols types;
+- "proxy", because it connects application-level traffic streams in a
+  protocol-agnostic manner, e.g., you can pipe a UNIX domain socket to
+  a WebSocket stream transparently and vice versa;
+- and "programmable", because L7mp exposes a RESTful API that allows
+  to query, manage, or modify data-plane streams.
 
-- abstraction for an "ingress port":
-  - name: unique id
-  - spec: a listening address specification (protocol + specific params)
-  - rules: match-action rules to apply to connections
-  - stats
-- emits sessions dynamically (when request arrives), applies the
-  rule(s) successively until the first one matches, and applies the
-  corresponding route settings:
-  - singleton: emits a single session only
-  - server: can emit multiple sessions
-- meta-listener: a "module" consisting of a listener plus one or more
-  transforms that together behave as a single listener for, e.g., a
-  complex protocol: UDP + RTP parser = RTP/UDP listener
+L7mp is modeled after [[https://github.com/envoyproxy/envoy][Envoy]] in that it uses similar abstractions
+(Listeners, Clusters, etc.), but it adds some new functionality to
+manage long-lived media streams, including off-the-shelf support
+protocols that Envoy does not support natively, or does not support at
+all (e.g., UDP, raw IP, L2), and the capacity to build new ones
+(VXLAN, RTP, DNS, or ICMP) and to transparently route sessions across
+such protocol clusters with transparent protocol transformation (e.g.,
+to route an UDP listener or a raw IP socket to a WebSocket cluster)
+and native support for datagram- and byte-streams, steam
+multiplexing/demultiplexing, encap/decap, etc.  Considering this
+strong emphasis on multiprotocol support, L7mp may actually be closes
+in nature to =socat(1)= than to Envoy, but it is dynamically
+configurable through a REST API in contrast to =socat(1)= which is a
+static CLI tool.  The REST API is likewise similar to [[https://github.com/cncf/udpa][Envoy/xDS]] with
+some useful additions, like support for listing, killing, or
+dynamically re-routing(!)  individual transport session.
 
-* Clusters
+L7mp is written in node.js. This way, it is much simpler and easier to
+extend than Envoy or =socat=, but at the same time it is also much
+slower. We envision L7mp as an incubator and a test bed for a set of
+extensions which should eventually be implemented into those faster
+proxies.
 
-- abstraction for an "egress port":
-  - name: unique id
-  - spec: protocol and protocol-specific parameters valid for each endpoint
-  - endpoints: possibly multiple endpoints (fan-out)
-  - stats
-- a "drop" cluster can be  defined for /dev/null
-- cluster-endpoint associations/descriptors are exposed to the control
-  plane (rw):
-  - endpoints: e.g., cluster is a k8s "service" and endpoint is the
-    set of pods running the service
-  - health-check: protocol-specific, supposedly in-band (TUN/TAP: BFD,
-    WS: ping, TCP: keepalive, etc.)
-  - circuit breaking (timeouts)
-  - retries: configurable number of trials for ack'ed protocols
-  - load-balancing: round-robin + deterministic (first endpoint
-    always) + multicast (to a set of endpoints) + broadcast (all
-    endpoints)
-- meta-cluster: a "module" consisting of one or more transforms plus a
-  cluster that together behave as a single cluster for, e.g., a complex
-  protocol: RTP deparser + UDP = RTP/UDP cluster
+* Installation
 
-* Sessions
+The below should eventually work fine, once L7mp gets open-sourced.
 
-- abstraction for a single dataplane "flow", the unit of routing and
-  monitoring:
-  - name: a unique protocol specific ID (e.g., IP 5-tuple for a TCP
-    session)
-  - metadata: user-defined metadata (set of transformers)
-  - route: describes the sequence of transforms to be applied to the
-    session, manipulated using rules
-  - status: CONNECT/ESTABLISHED/DISCONNECT
-  - stats:
-- the metadata and the route can be matched/rewritten using rules and
-  session transforms
-- the session payload can be transformed using dgram/stream
-  transforms, separately in the uplink/downlink direction
-- session ID may be communicated through a local/remote transformer
-  in-band (HTTP/WebSocket headers) using an "json encap/decap"
-  transformer
-- the data-plane maintains a complete inventory of sessions and the
-  control plane can query and remove sessions (but it cannot create
-  them directly, only indirectly via creating listeners that will
-  themselves emit sessions asynchronously) and modify attributes
-  (e.g., modifying the route should immediately re-route the session)
+#+BEGIN_SRC sh
+npm install l7mp --save
+#+END_SRC
 
-* Rules
+Until then, use the enclosed Dockerfile to deploy L7mp. At least
+Node.js v12 is needed for correct UDP/connect support.
 
-- abstraction of dataplane "match-action" rules:
-  - name: unique rule id, optional (set automatically) if rule occurs
-    is inline (inside a listener), otherwise required
-  - match: match-conditions on session id and metadata (optional, if
-    missing then rule matches all sessions)
-  - route: rewrite the session's route list if the conditions match
-  - action: modifications to the metadata and the route
-- semantics: matches on session IDs (and possibly other user defined
-  per-session metadata) and rewrites metadata and/or assigns/modifies
-  routes
+* Usage example
 
-* Route
+** Run
 
-- abstraction for the "forwarding policy" for a session (a session
-  can have only one active route):
-  - cluster: the endpoint of the route (starting point is the
-    listener)
-  - session: list of session transforms to apply during session
-    setup/disconnect
-  - ingress: list of stream/dgram transformers to be applied in the
-    listener->cluster direction
-  - egress: list of stream/dgram transformers to be applied in the
-    cluster->listener direction
-- the route is exposed to the control plane and it can be modified
-  dynamically: in that case the session should be rerouted immediately
-  (but update model is "eventually consistent")
+Run L7mp locally with a [[config/l7mp-simple.json][sample]] static configuration.
 
-* Transform(er)s
+#+BEGIN_SRC sh
+node l7mp.js -c config/l7mp-simple.json -l warn
+#+END_SRC
 
-- abstraction for an "action": transform a session metadata or payload:
-  - name: unique id; if name matches the name of a cluster then a
-    transform over that cluster is automatically created (if it has
-    not already been created), otherwise name is mandatory
-  - type: type of transform (some types are built-in)
-  - params: parameters for the transform (optional)
-- may transform session metadata (called only during session
-  setup/disconnect) or payload (stream/datagram)
-- can work either inline or remotely using a transform protocol
-  cluster
-  - local transform: runs inside the proxy
-    - INLINE/stream: rewrite stream
-    - INLINE/datagram: rewrite datagram stream
-  - remote transformer: run the transformer in a remote pod in a
-    "bump-in-the-wire" fashion, sending/receiving session descriptors
-    via a transformer
-- meta-transform: a "module" consisting of one or more transforms that
-  together behave as a single transform (example)
+Command line arguments override static configuration parameters. The
+sample configuration will fire up a HTTP listener at port 1234 and
+route it to the L7mp controller that serves the L7mp REST API.
 
-* Modules
+** Query configuration
 
-- TODO
+Test API access. This will dump the full current configuration back in json
 
-* Control/Monitoring
+#+BEGIN_SRC sh
+curl http://localhost:1234/api/v1/config
+#+END_SRC
 
-- static config read from a file on init
-- controller: a HTTP listener routed to the predefined "controller"
-  cluster that accepts queries/updates from the control plane
-- monitor: a HTTP listener routed to the predefined
-  "monitor_responder" cluster that accepts queries from Prometheus and
-  outputs formatted stats
+** Manage sessions
 
-* Protocols
+Observe that, on top of the static configuration, the response
+contains a new =sessions= object that lists the set of active
+(connected) live sessions in L7mp.  You can list the live sessions
+explicitly.
 
-|---------------+-------------------+------------------+-------+-----------+-------------|
-| Protocol      | Session ID        | Type             | Role  | Mode      | Re/To/Lb    |
-|---------------+-------------------+------------------+-------+-----------+-------------|
-| UDP-singleton | IP 5-tuple        | datagram         | l/c/t | singleton | no/yes/yes  |
-| UDP-server    | IP 5-tuple        | datagram         | l     | server    | no/yes/yes  |
-| TCP           | IP 5-tuple        | stream           | l/c/t | server    | yes/yes/yes |
-| HTTP          | IP 5-tuple        | session          | l/c/t | server    | yes/yes/yes |
-| WS            | IP 5-tuple + HTTP | datagram         | l/c/t | server    | yes/yes/yes |
-| STDIO         | N/A               | stream/session   | t     | singleton | no/no/no    |
-| UNIX/stream   | file desc/path    | stream           | l/c/t | server    | no/no/no    |
-| UNIX/dgram    | file desc/path    | datagram/session | l/c/t | singleton | no/no/no    |
-| PIPE          | file desc/path    | stream           | l/c/t | singleton | no/no/no    |
-| AF_PACKET     | file desc         | datagram         | l/c/t | singleton | no/no/no    |
-| PORT          | tun/tap/port      | datagram         | l/c/t | singleton | no/no/no    |
-| INLINE/stream | N/A               | stream           | t     | singleton | no/no/no    |
-| INLINE/dgram  | N/A               | datagram         | t     | singleton | no/no/no    |
-|---------------+-------------------+------------------+-------+-----------+-------------|
+#+BEGIN_SRC sh
+curl http://localhost:1234/api/v1/sessions
+#+END_SRC
 
-- protocol:
-  - UDP-singleton is a "connected" UDP server, while UDP_server is a
-    listener-only protocol that emits a new session for each IP
-    5-tuple
-  - STDIO is a (transform-only) protocol for communicating with a
-    forked process through STDIO/STDOUT
-  - INLINE/stream and INLINE/dgram are transforms-only protocols for
-    built-in transformers (node-js Transform objects)
-- session id: unique descriptor of a session emitted by the
-  protocol's listener
-- type:
-  - session: receives/rewrites session metadata, called at
-    session-setup time
-  - stream: segmentation/message boundaries not preserved
-  - datagram: segmentation/message boundaries preserved
-- streams can run on top of datagram protocols but not the other way
-  around (warn!)
-- mode:
-  - server: listen+accept -> new session
-  - singleton: can emit a single session only
-- role:
-  - listener (l): protocol supports listeners to emit sessions
-  - cluster (c): protocol supports clusters to forward sessions to
-  - transform (t): bump-in-the-wire transformation of session
-    metadata or payload (stream/datagram)
-- Re: Retries, To: Timeout, Lb: load-balance
+The session was created by L7mp because the static configuration
+installs a UDP listener and connects it to a specified remote peer
+(=UDPSigletonListener=), and this Listener immediately generates a new
+session. You can remote this session named =session-name= via the
+below REST API call.
 
-* Status
+#+BEGIN_SRC sh
+curl -iX DELETE http://localhost:1234/api/v1/sessions/<session-name>
+#+END_SRC
 
-**** TODO Framework: clusters, listeners, routes, sessions, rules, object hierarchy
-**** TODO static config
-**** TODO UDP, WebSocket, and UDS stream/dgram protocols (c/l/t)
-**** DONE full wildcard match
-**** TODO session transforms
-**** TODO QUIC/HTTP3
+** Add a new cluster
+
+Add a new UDP cluster named =user-1-2-c= that will connect to the
+endpoint at =localhost:16000=, and bind this cluster locally to port
+16001.
+
+#+BEGIN_SRC sh
+curl -iX POST --header 'Content-Type:text/x-yaml' --data-binary @- <<EOF  http://localhost:1234/api/v1/clusters
+cluster:
+  name: user-1-2-c
+  spec: { protocol: "UDP", port: 16000, bind: { address: '127.0.0.1', port: 16001 } }
+  endpoints:
+    - spec: { address:  "127.0.0.1" }
+EOF
+#+END_SRC
+
+Note that the REST API accepts both JSON and YAML configs (YAML will
+be converted to JSON internally). If multiple endpoints are added,
+L7mp will load-balance among these (TODO, currently only the =trivial=
+load balancer is implemented that routes everything to the first
+endpoint).
+
+** Add a new listener with a route
+
+Now add a new UDP listener called =user-1-2-l= at port 15000 that will
+immediately connect back to =127.0.0.1:15001= and route it to the
+cluster we have just created (named =user-1-2-c=).
+
+#+BEGIN_SRC sh
+curl -iX POST --header 'Content-Type:text/x-yaml' --data-binary @- <<EOF  http://localhost:1234/api/v1/listeners
+listener:
+  name: user-1-2-l
+  spec: { protocol: UDP, port: 15000, connect: {address: "127.0.0.1", port: 15001} }
+  rules:
+    - action:
+        route:
+          cluster: user-1-2-c
+          ingress:
+            - up
+        retries: { attempts: 200, perTryTimeout: 1000 }
+EOF
+#+END_SRC
+
+There is an important quirk here, namely that the ingress route
+contains an Transformer cluster called =up= (this cluster has been
+specified statically in the sample configuration file to connect to
+the remote server =ws://localhost:8080=).  This then results that on
+session creation L7mp will demultiplex the bidirectional stream at the
+listener into two uni-directional streams: the /ingress stream/ (in
+the direction from the listener to the cluster) will be routed through
+the WebSocket cluster =up=, which may then readily transform the
+stream and send the results back, which will then be piped to the
+cluster =user-1-2-c=.  In the /egress direction/ (from the cluster
+back to the listener), not transformation occurs.  The ingress and the
+egress routes are specified and handled separately, and both can
+contain an arbitrary number of Transform clusters.
+
+** Retries and timeouts
+
+At configuration time, l7mp will establish a WebSocket stream to the
+cluster =up= and pipe the ingress stream through it, automatically
+performing transparent protocol and payload conversion along the way.
+Note that datagram boundaries are preserved during transformation
+whenever possible, and when it is not (i.e., piping a UDP stream to a
+TCP cluster or L7mp =stdio= will lose segmentation) L7mp will warn.
+
+This should yield the routes:
+
+: ingress: user-1-2-l -> up -> user-1-2-c
+: egress:  user-1-2-l -> user-1-2-l
+
+When created the UDP listener immediately becomes connected (to avoid
+this behavior, do not specify a =connect= clause in the spec), creates
+a session, and then tries to route the session's stream through the
+=up= cluster. This will fail because no one is listening on the other
+side.
+
+As per the =retries= rule, L7mp will automatically retry the
+connection at most 200 times, waiting each time 1000 ms for the stream
+to be successfully established.
+
+To complete the connection, fire up a [[https://github.com/vi/websocat][websocat]] echo server on
+=localhost:8080=:
+
+#+BEGIN_SRC sh
+websocat -v -v -v -v -v ws-l:0.0.0.0:8080 mirror:
+#+END_SRC
+
+** Test the connection
+
+Fire up a =socat= sender (don't forget to bind the sender to 5555,
+otherwise L7mp, which connects back to this port, will not accept the
+connection):
+
+#+BEGIN_SRC sh
+socat - udp:localhost:9999,sourceport=5555
+#+END_SRC
+
+Start a =socat= receiver:
+
+#+BEGIN_SRC sh
+socat udp-l:5556 -
+#+END_SRC
+
+What you type in the sender should appear transparently at the
+receiver and =websocat= should report something like =incoming text=,
+indicating that the =up= cluster. In the reverse direction, however,
+no such reports should appear.
+
+** Clean up
+
+Provided that the new session is named =session-name= (L7mp
+automatically assigns unique names to each session, you can check this
+by issuing a GET request to the API endpoint
+=/api/v1/sessions/{session-name}=), delete the session, the cluster
+and the listener:
+
+#+BEGIN_SRC sh
+curl -iX DELETE http://localhost:1234/api/v1/sessions/<session-name>
+curl -iX DELETE http://localhost:1234/api/v1/listeners/user-1-2-l
+curl -iX DELETE http://localhost:1234/api/v1/clusters/user-1-2-c
+#+END_SRC
+
+* Protocol support
+
+|---------------+-------------------+------------------+-------+-----------+-------------+----------|
+| Protocol      | Session ID        | Type             | Role  | Mode      | Re/To/Lb    | Status   |
+|---------------+-------------------+------------------+-------+-----------+-------------+----------|
+| UDP-singleton | IP 5-tuple        | datagram         | l/c/t | singleton | no/yes/yes  | Full     |
+| UDP-server    | IP 5-tuple        | datagram         | l     | server    | no/yes/yes  | TODO     |
+| TCP           | IP 5-tuple        | stream           | l/c/t | server    | yes/yes/yes | TODO     |
+| HTTP          | IP 5-tuple        | session          | l/c/t | server    | yes/yes/yes | Listener |
+| WS            | IP 5-tuple + HTTP | datagram         | l/c/t | server    | yes/yes/yes | Full     |
+| STDIO-fork    | N/A               | stream/session   | t     | singleton | no/no/no    | TODO     |
+| STDIO         | N/A               | stream/session   | t     | singleton | no/no/no    | Full     |
+| UNIX/stream   | file desc/path    | stream           | l/c/t | server    | no/no/no    | Untested |
+| UNIX/dgram    | file desc/path    | datagram/session | l/c/t | singleton | no/no/no    | Untested |
+| PIPE          | file desc/path    | stream           | l/c/t | singleton | no/no/no    | TODO     |
+| AF_PACKET     | file desc         | datagram         | l/c/t | singleton | no/no/no    | TODO     |
+| PORT          | tun/tap/port      | datagram         | l/c/t | singleton | no/no/no    | TODO     |
+| INLINE/stream | N/A               | stream           | t     | singleton | no/no/no    | TODO     |
+| INLINE/dgram  | N/A               | datagram         | t     | singleton | no/no/no    | TODO     |
+|---------------+-------------------+------------------+-------+-----------+-------------+----------|
+
+** Protocols
+
+- UDP-singleton is a "connected" UDP server, while UDP-server is a
+  listener-only protocol that emits a new session for each IP
+  5-tuple
+- STDIO-fork is a (transform-only) protocol for communicating with a
+  forked process through STDIO/STDOUT, while STDIO streams to the
+  L7mp proxy stdin/stdout (useful for debugging)
+- INLINE/stream and INLINE/dgram are transforms-only protocols for
+  built-in transformers (node-js Transform objects)
+
+** Session id
+
+A unique name/descriptor for a session, generated dynamically by the
+protocol's listener.
+
+** Type
+
+- session: receives/rewrites session metadata, called at session-setup
+  time
+- stream: byte-stream, segmentation/message boundaries not preserved
+- datagram: datagram-stream segmentation/message boundaries preserved
+
+Note that streams can run on top of datagram protocols but not the
+other way around (warn!)
+
+** Mode
+
+- server: listen+accept -> new session
+- singleton: can emit a single session only
+
+** Role
+
+- listener (l): protocol supports listeners to emit sessions
+- cluster (c): protocol supports clusters to forward sessions to
+- transform (t): bump-in-the-wire transformation of session
+  metadata or payload (stream/datagram)
+
+** Re/To/Lb
+
+- Re: Retries support, To: Timeout support, Lb: load-balance support
+
+** Status
+
+* Documentation
+
+- [[API model][openapi/README.md]] and the [[http://htmlpreview.github.com/?https://github.com/rg0now/l7mp/blob/master/openapi/index.html][REST API endpoints]]
+- Main concepts
+
 
 * Examples
 
