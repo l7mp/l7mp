@@ -386,11 +386,11 @@ class UDPCluster extends Cluster {
     }
 };
 
-class L7MPControllerCluster extends Cluster {
+class L7mpControllerCluster extends Cluster {
     constructor(c) {
         super( {
-            name:         c.name || 'L7MPControllerCluster',
-            spec:         { protocol: 'L7MPController' },
+            name:         c.name || 'L7mpControllerCluster',
+            spec:         { protocol: 'L7mpController' },
             loadbalancer: 'none',
             type:         'session'
         });
@@ -398,7 +398,7 @@ class L7MPControllerCluster extends Cluster {
     }
 
     toJSON(){
-        log.silly('L7MPControllerCluster.toJSON:', `"${this.name}"`);
+        log.silly('L7mpControllerCluster.toJSON:', `"${this.name}"`);
         return {
             name:      this.name,
             protocol:  this.protocol
@@ -406,57 +406,21 @@ class L7MPControllerCluster extends Cluster {
     }
 
     connect(s){
-        log.silly('L7MPControllerCluster.connect', `Session: "${s.name}"`);
+        log.silly('L7mpControllerCluster.connect', `Session: "${s.name}"`);
         var req = s.priv.req;
         var res = s.priv.res;
 
         this.openapi.handleRequest(req, res);
 
-        log.silly('L7MPControllerCluster.connect', `Request processed`);
+        log.silly('L7mpControllerCluster.connect', `Request processed`);
 
         return Promise.resolve();
     }
 
     stream(s){
-        return Promise.reject('L7MPControllerCluster.stream: Not supported');
+        return Promise.reject('L7mpControllerCluster.stream: Not supported');
     }
 };
-
-// old API bindings
-// class L7MPControllerCluster extends Cluster {
-//     constructor(c) {
-//         super( {
-//             name:         c.name || 'L7MPControllerCluster',
-//             spec:         { protocol: 'L7MPController' },
-//             loadbalancer: 'none',
-//             type:         'session'
-//         });
-//         this.api = new L7mpAPI();
-//     }
-
-//     toJSON(){
-//         log.silly('L7MPControllerCluster.toJSON:', `"${this.name}"`);
-//         return {
-//             name:      this.name,
-//             protocol:  this.protocol
-//         };
-//     }
-
-//     connect(s){
-//         log.silly('L7MPControllerCluster.connect', `Session: "${s.name}"`);
-//         var req = s.priv.req;
-//         var res = s.priv.res;
-//         var handler = this.api.route(req);
-//         handler(req, res);
-//         l7mp.deleteSession(s.name);
-//         log.info('L7MPControllerCluster.connect', `Request processed`);
-//         return Promise.resolve();
-//     }
-
-//     stream(s){
-//         return Promise.reject('L7MPControllerCluster.stream: Not supported');
-//     }
-// };
 
 class StdioCluster extends Cluster {
     constructor(c) {
@@ -494,7 +458,7 @@ Cluster.create = (c) => {
     case 'WebSocket':      return new WebSocketCluster(c);
     case 'UDP':            return new UDPCluster(c);
     case 'Stdio':          return new StdioCluster(c);
-    case 'L7MPController': return new L7MPControllerCluster(c);
+    case 'L7mpController': return new L7mpControllerCluster(c);
     default:
         log.error('Cluster.create',
                   `TODO: Protocol "${c.spec.protocol}" unimplemented`);
