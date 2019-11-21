@@ -23,6 +23,7 @@
 'use strict';
 
 const log          = require('npmlog');
+const fs           = require('fs');
 const http         = require('http');
 const WebSocket    = require('ws');
 const udp          = require('dgram');
@@ -489,8 +490,8 @@ class LoggerCluster extends Cluster {
             endpoints:    [],
             loadbalancer: 'none',
             type:         'datagram'
-        });
-        this.log_file = c.log_file || '-';
+        } );
+        this.log_file = c.spec.log_file || '-';
     }
 
     toJSON(){
@@ -510,15 +511,14 @@ class LoggerCluster extends Cluster {
         log.silly('LoggerCluster.stream',
                   `Session: ${s.name}, File: ${this.log_file}`);
 
-        let log_file = process.stdout;
+        let log_stream = process.stdout;
         if(this.log_file !== '-'){
-            log_file = fs.createWriteStream(this.log_file, { flags: 'w' });
+            log_stream = fs.createWriteStream(this.log_file, { flags: 'w' });
         }
 
-        return Promise.resolve( streamops.fork (
-            (stream) => stream.pipe(res),       // echo request to response
-            (stream) => stream.pipe(log_file)  // log request to console
-        ) );
+        return Promise.resolve( streamops.map( (arg) => {
+            log_stream.write(arg); return arg;
+        }));
     }
 };
 
