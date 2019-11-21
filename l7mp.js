@@ -28,6 +28,8 @@ const fs         = require('fs');
 const parseArgs  = require('minimist');
 const util       = require('util');
 const log        = require('npmlog');
+const path       = require('path');
+const YAML       = require('yamljs');
 
 const Listener   = require('./listener.js').Listener;
 const Cluster    = require('./cluster.js').Cluster;
@@ -112,9 +114,12 @@ class L7mp {
     }
 
     readConfig(config){
-        log.silly('L7mp.readConfig');
+        log.silly('L7mp.readConfig', config);
         // may throw
-        this.static_config = JSON.parse(fs.readFileSync(config));
+        if(path.extname(config).toLowerCase() === '.yaml')
+            this.static_config = YAML.parse(fs.readFileSync(config, 'utf8'));
+        else
+            this.static_config = JSON.parse(fs.readFileSync(config));
         this.applyAdmin(this.static_config.admin);
     }
 
