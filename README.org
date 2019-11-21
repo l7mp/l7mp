@@ -45,14 +45,14 @@ return).
 
 The REST API is likewise similar to
 [[https://github.com/cncf/udpa][Envoy/xDS]] with some useful
-additions, like support for listing, killing, or dynamically
-re-routing(!)  individual transport session.
+additions, like support for listing, killing, and dynamically
+re-routing(!) individual transport sessions.
 
-L7mp is written in node.js. This way, it is much simpler and easier to
-extend than Envoy or =socat=, but at the same time it is also much
-slower. We envision L7mp as an incubator and a test bed for a set of
-extensions which should eventually be implemented into those faster
-proxies.
+L7mp is written in Javascript/Node.js. This way, it is much simpler
+and easier to extend than Envoy or =socat=, but at the same time it is
+also much slower. We envision L7mp as an incubator and a testbed for a
+set of useful extensions which should eventually be implemented into
+one of those faster proxies.
 
 * Installation
 
