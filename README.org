@@ -165,29 +165,31 @@ the listener into two uni-directional streams: the /ingress stream/
 through the WebSocket cluster =up=, which may then readily transform
 the stream and send the results back.  The returned stream is then
 piped to the cluster =user-1-2-c=.  In the /egress direction/ (from
-the cluster back to the listener), not transformation occurs.  The
-ingress and the egress routes are specified and handled separately,
-and both can contain an arbitrary number of Transform clusters.
+the cluster back to the listener), no transformation occurs.
 
-** Retries and timeouts
-
-At configuration time, l7mp will establish a WebSocket stream to the
-cluster =up= and pipe the ingress stream through it, automatically
-performing transparent protocol and payload conversion along the way.
-Note that datagram boundaries are preserved during transformation
-whenever possible, and when it is not (i.e., piping a UDP stream to a
-TCP cluster or L7mp =stdio= will lose segmentation) L7mp will warn.
+The ingress and the egress routes are specified and handled
+separately.  Both routes can contain a list of any number of Transform
+clusters that will be chained sequentially when the listener emits a
+session, automatically performing transparent protocol and payload
+conversion along the way. Note that datagram boundaries are preserved
+during transformation whenever possible, and when it is not (i.e.,
+piping a UDP stream to a TCP cluster or L7mp =stdio= will lose
+segmentation) L7mp issues a warning.
 
 This should yield the routes:
 
 : ingress: user-1-2-l -> up -> user-1-2-c
 : egress:  user-1-2-l -> user-1-2-l
 
+** Retries and timeouts
+
+[TODO]
+
 When created the UDP listener immediately becomes connected (to avoid
-this behavior, do not specify a =connect= clause in the spec), creates
-a session, and then tries to route the session's stream through the
-=up= cluster. This will fail because no one is listening on the other
-side.
+this behavior, do not specify a =connect= clause in the spec, TODO),
+creates a session, and then tries to route the session's stream
+through the =up= cluster. This will fail because no one is listening
+on the other side.
 
 As per the =retries= rule, L7mp will automatically retry the
 connection at most 200 times, waiting each time 1000 ms for the stream
