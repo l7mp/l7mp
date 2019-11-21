@@ -299,6 +299,7 @@ class L7mp {
     deleteSession(n){
         log.info('L7mp.deleteSession:', `"${n}"`,
                  'TODO: actually delete the session!');
+
         let i = this.sessions.findIndex( ({name}) => name === n);
         if(i < 0){
             let e = `Unknown session "${n}"`;
@@ -306,8 +307,9 @@ class L7mp {
             throw new Error(e);
         }
 
-         try{
-            this.deleteRoute(this.sessions[i].route.name);
+        try{
+            if(this.sessions[i].route)
+                this.deleteRoute(this.sessions[i].route.name);
         } catch(e){
             log.error('catch', e);
         }
