@@ -63,6 +63,7 @@ components:
           type: string
         spec:
           description: Listener specification (required).
+          type: object
           oneOf:
             - $ref: '#/components/schemas/io.l7mp.api.v1.HTTPListenerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
@@ -152,6 +153,7 @@ components:
         name:
           type: string
         spec:
+          type: object
           oneOf:
             - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.UDPSingletonClusterSpec'
@@ -233,6 +235,7 @@ components:
           description: Name (optional, a unique endpoint name will be assigned automatically if not specified.)
           type: string
         spec:
+          type: object
           oneOf:
             - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketEndPointSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.UDPSingletonEndPointSpec'

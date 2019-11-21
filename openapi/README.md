@@ -1,4 +1,14 @@
 
+# io.l7mp.api.v1.Parameter.AddressPortPair
+A pair of a network layer (IP/IPv6) address/domain name and a transport layer port.
+
+
+## Properties
+| property | required | type | description | details | example |
+| :--- | :---: | :---: | :--- | :--- | :--- |
+| address | Y | io.l7mp.api.v1.Parameter.Address | &nbsp; | &nbsp; | &nbsp; |
+| port | Y | io.l7mp.api.v1.Parameter.Port | &nbsp; | &nbsp; | &nbsp; |
+
 # io.l7mp.api.v1.Config
 Full L7mp static and runtime configuration
 
@@ -30,7 +40,7 @@ A socket that listens for incoming connection requests, an abstraction for an "i
 | property | required | type | description | details | example |
 | :--- | :---: | :---: | :--- | :--- | :--- |
 | name | Y | string | Name (required). | &nbsp; | &nbsp; |
-| spec | Y | undefined | Listener specification (required). | &nbsp; | &nbsp; |
+| spec | Y | object | Listener specification (required). | &nbsp; | &nbsp; |
 | rules | Y | array[] of io.l7mp.api.v1.Rule | A list of Rule objects (required). | &nbsp; | &nbsp; |
 
 # io.l7mp.api.v1.HTTPListenerSpec
@@ -89,7 +99,7 @@ A socket that originates connections to external services, an abstraction for an
 | property | required | type | description | details | example |
 | :--- | :---: | :---: | :--- | :--- | :--- |
 | name | Y | string | &nbsp; | &nbsp; | &nbsp; |
-| spec | Y | undefined | &nbsp; | &nbsp; | &nbsp; |
+| spec | Y | object | &nbsp; | &nbsp; | &nbsp; |
 | endpoints | &nbsp; | array[] of io.l7mp.api.v1.EndPoint | A list of EndPoint objects. | &nbsp; | &nbsp; |
 
 # io.l7mp.api.v1.WebSocketClusterSpec
@@ -144,7 +154,7 @@ A particular upstream backend that accepts connects through a Cluster.
 | property | required | type | description | details | example |
 | :--- | :---: | :---: | :--- | :--- | :--- |
 | name | &nbsp; | string | Name (optional, a unique endpoint name will be assigned automatically if not specified.) | &nbsp; | &nbsp; |
-| spec | Y | undefined | &nbsp; | &nbsp; | &nbsp; |
+| spec | Y | object | &nbsp; | &nbsp; | &nbsp; |
 
 # io.l7mp.api.v1.WebSocketEndPointSpec
 A WebSocket endpoint specification.
@@ -219,13 +229,3 @@ Error info.
 | :--- | :---: | :---: | :--- | :--- | :--- |
 | status | &nbsp; | integer | &nbsp; | &nbsp; | &nbsp; |
 | err | &nbsp; | string | &nbsp; | &nbsp; | &nbsp; |
-
-# io.l7mp.api.v1.Parameter.AddressPortPair
-A pair of a network layer (IP/IPv6) address/domain name and a transport layer port.
-
-
-## Properties
-| property | required | type | description | details | example |
-| :--- | :---: | :---: | :--- | :--- | :--- |
-| address | Y | io.l7mp.api.v1.Parameter.Address | &nbsp; | &nbsp; | &nbsp; |
-| port | Y | io.l7mp.api.v1.Parameter.Port | &nbsp; | &nbsp; | &nbsp; |
