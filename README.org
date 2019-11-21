@@ -69,7 +69,7 @@ Node.js v12 is needed for correct UDP/connect support.
 
 ** Run
 
-Run L7mp locally with a [[config/l7mp-simple.json][sample]] static configuration.
+Run L7mp locally with a [[https://github.com/rg0now/l7mp/blob/master/config/l7mp-simple.yaml][sample]] static configuration.
 
 #+BEGIN_SRC sh
 node l7mp.js -c config/l7mp-simple.yaml -l warn
