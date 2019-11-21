@@ -1,14 +1,4 @@
 
-# io.l7mp.api.v1.Parameter.AddressPortPair
-A pair of a network layer (IP/IPv6) address/domain name and a transport layer port.
-
-
-## Properties
-| property | required | type | description | details | example |
-| :--- | :---: | :---: | :--- | :--- | :--- |
-| address | Y | io.l7mp.api.v1.Parameter.Address | &nbsp; | &nbsp; | &nbsp; |
-| port | Y | io.l7mp.api.v1.Parameter.Port | &nbsp; | &nbsp; | &nbsp; |
-
 # io.l7mp.api.v1.Config
 Full L7mp static and runtime configuration
 
@@ -229,3 +219,13 @@ Error info.
 | :--- | :---: | :---: | :--- | :--- | :--- |
 | status | &nbsp; | integer | &nbsp; | &nbsp; | &nbsp; |
 | err | &nbsp; | string | &nbsp; | &nbsp; | &nbsp; |
+
+# io.l7mp.api.v1.Parameter.AddressPortPair
+A pair of a network layer (IP/IPv6) address/domain name and a transport layer port.
+
+
+## Properties
+| property | required | type | description | details | example |
+| :--- | :---: | :---: | :--- | :--- | :--- |
+| address | Y | io.l7mp.api.v1.Parameter.Address | &nbsp; | &nbsp; | &nbsp; |
+| port | Y | io.l7mp.api.v1.Parameter.Port | &nbsp; | &nbsp; | &nbsp; |

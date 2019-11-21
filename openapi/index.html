@@ -1,0 +1,1298 @@
+<!doctype html>
+<html>
+  <head>
+    <title>L7mp control plane API</title>
+    <style type="text/css">
+      body {
+	font-family: Trebuchet MS, sans-serif;
+	font-size: 15px;
+	color: #444;
+	margin-right: 24px;
+}
+
+h1	{
+	font-size: 25px;
+}
+h2	{
+	font-size: 20px;
+}
+h3	{
+	font-size: 16px;
+	font-weight: bold;
+}
+hr	{
+	height: 1px;
+	border: 0;
+	color: #ddd;
+	background-color: #ddd;
+}
+
+.app-desc {
+  clear: both;
+  margin-left: 20px;
+}
+.param-name {
+  width: 100%;
+}
+.license-info {
+  margin-left: 20px;
+}
+
+.license-url {
+  margin-left: 20px;
+}
+
+.model {
+  margin: 0 0 0px 20px;
+}
+
+.method {
+  margin-left: 20px;
+}
+
+.method-notes	{
+	margin: 10px 0 20px 0;
+	font-size: 90%;
+	color: #555;
+}
+
+pre {
+  padding: 10px;
+  margin-bottom: 2px;
+}
+
+.http-method {
+ text-transform: uppercase;
+}
+
+pre.get {
+  background-color: #0f6ab4;
+}
+
+pre.post {
+  background-color: #10a54a;
+}
+
+pre.put {
+  background-color: #c5862b;
+}
+
+pre.delete {
+  background-color: #a41e22;
+}
+
+.huge	{
+	color: #fff;
+}
+
+pre.example {
+  background-color: #f3f3f3;
+  padding: 10px;
+  border: 1px solid #ddd;
+}
+
+code {
+  white-space: pre;
+}
+
+.nickname {
+  font-weight: bold;
+}
+
+.method-path {
+  font-size: 1.5em;
+  background-color: #0f6ab4;
+}
+
+.up {
+  float:right;
+}
+
+.parameter {
+  width: 500px;
+}
+
+.param {
+  width: 500px;
+  padding: 10px 0 0 20px;
+  font-weight: bold;
+}
+
+.param-desc {
+  width: 700px;
+  padding: 0 0 0 20px;
+  color: #777;
+}
+
+.param-type {
+  font-style: italic;
+}
+
+.param-enum-header {
+width: 700px;
+padding: 0 0 0 60px;
+color: #777;
+font-weight: bold;
+}
+
+.param-enum {
+width: 700px;
+padding: 0 0 0 80px;
+color: #777;
+font-style: italic;
+}
+
+.field-label {
+  padding: 0;
+  margin: 0;
+  clear: both;
+}
+
+.field-items	{
+	padding: 0 0 15px 0;
+	margin-bottom: 15px;
+}
+
+.return-type {
+  clear: both;
+  padding-bottom: 10px;
+}
+
+.param-header {
+  font-weight: bold;
+}
+
+.method-tags {
+  text-align: right;
+}
+
+.method-tag {
+  background: none repeat scroll 0% 0% #24A600;
+  border-radius: 3px;
+  padding: 2px 10px;
+  margin: 2px;
+  color: #FFF;
+  display: inline-block;
+  text-decoration: none;
+}
+
+    </style>
+  </head>
+  <body>
+  <h1>L7mp control plane API</h1>
+    <div class="app-desc">A programming interface for controlling L7mp</div>
+    <div class="app-desc">More information: <a href="https://openapi-generator.tech">https://openapi-generator.tech</a></div>
+    <div class="app-desc">Contact Info: <a href="team@openapitools.org">team@openapitools.org</a></div>
+    <div class="app-desc">Version: 1.0.0</div>
+    <div class="app-desc">BasePath:/io.l7mp.api.v1</div>
+    <div class="license-info">All rights reserved</div>
+    <div class="license-url">http://apache.org/licenses/LICENSE-2.0.html</div>
+  <h2>Access</h2>
+
+  <h2><a name="__Methods">Methods</a></h2>
+  [ Jump to <a href="#__Models">Models</a> ]
+
+  <h3>Table of Contents </h3>
+  <div class="method-summary"></div>
+  <h4><a href="#Default">Default</a></h4>
+  <ul>
+  <li><a href="#addCluster"><code><span class="http-method">post</span> /api/v1/clusters</code></a></li>
+  <li><a href="#addListener"><code><span class="http-method">post</span> /api/v1/listeners</code></a></li>
+  <li><a href="#applyAdmin"><code><span class="http-method">post</span> /api/v1/admin</code></a></li>
+  <li><a href="#deleteCluster"><code><span class="http-method">delete</span> /api/v1/clusters/{name}</code></a></li>
+  <li><a href="#deleteListener"><code><span class="http-method">delete</span> /api/v1/listeners/{name}</code></a></li>
+  <li><a href="#deleteSession"><code><span class="http-method">delete</span> /api/v1/sessions/{name}</code></a></li>
+  <li><a href="#getAdmin"><code><span class="http-method">get</span> /api/v1/admin</code></a></li>
+  <li><a href="#getCluster"><code><span class="http-method">get</span> /api/v1/clusters/{name}</code></a></li>
+  <li><a href="#getClusters"><code><span class="http-method">get</span> /api/v1/clusters</code></a></li>
+  <li><a href="#getConf"><code><span class="http-method">get</span> /api/v1/config</code></a></li>
+  <li><a href="#getListener"><code><span class="http-method">get</span> /api/v1/listeners/{name}</code></a></li>
+  <li><a href="#getListeners"><code><span class="http-method">get</span> /api/v1/listeners</code></a></li>
+  <li><a href="#getSession"><code><span class="http-method">get</span> /api/v1/sessions/{name}</code></a></li>
+  <li><a href="#getSessions"><code><span class="http-method">get</span> /api/v1/sessions</code></a></li>
+  <li><a href="#setConf"><code><span class="http-method">post</span> /api/v1/config</code></a></li>
+  </ul>
+
+  <h1><a name="Default">Default</a></h1>
+  <div class="method"><a name="addCluster"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /api/v1/clusters</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">addCluster</span>)</div>
+    <div class="method-notes">Create a Cluster</div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">io.l7mp.api.v1.Cluster <a href="#io.l7mp.api.v1.Cluster">io.l7mp.api.v1.Cluster</a> (required)</div>
+
+      <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+
+    </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#io.l7mp.api.v1.Status">io.l7mp.api.v1.Status</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "error" : "error",
+  "status" : 0
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Status
+        <a href="#io.l7mp.api.v1.Status">io.l7mp.api.v1.Status</a>
+    <h4 class="field-label">400</h4>
+    Invalid configuration
+        <a href="#io.l7mp.api.v1.Error">io.l7mp.api.v1.Error</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="addListener"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /api/v1/listeners</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">addListener</span>)</div>
+    <div class="method-notes">Create a Listener</div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">io.l7mp.api.v1.Listener <a href="#io.l7mp.api.v1.Listener">io.l7mp.api.v1.Listener</a> (required)</div>
+
+      <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+
+    </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#io.l7mp.api.v1.Status">io.l7mp.api.v1.Status</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "error" : "error",
+  "status" : 0
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Status
+        <a href="#io.l7mp.api.v1.Status">io.l7mp.api.v1.Status</a>
+    <h4 class="field-label">400</h4>
+    Invalid configuration
+        <a href="#io.l7mp.api.v1.Error">io.l7mp.api.v1.Error</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="applyAdmin"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /api/v1/admin</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">applyAdmin</span>)</div>
+    <div class="method-notes">Apply static configuration</div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">io.l7mp.api.v1.Admin <a href="#io.l7mp.api.v1.Admin">io.l7mp.api.v1.Admin</a> (required)</div>
+
+      <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+
+    </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#io.l7mp.api.v1.Status">io.l7mp.api.v1.Status</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "error" : "error",
+  "status" : 0
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Status
+        <a href="#io.l7mp.api.v1.Status">io.l7mp.api.v1.Status</a>
+    <h4 class="field-label">400</h4>
+    Invalid configuration
+        <a href="#io.l7mp.api.v1.Error">io.l7mp.api.v1.Error</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="deleteCluster"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="delete"><code class="huge"><span class="http-method">delete</span> /api/v1/clusters/{name}</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">deleteCluster</span>)</div>
+    <div class="method-notes">Delete a named Cluster object</div>
+
+    <h3 class="field-label">Path parameters</h3>
+    <div class="field-items">
+      <div class="param">name (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null </div>
+    </div>  <!-- field-items -->
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#io.l7mp.api.v1.Status">io.l7mp.api.v1.Status</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "error" : "error",
+  "status" : 0
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Status
+        <a href="#io.l7mp.api.v1.Status">io.l7mp.api.v1.Status</a>
+    <h4 class="field-label">400</h4>
+    Invalid configuration
+        <a href="#io.l7mp.api.v1.Error">io.l7mp.api.v1.Error</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="deleteListener"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="delete"><code class="huge"><span class="http-method">delete</span> /api/v1/listeners/{name}</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">deleteListener</span>)</div>
+    <div class="method-notes">Delete a named Listener object</div>
+
+    <h3 class="field-label">Path parameters</h3>
+    <div class="field-items">
+      <div class="param">name (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null </div>
+    </div>  <!-- field-items -->
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#io.l7mp.api.v1.Status">io.l7mp.api.v1.Status</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "error" : "error",
+  "status" : 0
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Status
+        <a href="#io.l7mp.api.v1.Status">io.l7mp.api.v1.Status</a>
+    <h4 class="field-label">400</h4>
+    Invalid configuration
+        <a href="#io.l7mp.api.v1.Error">io.l7mp.api.v1.Error</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="deleteSession"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="delete"><code class="huge"><span class="http-method">delete</span> /api/v1/sessions/{name}</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">deleteSession</span>)</div>
+    <div class="method-notes">Delete a named Session object</div>
+
+    <h3 class="field-label">Path parameters</h3>
+    <div class="field-items">
+      <div class="param">name (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null </div>
+    </div>  <!-- field-items -->
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#io.l7mp.api.v1.Status">io.l7mp.api.v1.Status</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "error" : "error",
+  "status" : 0
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Status
+        <a href="#io.l7mp.api.v1.Status">io.l7mp.api.v1.Status</a>
+    <h4 class="field-label">400</h4>
+    Invalid configuration
+        <a href="#io.l7mp.api.v1.Error">io.l7mp.api.v1.Error</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="getAdmin"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /api/v1/admin</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">getAdmin</span>)</div>
+    <div class="method-notes">Get the static configuration</div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#io.l7mp.api.v1.Admin">io.l7mp.api.v1.Admin</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "access_log_path" : "access_log_path",
+  "log_file" : "log_file",
+  "log_level" : "log_level"
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Static configuration
+        <a href="#io.l7mp.api.v1.Admin">io.l7mp.api.v1.Admin</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="getCluster"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /api/v1/clusters/{name}</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">getCluster</span>)</div>
+    <div class="method-notes">Get a named Cluster object</div>
+
+    <h3 class="field-label">Path parameters</h3>
+    <div class="field-items">
+      <div class="param">name (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null </div>
+    </div>  <!-- field-items -->
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#io.l7mp.api.v1.Cluster">io.l7mp.api.v1.Cluster</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "endpoints" : [ {
+    "name" : "name",
+    "spec" : "{}"
+  }, {
+    "name" : "name",
+    "spec" : "{}"
+  } ],
+  "name" : "name",
+  "spec" : "{}"
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Status
+        <a href="#io.l7mp.api.v1.Cluster">io.l7mp.api.v1.Cluster</a>
+    <h4 class="field-label">400</h4>
+    Invalid configuration
+        <a href="#io.l7mp.api.v1.Error">io.l7mp.api.v1.Error</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="getClusters"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /api/v1/clusters</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">getClusters</span>)</div>
+    <div class="method-notes">Get a list of Cluster objects</div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      array[<a href="#io.l7mp.api.v1.Cluster">io.l7mp.api.v1.Cluster</a>]
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "endpoints" : [ {
+    "name" : "name",
+    "spec" : "{}"
+  }, {
+    "name" : "name",
+    "spec" : "{}"
+  } ],
+  "name" : "name",
+  "spec" : "{}"
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="getConf"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /api/v1/config</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">getConf</span>)</div>
+    <div class="method-notes">Get the full configuration</div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#io.l7mp.api.v1.Config">io.l7mp.api.v1.Config</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "sessions" : [ null, null ],
+  "listeners" : [ {
+    "name" : "name",
+    "rules" : [ {
+      "match" : "{}",
+      "action" : {
+        "metadata" : "{}",
+        "route" : {
+          "cluster" : "cluster",
+          "ingress" : [ "ingress", "ingress" ],
+          "egress" : [ "egress", "egress" ]
+        }
+      }
+    }, {
+      "match" : "{}",
+      "action" : {
+        "metadata" : "{}",
+        "route" : {
+          "cluster" : "cluster",
+          "ingress" : [ "ingress", "ingress" ],
+          "egress" : [ "egress", "egress" ]
+        }
+      }
+    } ],
+    "spec" : "{}"
+  }, {
+    "name" : "name",
+    "rules" : [ {
+      "match" : "{}",
+      "action" : {
+        "metadata" : "{}",
+        "route" : {
+          "cluster" : "cluster",
+          "ingress" : [ "ingress", "ingress" ],
+          "egress" : [ "egress", "egress" ]
+        }
+      }
+    }, {
+      "match" : "{}",
+      "action" : {
+        "metadata" : "{}",
+        "route" : {
+          "cluster" : "cluster",
+          "ingress" : [ "ingress", "ingress" ],
+          "egress" : [ "egress", "egress" ]
+        }
+      }
+    } ],
+    "spec" : "{}"
+  } ],
+  "admin" : {
+    "access_log_path" : "access_log_path",
+    "log_file" : "log_file",
+    "log_level" : "log_level"
+  },
+  "clusters" : [ {
+    "endpoints" : [ {
+      "name" : "name",
+      "spec" : "{}"
+    }, {
+      "name" : "name",
+      "spec" : "{}"
+    } ],
+    "name" : "name",
+    "spec" : "{}"
+  }, {
+    "endpoints" : [ {
+      "name" : "name",
+      "spec" : "{}"
+    }, {
+      "name" : "name",
+      "spec" : "{}"
+    } ],
+    "name" : "name",
+    "spec" : "{}"
+  } ]
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Full configuration
+        <a href="#io.l7mp.api.v1.Config">io.l7mp.api.v1.Config</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="getListener"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /api/v1/listeners/{name}</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">getListener</span>)</div>
+    <div class="method-notes">Get a named Listener object</div>
+
+    <h3 class="field-label">Path parameters</h3>
+    <div class="field-items">
+      <div class="param">name (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null </div>
+    </div>  <!-- field-items -->
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#io.l7mp.api.v1.Listener">io.l7mp.api.v1.Listener</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "name" : "name",
+  "rules" : [ {
+    "match" : "{}",
+    "action" : {
+      "metadata" : "{}",
+      "route" : {
+        "cluster" : "cluster",
+        "ingress" : [ "ingress", "ingress" ],
+        "egress" : [ "egress", "egress" ]
+      }
+    }
+  }, {
+    "match" : "{}",
+    "action" : {
+      "metadata" : "{}",
+      "route" : {
+        "cluster" : "cluster",
+        "ingress" : [ "ingress", "ingress" ],
+        "egress" : [ "egress", "egress" ]
+      }
+    }
+  } ],
+  "spec" : "{}"
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Status
+        <a href="#io.l7mp.api.v1.Listener">io.l7mp.api.v1.Listener</a>
+    <h4 class="field-label">400</h4>
+    Invalid configuration
+        <a href="#io.l7mp.api.v1.Error">io.l7mp.api.v1.Error</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="getListeners"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /api/v1/listeners</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">getListeners</span>)</div>
+    <div class="method-notes">Get a list of Listener objects</div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      array[<a href="#io.l7mp.api.v1.Listener">io.l7mp.api.v1.Listener</a>]
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "name" : "name",
+  "rules" : [ {
+    "match" : "{}",
+    "action" : {
+      "metadata" : "{}",
+      "route" : {
+        "cluster" : "cluster",
+        "ingress" : [ "ingress", "ingress" ],
+        "egress" : [ "egress", "egress" ]
+      }
+    }
+  }, {
+    "match" : "{}",
+    "action" : {
+      "metadata" : "{}",
+      "route" : {
+        "cluster" : "cluster",
+        "ingress" : [ "ingress", "ingress" ],
+        "egress" : [ "egress", "egress" ]
+      }
+    }
+  } ],
+  "spec" : "{}"
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="getSession"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /api/v1/sessions/{name}</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">getSession</span>)</div>
+    <div class="method-notes">Get a named Session object</div>
+
+    <h3 class="field-label">Path parameters</h3>
+    <div class="field-items">
+      <div class="param">name (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null </div>
+    </div>  <!-- field-items -->
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      
+      Object
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Status
+        <a href="#Object">Object</a>
+    <h4 class="field-label">400</h4>
+    Invalid configuration
+        <a href="#io.l7mp.api.v1.Error">io.l7mp.api.v1.Error</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="getSessions"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /api/v1/sessions</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">getSessions</span>)</div>
+    <div class="method-notes">Get a list of Session objects</div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      
+      array[Object]
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>null</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="setConf"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /api/v1/config</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">setConf</span>)</div>
+    <div class="method-notes">Reload configuration.</div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">io.l7mp.api.v1.Config <a href="#io.l7mp.api.v1.Config">io.l7mp.api.v1.Config</a> (required)</div>
+
+      <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+
+    </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#io.l7mp.api.v1.Status">io.l7mp.api.v1.Status</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "error" : "error",
+  "status" : 0
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Status
+        <a href="#io.l7mp.api.v1.Status">io.l7mp.api.v1.Status</a>
+    <h4 class="field-label">400</h4>
+    Invalid configuration
+        <a href="#io.l7mp.api.v1.Error">io.l7mp.api.v1.Error</a>
+  </div> <!-- method -->
+  <hr/>
+
+  <h2><a name="__Models">Models</a></h2>
+  [ Jump to <a href="#__Methods">Methods</a> ]
+
+  <h3>Table of Contents</h3>
+  <ol>
+    <li><a href="#io.l7mp.api.v1.Action"><code>io.l7mp.api.v1.Action</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.Admin"><code>io.l7mp.api.v1.Admin</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.Cluster"><code>io.l7mp.api.v1.Cluster</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.Config"><code>io.l7mp.api.v1.Config</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.EndPoint"><code>io.l7mp.api.v1.EndPoint</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.Error"><code>io.l7mp.api.v1.Error</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.HTTPListenerSpec"><code>io.l7mp.api.v1.HTTPListenerSpec</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.L7mpControllerSpec"><code>io.l7mp.api.v1.L7mpControllerSpec</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.Listener"><code>io.l7mp.api.v1.Listener</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.Parameter.AddressPortPair"><code>io.l7mp.api.v1.Parameter.AddressPortPair</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.Route"><code>io.l7mp.api.v1.Route</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.Rule"><code>io.l7mp.api.v1.Rule</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.Status"><code>io.l7mp.api.v1.Status</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.StdioClusterSpec"><code>io.l7mp.api.v1.StdioClusterSpec</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.UDPSingletonClusterSpec"><code>io.l7mp.api.v1.UDPSingletonClusterSpec</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.UDPSingletonEndPointSpec"><code>io.l7mp.api.v1.UDPSingletonEndPointSpec</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.UDPSingletonListenerSpec"><code>io.l7mp.api.v1.UDPSingletonListenerSpec</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.WebSocketClusterSpec"><code>io.l7mp.api.v1.WebSocketClusterSpec</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.WebSocketEndPointSpec"><code>io.l7mp.api.v1.WebSocketEndPointSpec</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.WebSocketListenerSpec"><code>io.l7mp.api.v1.WebSocketListenerSpec</code> - </a></li>
+  </ol>
+
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.Action"><code>io.l7mp.api.v1.Action</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>The &quot;action&quot; part of a math-action rule that assigns a route to the matched sessions.</div>
+    <div class="field-items">
+      <div class="param">metadata (optional)</div><div class="param-desc"><span class="param-type"><a href="#">Object</a></span> JSON query for manipulating session metadata (optional). </div>
+<div class="param">route </div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Route">io.l7mp.api.v1.Route</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.Admin"><code>io.l7mp.api.v1.Admin</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>Static configuration</div>
+    <div class="field-items">
+      <div class="param">log_level (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> Log verbosity, one of, from the most talkative, &quot;silly&quot;, &quot;verbose&quot;, &quot;info&quot;, &quot;notice&quot;, &quot;warn&quot;, &quot;error&quot;, and &quot;silent&quot; (not recommended). Default is &quot;info&quot;. </div>
+<div class="param">log_file (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> File to write log messages to. Default is &quot;stderr&quot;. </div>
+<div class="param">access_log_path (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> Access log (currently unimplemented). </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.Cluster"><code>io.l7mp.api.v1.Cluster</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>A socket that originates connections to external services, an abstraction for an &quot;egress port&quot;.</div>
+    <div class="field-items">
+      <div class="param">name </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">spec </div><div class="param-desc"><span class="param-type"><a href="#oneOf<io.l7mp.api.v1.WebSocketClusterSpec,io.l7mp.api.v1.UDPSingletonClusterSpec,io.l7mp.api.v1.L7mpControllerSpec,io.l7mp.api.v1.StdioClusterSpec>">oneOf<io.l7mp.api.v1.WebSocketClusterSpec,io.l7mp.api.v1.UDPSingletonClusterSpec,io.l7mp.api.v1.L7mpControllerSpec,io.l7mp.api.v1.StdioClusterSpec></a></span>  </div>
+<div class="param">endpoints (optional)</div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.EndPoint">array[io.l7mp.api.v1.EndPoint]</a></span> A list of EndPoint objects. </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.Config"><code>io.l7mp.api.v1.Config</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>Full L7mp static and runtime configuration</div>
+    <div class="field-items">
+      <div class="param">admin </div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Admin">io.l7mp.api.v1.Admin</a></span>  </div>
+<div class="param">listeners </div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Listener">array[io.l7mp.api.v1.Listener]</a></span> A list of Listener objects. </div>
+<div class="param">clusters </div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Cluster">array[io.l7mp.api.v1.Cluster]</a></span> A list of Cluster objects. </div>
+<div class="param">sessions (optional)</div><div class="param-desc"><span class="param-type"><a href="#object">array[Object]</a></span> A list of Session objects. </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.EndPoint"><code>io.l7mp.api.v1.EndPoint</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>A particular upstream backend that accepts connects through a Cluster.</div>
+    <div class="field-items">
+      <div class="param">name (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> Name (optional, a unique endpoint name will be assigned automatically if not specified.) </div>
+<div class="param">spec </div><div class="param-desc"><span class="param-type"><a href="#oneOf<io.l7mp.api.v1.WebSocketEndPointSpec,io.l7mp.api.v1.UDPSingletonEndPointSpec>">oneOf<io.l7mp.api.v1.WebSocketEndPointSpec,io.l7mp.api.v1.UDPSingletonEndPointSpec></a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.Error"><code>io.l7mp.api.v1.Error</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>Error info.</div>
+    <div class="field-items">
+      <div class="param">status (optional)</div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span>  </div>
+<div class="param">err (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.HTTPListenerSpec"><code>io.l7mp.api.v1.HTTPListenerSpec</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'><p>A HTTP server specification that accepts HTTP requests at a specified port.</p>
+<ul>
+<li>protocol: HTTP</li>
+<li>session ID: IP 5-tuple</li>
+<li>type: session</li>
+<li>mode: server</li>
+</ul>
+</div>
+    <div class="field-items">
+      <div class="param">protocol </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> The protocol, must be &quot;HTTP&quot;. </div>
+        <div class="param-enum-header">Enum:</div>
+        <div class="param-enum">HTTP</div>
+<div class="param">port </div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span> The valid transport protocol port. </div>
+<div class="param">path (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> HTTP URL to serve. </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.L7mpControllerSpec"><code>io.l7mp.api.v1.L7mpControllerSpec</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>A virtual cluster that accepts L7mp controller REST API calls.</div>
+    <div class="field-items">
+      <div class="param">protocol </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> The protocol, must be &quot;L7mpController&quot;. </div>
+        <div class="param-enum-header">Enum:</div>
+        <div class="param-enum">L7mpController</div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.Listener"><code>io.l7mp.api.v1.Listener</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>A socket that listens for incoming connection requests, an abstraction for an &quot;ingress port&quot;.</div>
+    <div class="field-items">
+      <div class="param">name </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> Name (required). </div>
+<div class="param">spec </div><div class="param-desc"><span class="param-type"><a href="#oneOf<io.l7mp.api.v1.HTTPListenerSpec,io.l7mp.api.v1.WebSocketListenerSpec,io.l7mp.api.v1.UDPSingletonListenerSpec>">oneOf<io.l7mp.api.v1.HTTPListenerSpec,io.l7mp.api.v1.WebSocketListenerSpec,io.l7mp.api.v1.UDPSingletonListenerSpec></a></span> Listener specification (required). </div>
+<div class="param">rules </div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Rule">array[io.l7mp.api.v1.Rule]</a></span> A list of Rule objects (required). </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.Parameter.AddressPortPair"><code>io.l7mp.api.v1.Parameter.AddressPortPair</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>A pair of a network layer (IP/IPv6) address/domain name and a transport layer port.</div>
+    <div class="field-items">
+      <div class="param">address </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> A network layer (IP/IPv6) address or domain name. </div>
+<div class="param">port </div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span> The valid transport protocol port. </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.Route"><code>io.l7mp.api.v1.Route</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>The route to be assigned to a session in a math-action rule.</div>
+    <div class="field-items">
+      <div class="param">cluster </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> The &quot;destination&quot; cluster of the route (required). </div>
+<div class="param">ingress (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">array[String]</a></span> The set of transforms to be applied in the &quot;ingress&quot; (upstream, from the listener to the cluster) direction (optional). </div>
+<div class="param">egress (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">array[String]</a></span> The set of transforms to be applied in the &quot;eress&quot; (downstream, from the cluster to the listener) direction (optional). </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.Rule"><code>io.l7mp.api.v1.Rule</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>A math-action rule that defines the route of a connection through the L7mp pipeline.</div>
+    <div class="field-items">
+      <div class="param">match (optional)</div><div class="param-desc"><span class="param-type"><a href="#">Object</a></span> The &quot;filter&quot; part of a math-action rule that filters on session metadata. </div>
+<div class="param">action </div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Action">io.l7mp.api.v1.Action</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.Status"><code>io.l7mp.api.v1.Status</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>General status info.</div>
+    <div class="field-items">
+      <div class="param">status (optional)</div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span> Status code. </div>
+<div class="param">error (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> Error. </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.StdioClusterSpec"><code>io.l7mp.api.v1.StdioClusterSpec</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>A virtual cluster that writes the stream routed to it to the proxy standard output and pipes back standard input into the stream. Useful for debugging.</div>
+    <div class="field-items">
+      <div class="param">protocol </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> The protocol, must be &quot;stdio&quot;. </div>
+        <div class="param-enum-header">Enum:</div>
+        <div class="param-enum">stdio</div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.UDPSingletonClusterSpec"><code>io.l7mp.api.v1.UDPSingletonClusterSpec</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>A UDP sender socket that forwards UDP connections to an upstream cluster, connecting to a well-defined remote address-port pair.</div>
+    <div class="field-items">
+      <div class="param">protocol </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> The protocol, must be &quot;UDP&quot;. </div>
+        <div class="param-enum-header">Enum:</div>
+        <div class="param-enum">UDP</div>
+<div class="param">port </div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span> The valid transport protocol port. </div>
+<div class="param">bind (optional)</div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Parameter.AddressPortPair">io.l7mp.api.v1.Parameter.AddressPortPair</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.UDPSingletonEndPointSpec"><code>io.l7mp.api.v1.UDPSingletonEndPointSpec</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>A UDP endpoint specification.</div>
+    <div class="field-items">
+      <div class="param">address </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> A network layer (IP/IPv6) address or domain name. </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.UDPSingletonListenerSpec"><code>io.l7mp.api.v1.UDPSingletonListenerSpec</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'><p>A connected UDP listener that accepts UDP datagrams from a specified remote address-port pair.</p>
+<ul>
+<li>protocol: UDP</li>
+<li>session ID: IP 5-tuple</li>
+<li>type: datagram</li>
+<li>mode: singleton</li>
+</ul>
+</div>
+    <div class="field-items">
+      <div class="param">protocol </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> The protocol, must be &quot;UDP&quot;. </div>
+        <div class="param-enum-header">Enum:</div>
+        <div class="param-enum">UDP</div>
+<div class="param">port </div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span> The valid transport protocol port. </div>
+<div class="param">connect </div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Parameter.AddressPortPair">io.l7mp.api.v1.Parameter.AddressPortPair</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.WebSocketClusterSpec"><code>io.l7mp.api.v1.WebSocketClusterSpec</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>A WebSocket cluster specification that forwards HTTP/WebSocket connections to an upstream cluster.</div>
+    <div class="field-items">
+      <div class="param">protocol </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> The protocol, must be &quot;WebSocket&quot;. </div>
+        <div class="param-enum-header">Enum:</div>
+        <div class="param-enum">WebSocket</div>
+<div class="param">port </div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span> The valid transport protocol port. </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.WebSocketEndPointSpec"><code>io.l7mp.api.v1.WebSocketEndPointSpec</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>A WebSocket endpoint specification.</div>
+    <div class="field-items">
+      <div class="param">address </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> A network layer (IP/IPv6) address or domain name. </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.WebSocketListenerSpec"><code>io.l7mp.api.v1.WebSocketListenerSpec</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'><p>A WebSocket server specification that accepts HTTP/WebSocket requests at a specified port.</p>
+<ul>
+<li>protocol: WebSocket</li>
+<li>session ID: IP 5-tuple</li>
+<li>type: datagram</li>
+<li>mode: server</li>
+</ul>
+</div>
+    <div class="field-items">
+      <div class="param">protocol </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> The protocol, must be &quot;WebSocket&quot;. </div>
+        <div class="param-enum-header">Enum:</div>
+        <div class="param-enum">WebSocket</div>
+<div class="param">port </div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span> The valid transport protocol port. </div>
+<div class="param">path (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> HTTP URL for to serve. </div>
+    </div>  <!-- field-items -->
+  </div>
+  </body>
+</html>
