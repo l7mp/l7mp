@@ -72,12 +72,14 @@ Node.js v12 is needed for correct UDP/connect support.
 Run L7mp locally with a [[config/l7mp-simple.json][sample]] static configuration.
 
 #+BEGIN_SRC sh
-node l7mp.js -c config/l7mp-simple.json -l warn
+node l7mp.js -c config/l7mp-simple.yaml -l warn
 #+END_SRC
 
-Command line arguments override static configuration parameters. The
-sample configuration will fire up a HTTP listener at port 1234 and
-route it to the L7mp controller that serves the L7mp REST API.
+Configuration is accepted either in YAML format (if the extension is
+=.yaml) or JSON (otherwise).  Command line arguments override static
+configuration parameters. The sample configuration will fire up a HTTP
+listener at port 1234 and route it to the L7mp controller that serves
+the L7mp REST API.
 
 ** Query configuration
 
