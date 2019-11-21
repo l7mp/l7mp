@@ -131,6 +131,25 @@ A virtual cluster that writes the stream routed to it to the proxy standard outp
 | :--- | :---: | :---: | :--- | :--- | :--- |
 | protocol | Y | enum | The protocol, must be "stdio". | <ul><li>stdio</li></ul> | &nbsp; |
 
+# io.l7mp.api.v1.EchoClusterSpec
+A virtual cluster that echoes back everything it receives.
+
+
+## Properties
+| property | required | type | description | details | example |
+| :--- | :---: | :---: | :--- | :--- | :--- |
+| protocol | Y | enum | The protocol, must be "echo". | <ul><li>echo</li></ul> | &nbsp; |
+
+# io.l7mp.api.v1.LoggerClusterSpec
+A virtual cluster that logs everything that passes through it to a log file.
+
+
+## Properties
+| property | required | type | description | details | example |
+| :--- | :---: | :---: | :--- | :--- | :--- |
+| protocol | Y | enum | The protocol, must be "logger". | <ul><li>logger</li></ul> | &nbsp; |
+| log_file | &nbsp; | string | The file to log to. Opened it mode "w" (create or truncate if exists). Default is '-' (stdout). | &nbsp; | &nbsp; |
+
 # io.l7mp.api.v1.Session
 A socket that originates connections to external services, an abstraction for an "egress port".
 

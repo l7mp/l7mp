@@ -20,6 +20,7 @@
         "mississippi": "^4.0.0",
         "npmlog": "^4.1.2",
         "openapi-backend": "^2.3.4",
+        "openapi-transformer": "^0.5.4",
         "p-event": "^4.1.0",
         "stream-operators": "^1.0.3",
         "underscore": "^1.9.1",

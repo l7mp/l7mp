@@ -1075,11 +1075,13 @@ font-style: italic;
     <li><a href="#io.l7mp.api.v1.Admin"><code>io.l7mp.api.v1.Admin</code> - </a></li>
     <li><a href="#io.l7mp.api.v1.Cluster"><code>io.l7mp.api.v1.Cluster</code> - </a></li>
     <li><a href="#io.l7mp.api.v1.Config"><code>io.l7mp.api.v1.Config</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.EchoClusterSpec"><code>io.l7mp.api.v1.EchoClusterSpec</code> - </a></li>
     <li><a href="#io.l7mp.api.v1.EndPoint"><code>io.l7mp.api.v1.EndPoint</code> - </a></li>
     <li><a href="#io.l7mp.api.v1.Error"><code>io.l7mp.api.v1.Error</code> - </a></li>
     <li><a href="#io.l7mp.api.v1.HTTPListenerSpec"><code>io.l7mp.api.v1.HTTPListenerSpec</code> - </a></li>
     <li><a href="#io.l7mp.api.v1.L7mpControllerSpec"><code>io.l7mp.api.v1.L7mpControllerSpec</code> - </a></li>
     <li><a href="#io.l7mp.api.v1.Listener"><code>io.l7mp.api.v1.Listener</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.LoggerClusterSpec"><code>io.l7mp.api.v1.LoggerClusterSpec</code> - </a></li>
     <li><a href="#io.l7mp.api.v1.Parameter.AddressPortPair"><code>io.l7mp.api.v1.Parameter.AddressPortPair</code> - </a></li>
     <li><a href="#io.l7mp.api.v1.Route"><code>io.l7mp.api.v1.Route</code> - </a></li>
     <li><a href="#io.l7mp.api.v1.Rule"><code>io.l7mp.api.v1.Rule</code> - </a></li>
@@ -1115,7 +1117,7 @@ font-style: italic;
     <div class='model-description'>A socket that originates connections to external services, an abstraction for an &quot;egress port&quot;.</div>
     <div class="field-items">
       <div class="param">name </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
-<div class="param">spec </div><div class="param-desc"><span class="param-type"><a href="#oneOf<io.l7mp.api.v1.WebSocketClusterSpec,io.l7mp.api.v1.UDPSingletonClusterSpec,io.l7mp.api.v1.L7mpControllerSpec,io.l7mp.api.v1.StdioClusterSpec>">oneOf<io.l7mp.api.v1.WebSocketClusterSpec,io.l7mp.api.v1.UDPSingletonClusterSpec,io.l7mp.api.v1.L7mpControllerSpec,io.l7mp.api.v1.StdioClusterSpec></a></span>  </div>
+<div class="param">spec </div><div class="param-desc"><span class="param-type"><a href="#oneOf<io.l7mp.api.v1.WebSocketClusterSpec,io.l7mp.api.v1.UDPSingletonClusterSpec,io.l7mp.api.v1.L7mpControllerSpec,io.l7mp.api.v1.StdioClusterSpec,io.l7mp.api.v1.EchoClusterSpec,io.l7mp.api.v1.LoggerClusterSpec>">oneOf<io.l7mp.api.v1.WebSocketClusterSpec,io.l7mp.api.v1.UDPSingletonClusterSpec,io.l7mp.api.v1.L7mpControllerSpec,io.l7mp.api.v1.StdioClusterSpec,io.l7mp.api.v1.EchoClusterSpec,io.l7mp.api.v1.LoggerClusterSpec></a></span>  </div>
 <div class="param">endpoints (optional)</div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.EndPoint">array[io.l7mp.api.v1.EndPoint]</a></span> A list of EndPoint objects. </div>
     </div>  <!-- field-items -->
   </div>
@@ -1127,6 +1129,15 @@ font-style: italic;
 <div class="param">listeners </div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Listener">array[io.l7mp.api.v1.Listener]</a></span> A list of Listener objects. </div>
 <div class="param">clusters </div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Cluster">array[io.l7mp.api.v1.Cluster]</a></span> A list of Cluster objects. </div>
 <div class="param">sessions (optional)</div><div class="param-desc"><span class="param-type"><a href="#object">array[Object]</a></span> A list of Session objects. </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.EchoClusterSpec"><code>io.l7mp.api.v1.EchoClusterSpec</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>A virtual cluster that echoes back everything it receives.</div>
+    <div class="field-items">
+      <div class="param">protocol </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> The protocol, must be &quot;echo&quot;. </div>
+        <div class="param-enum-header">Enum:</div>
+        <div class="param-enum">echo</div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
@@ -1179,6 +1190,16 @@ font-style: italic;
       <div class="param">name </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> Name (required). </div>
 <div class="param">spec </div><div class="param-desc"><span class="param-type"><a href="#oneOf<io.l7mp.api.v1.HTTPListenerSpec,io.l7mp.api.v1.WebSocketListenerSpec,io.l7mp.api.v1.UDPSingletonListenerSpec>">oneOf<io.l7mp.api.v1.HTTPListenerSpec,io.l7mp.api.v1.WebSocketListenerSpec,io.l7mp.api.v1.UDPSingletonListenerSpec></a></span> Listener specification (required). </div>
 <div class="param">rules </div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Rule">array[io.l7mp.api.v1.Rule]</a></span> A list of Rule objects (required). </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.LoggerClusterSpec"><code>io.l7mp.api.v1.LoggerClusterSpec</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>A virtual cluster that logs everything that passes through it to a log file.</div>
+    <div class="field-items">
+      <div class="param">protocol </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> The protocol, must be &quot;logger&quot;. </div>
+        <div class="param-enum-header">Enum:</div>
+        <div class="param-enum">logger</div>
+<div class="param">log_file (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> The file to log to. Opened it mode &quot;w&quot; (create or truncate if exists). Default is '-' (stdout). </div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
