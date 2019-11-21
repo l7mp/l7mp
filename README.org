@@ -244,7 +244,6 @@ curl -iX DELETE http://localhost:1234/api/v1/clusters/user-1-2-c
 | HTTP          | IP 5-tuple        | session          | l/c/t | server    | yes/yes/yes | Listener |
 | WS            | IP 5-tuple + HTTP | datagram         | l/c/t | server    | yes/yes/yes | Full     |
 | STDIO-fork    | N/A               | stream/session   | t     | singleton | no/no/no    | TODO     |
-| STDIO         | N/A               | stream/session   | t     | singleton | no/no/no    | Full     |
 | UNIX/stream   | file desc/path    | stream           | l/c/t | server    | no/no/no    | Untested |
 | UNIX/dgram    | file desc/path    | datagram/session | l/c/t | singleton | no/no/no    | Untested |
 | PIPE          | file desc/path    | stream           | l/c/t | singleton | no/no/no    | TODO     |
@@ -252,6 +251,9 @@ curl -iX DELETE http://localhost:1234/api/v1/clusters/user-1-2-c
 | PORT          | tun/tap/port      | datagram         | l/c/t | singleton | no/no/no    | TODO     |
 | INLINE/stream | N/A               | stream           | t     | singleton | no/no/no    | TODO     |
 | INLINE/dgram  | N/A               | datagram         | t     | singleton | no/no/no    | TODO     |
+| INLINE/STDIO  | N/A               | stream/session   | c     | singleton | no/no/no    | Full     |
+| INLINE/Echo   | N/A               | stream/session   | t/c   | singleton | no/no/no    | Full     |
+| INLINE/Logger | N/A               | stream/session   | t/c   | singleton | no/no/no    | Full     |
 |---------------+-------------------+------------------+-------+-----------+-------------+----------|
 
 ** Protocols
@@ -260,8 +262,13 @@ curl -iX DELETE http://localhost:1234/api/v1/clusters/user-1-2-c
   listener-only protocol that emits a new session for each IP
   5-tuple
 - STDIO-fork is a (transform-only) protocol for communicating with a
-  forked process through STDIO/STDOUT, while STDIO streams to the
-  L7mp proxy stdin/stdout (useful for debugging)
+  forked process through STDIO/STDOUT
+- Inline/STDIO pipes the stream to the L7mp proxy stdin/stdout, stream
+  reads from stdin and write to stdout (useful for debugging)
+- Inline/Echo is an Echo Cluster, writes back everything it reads
+  (useful for debugging)
+- Inline/Logger is also an Echo Cluster, but also writes everything
+  that goes through it to a file (useful for debugging)
 - INLINE/stream and INLINE/dgram are transforms-only protocols for
   built-in transformers (node-js Transform objects)
 
