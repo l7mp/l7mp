@@ -9,38 +9,43 @@
 
 #+TITLE: L7MP: A programmable L7 meta-proxy
 
-/L7mp is under construction, with many advertised features untested,
-not working as promised, or completely missing./
+/[L7mp is currently under construction, with many advertised features untested, not working as promised, or completely missing.]/
 
-L7mp is /a programmable, multi-protocol service proxy/ optimized for
+L7mp is a programmable, multi-protocol service proxy optimized for
 persistent, long-lived media streams and telco use cases:
 
 - "L7", because the main unit of traffic is transport- and
   application-layer connections/sessions;
-- "meta", because new protocols can dynamically added on top of
-  primitive protocols types;
+- "meta", because new protocols can be dynamically introduced on top
+  of primitive protocols;
 - "proxy", because it connects application-level traffic streams in a
   protocol-agnostic manner, e.g., you can pipe a UNIX domain socket to
   a WebSocket stream transparently and vice versa;
 - and "programmable", because L7mp exposes a RESTful API that allows
   to query, manage, or modify data-plane streams.
 
-L7mp is modeled after [[https://github.com/envoyproxy/envoy][Envoy]] in that it uses similar abstractions
-(Listeners, Clusters, etc.), but it adds some new functionality to
-manage long-lived media streams, including off-the-shelf support
-protocols that Envoy does not support natively, or does not support at
-all (e.g., UDP, raw IP, L2), and the capacity to build new ones
-(VXLAN, RTP, DNS, or ICMP) and to transparently route sessions across
-such protocol clusters with transparent protocol transformation (e.g.,
-to route an UDP listener or a raw IP socket to a WebSocket cluster)
-and native support for datagram- and byte-streams, steam
+L7mp is modeled after [[https://github.com/envoyproxy/envoy][Envoy]]
+in that it uses similar abstractions (Listeners, Clusters, etc.), but
+it also adds some new functionality to manage long-lived media
+streams.  For instance, L7mp supports many protocols that Envoy does
+not support natively, or does not support at all (e.g., UDP, raw IP,
+L2), and provides an API to dynamically build new ones (VXLAN, RTP,
+DNS, or ICMP) on top.  Furthermore, L7mp features an extended routing
+API, which allows to transparently pipe sessions across diverse
+protocol clusters, with automatic and transparent protocol
+transformation (e.g., you can route an UDP listener or a raw IP socket
+to a WebSocket cluster and everything should work as expected), native
+support for datagram- and byte-streams, stream
 multiplexing/demultiplexing, encap/decap, etc.  Considering this
-strong emphasis on multiprotocol support, L7mp may actually be closes
+strong emphasis on multiprotocol support, L7mp may actually be closer
 in nature to =socat(1)= than to Envoy, but it is dynamically
 configurable through a REST API in contrast to =socat(1)= which is a
-static CLI tool.  The REST API is likewise similar to [[https://github.com/cncf/udpa][Envoy/xDS]] with
-some useful additions, like support for listing, killing, or
-dynamically re-routing(!)  individual transport session.
+static CLI tool.
+
+The REST API is likewise similar to
+[[https://github.com/cncf/udpa][Envoy/xDS]] with some useful
+additions, like support for listing, killing, or dynamically
+re-routing(!)  individual transport session.
 
 L7mp is written in node.js. This way, it is much simpler and easier to
 extend than Envoy or =socat=, but at the same time it is also much
