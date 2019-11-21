@@ -27,20 +27,21 @@ persistent, long-lived media streams and telco use cases:
 L7mp is modeled after [[https://github.com/envoyproxy/envoy][Envoy]]
 in that it uses similar abstractions (Listeners, Clusters, etc.), but
 it also adds some new functionality to manage long-lived media
-streams.  For instance, L7mp supports many protocols that Envoy does
+streams.  For instance, L7mp implements many protocols that Envoy does
 not support natively, or does not support at all (e.g., UDP, raw IP,
 L2), and provides an API to dynamically build new ones (VXLAN, RTP,
 DNS, or ICMP) on top.  Furthermore, L7mp features an extended routing
 API, which allows to transparently pipe sessions across diverse
-protocol clusters, with automatic and transparent protocol
-transformation (e.g., you can route an UDP listener or a raw IP socket
-to a WebSocket cluster and everything should work as expected), native
-support for datagram- and byte-streams, stream
+protocol listeners and clusters, with automatic and transparent
+protocol transformation (e.g., you can route a UDP listener or a raw
+IP socket to a WebSocket cluster and everything should work as
+expected), native support for datagram- and byte-streams, stream
 multiplexing/demultiplexing, encap/decap, etc.  Considering this
 strong emphasis on multiprotocol support, L7mp may actually be closer
 in nature to =socat(1)= than to Envoy, but it is dynamically
 configurable through a REST API in contrast to =socat(1)= which is a
-static CLI tool.
+static CLI tool (but it is much more feature-complete than L7mp in
+return).
 
 The REST API is likewise similar to
 [[https://github.com/cncf/udpa][Envoy/xDS]] with some useful
