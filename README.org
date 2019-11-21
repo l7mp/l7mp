@@ -159,6 +159,8 @@ contains a Transformer cluster called =up=; this cluster has been
 specified statically in the sample configuration file to connect to
 the remote server =ws://localhost:8080=.
 
+** Routing
+
 On session creation, L7mp will demultiplex the bidirectional stream at
 the listener into two uni-directional streams: the /ingress stream/
 (in the direction from the listener to the cluster) will be routed
