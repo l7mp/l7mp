@@ -171,33 +171,34 @@ the cluster back to the listener), no transformation occurs.
 
 The ingress and the egress routes are specified and handled
 separately.  Both routes can contain a list of any number of Transform
-clusters that will be chained sequentially when the listener emits a
-session, automatically performing transparent protocol and payload
-conversion along the way. Note that datagram boundaries are preserved
-during transformation whenever possible, and when it is not (i.e.,
-piping a UDP stream to a TCP cluster or L7mp =stdio= will lose
-segmentation) L7mp issues a warning.
+clusters that will be chained sequentially, automatically performing
+transparent protocol and payload conversion along the way. Note that
+datagram boundaries are preserved during transformation whenever
+possible, and when it is not (i.e., piping a UDP stream to a TCP
+cluster will lose segmentation), L7mp issues a warning.
 
 This should yield the routes:
 
 : ingress: user-1-2-l -> up -> user-1-2-c
-: egress:  user-1-2-l -> user-1-2-l
+: egress:  user-1-2-c -> user-1-2-l
 
 ** Retries and timeouts
 
 [TODO]
 
-When created the UDP listener immediately becomes connected (to avoid
+When created, the UDP listener immediately becomes connected (to avoid
 this behavior, do not specify a =connect= clause in the spec, TODO),
-creates a session, and then tries to route the session's stream
-through the =up= cluster. This will fail because no one is listening
-on the other side.
+creates a session, and then tries to route the session through the
+=up= cluster by properly piping the underlying streams.  In the
+current configuration, this will fail because no one is listening on
+the other side.
 
-As per the =retries= rule, L7mp will automatically retry the
-connection at most 200 times, waiting each time 1000 ms for the stream
-to be successfully established.
+As per the =retries= setting in the route, L7mp will automatically
+retry the connection at most 200 times, waiting each time 1000 ms for
+the stream to be successfully established.
 
-To complete the connection, fire up a [[https://github.com/vi/websocat][websocat]] echo server on
+To complete the connection, fire up a
+[[https://github.com/vi/websocat][websocat]] echo server on
 =localhost:8080=:
 
 #+BEGIN_SRC sh
@@ -206,32 +207,32 @@ websocat -v -v -v -v -v ws-l:0.0.0.0:8080 mirror:
 
 ** Test the connection
 
-Fire up a =socat= sender (don't forget to bind the sender to 5555,
+Start a =socat= sender (don't forget to bind the sender to 5555,
 otherwise L7mp, which connects back to this port, will not accept the
 connection):
 
 #+BEGIN_SRC sh
-socat - udp:localhost:9999,sourceport=5555
+socat - udp:localhost:15000,sourceport=15001
 #+END_SRC
 
-Start a =socat= receiver:
+Then, start a =socat= receiver:
 
 #+BEGIN_SRC sh
-socat udp-l:5556 -
+socat udp-l:16000 -
 #+END_SRC
 
 What you type in the sender should appear transparently at the
 receiver and =websocat= should report something like =incoming text=,
-indicating that the =up= cluster. In the reverse direction, however,
-no such reports should appear.
+indicating that the =up= cluster received our input. In the reverse
+direction, however, no such report should appear.
 
 ** Clean up
 
 Provided that the new session is named =session-name= (L7mp
 automatically assigns unique names to each session, you can check this
 by issuing a GET request to the API endpoint
-=/api/v1/sessions/{session-name}=), delete the session, the cluster
-and the listener:
+=/api/v1/sessions/{session-name}=), you can delete the session, the
+cluster and the listener as follows:
 
 #+BEGIN_SRC sh
 curl -iX DELETE http://localhost:1234/api/v1/sessions/<session-name>
@@ -526,3 +527,10 @@ other way around (warn!)
 #+END_SRC
 
 ** TODO Example 4: Istio
+
+* License
+
+Copyright 2019 by its authors.
+Some rights reserved. See AUTHORS.
+
+MIT License
