@@ -29,6 +29,7 @@ const udp          = require('dgram');
 const url          = require('url');
 const util         = require('util');
 const stream       = require('stream');
+const streamops    = require("stream-operators");
 const miss         = require('mississippi');
 const EventEmitter = require('events');
 const pTimeout     = require('p-timeout');
@@ -446,8 +447,78 @@ class StdioCluster extends Cluster {
     }
 
     stream(s){
-        log.silly('StdioCluster.connect', `Session: "${s.name}"`);
+        log.silly('StdioCluster.stream', `Session: "${s.name}"`);
         return Promise.resolve(miss.duplex(process.stdout, process.stdin));
+    }
+};
+
+class EchoCluster extends Cluster {
+    constructor(c) {
+        super( {
+            name:         c.name || 'EchoCluster',
+            spec:         {protocol: 'Echo' },
+            endpoints:    [],
+            loadbalancer: 'none',
+            type:         'datagram'
+        });
+    }
+
+    toJSON(){
+        log.silly('EchoCluster.toJSON:', `"${this.name}"`);
+        return {
+            name:      this.name,
+            protocol:  this.protocol
+        };
+    }
+
+    connect(s){
+        return Promise.reject('EchoCluster.connect: Not implemented');
+    }
+
+    stream(s){
+        log.silly('EchoCluster.stream', `Session: "${s.name}"`);
+        return Promise.resolve(new stream.PassThrough());
+    }
+};
+
+class LoggerCluster extends Cluster {
+    constructor(c) {
+        super( {
+            name:         c.name || 'LoggerCluster',
+            spec:         {protocol: 'Logger' },
+            endpoints:    [],
+            loadbalancer: 'none',
+            type:         'datagram'
+        });
+        this.log_file = c.log_file || '-';
+    }
+
+    toJSON(){
+        log.silly('LoggerCluster.toJSON:', `"${this.name}"`);
+        return {
+            name:      this.name,
+            protocol:  this.protocol,
+            log_file:  this.log_file,
+        };
+    }
+
+    connect(s){
+        return Promise.reject('LoggerCluster.connect: Not implemented');
+    }
+
+    stream(s){
+        log.silly('LoggerCluster.stream',
+                  `Session: ${s.name}, File: ${this.log_file}`);
+
+        let log_file = process.stdout;
+        if(this.log_file !== '-'){
+            log_file = fs.createWriteStream(this.log_file, { flags: 'w' });
+        }
+
+        return Promise.resolve( streamops.fork (
+            (stream) => stream.pipe(res),       // echo request to response
+            (stream) => stream.pipe(log_file)  // log request to console
+        ) );
     }
 };
 
@@ -458,6 +529,8 @@ Cluster.create = (c) => {
     case 'WebSocket':      return new WebSocketCluster(c);
     case 'UDP':            return new UDPCluster(c);
     case 'Stdio':          return new StdioCluster(c);
+    case 'Echo':           return new EchoCluster(c);
+    case 'Logger':         return new LoggerCluster(c);
     case 'L7mpController': return new L7mpControllerCluster(c);
     default:
         log.error('Cluster.create',

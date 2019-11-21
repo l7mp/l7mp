@@ -25,6 +25,7 @@
 const log          = require('npmlog');
 const EventEmitter = require('events').EventEmitter;
 const util         = require('util');
+const miss         = require('mississippi')
 const _            = require('underscore');
 
 //------------------------------------
@@ -146,13 +147,22 @@ class Route {
             log.silly("Route.pipeline:", `${dir} pipe:`,
                       `${from.origin.name} ->`,
                       `${to.origin.name}`);
-            from.stream.pipe(to.stream);
+            this.pipe(from.stream, to.stream);
             from = to;
         });
         log.silly("Route.pipeline:", `${dir} pipe:`,
                   `${from.origin.name} ->`,
                   `${dest.origin.name}`);
-        from.stream.pipe(dest.stream);
+        this.pipe(from.stream, dest.stream);
+    }
+
+    // local override to allow experimenting with mississippi.pipe
+    pipe(from, to){
+        // default
+        return from.pipe(to);
+        // miss.pipe(from, to, (error) => {
+        //     this.emit('error', error);
+        // });
     }
 
     all_streams(){

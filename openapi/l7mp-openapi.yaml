@@ -159,6 +159,8 @@ components:
             - $ref: '#/components/schemas/io.l7mp.api.v1.UDPSingletonClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.L7mpControllerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.LoggerClusterSpec'
         endpoints:
           description: A list of EndPoint objects.
           type: array
@@ -220,6 +222,33 @@ components:
           type: string
           enum:  # fixed value
             - stdio
+
+    io.l7mp.api.v1.EchoClusterSpec:
+      description: A virtual cluster that echoes back everything it receives.
+      type: object
+      required:
+        - protocol
+      properties:
+        protocol:
+          description: The protocol, must be "echo".
+          type: string
+          enum:  # fixed value
+            - echo
+
+    io.l7mp.api.v1.LoggerClusterSpec:
+      description: A virtual cluster that logs everything that passes through it to a log file.
+      type: object
+      required:
+        - protocol
+      properties:
+        protocol:
+          description: The protocol, must be "logger".
+          type: string
+          enum:  # fixed value
+            - logger
+        log_file:
+          description: The file to log to. Opened it mode "w" (create or truncate if exists). Default is '-' (stdout).
+          type: string
 
     io.l7mp.api.v1.Session:
       description: A socket that originates connections to external services, an abstraction for an "egress port".
