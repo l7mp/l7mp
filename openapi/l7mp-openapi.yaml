@@ -312,6 +312,17 @@ components:
     io.l7mp.api.v1.Match:
       description: The "filter" part of a math-action rule that filters on session metadata.
       type: object
+      oneOf:
+        - $ref: '#/components/schemas/io.l7mp.api.v1.WildcardMatch'
+        - $ref: '#/components/schemas/io.l7mp.api.v1.JSONPredicate'
+
+    io.l7mp.api.v1.WildcardMatch:
+      description: A wildcard filter, matches everything.
+      type: string
+
+    io.l7mp.api.v1.JSONPredicate:
+      description: A complex filter specified as a JSON predicate, see https://tools.ietf.org/html/draft-snell-json-test-07
+      type: object
 
     io.l7mp.api.v1.Action:
       description: The "action" part of a math-action rule that assigns a route to the matched sessions.
@@ -319,14 +330,17 @@ components:
       required:
         - route
       properties:
+        # set:
+        #   description: Set/rewrite session metadata (optional).
+        #   type: object
         metadata:
-          description: JSON query for manipulating session metadata (optional).
+          description: Set/rewrite session metadata with a JSON snippet (optional).
           type: object
         route:
           $ref: '#/components/schemas/io.l7mp.api.v1.Route'
 
     io.l7mp.api.v1.Rule:
-      description: A math-action rule that defines the route of a connection through the L7mp pipeline.
+      description: A math-action rule that defines the route of a connection through the L7mp pipeline. May contain a match and an action. If no match is specified, a wildcard match is automatically installed.
       type: object
       required:
         - action

@@ -105,9 +105,6 @@ class Rule {
             name:   this.name,
             match:  this.match,
             action: this.action,
-            // action: { route: {
-            //     listener: this.action.cluster,
-            //     cluster: this.action.cluster,
         };
     }
 
@@ -116,7 +113,7 @@ class Rule {
         log.silly(`Rule.apply: ${dump(this)}`);
 
         if(this.match.apply(s)){
-            _.extend(s.metadata, this.action.metadata);
+            _.extend(s.metadata, this.action.set);
             this.stats.total_applied++;
             log.silly(`Rule.apply: "${this.name}": Match`);
             return this.action;
