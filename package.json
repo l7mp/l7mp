@@ -15,8 +15,10 @@
     "license": "MIT",
     "homepage": "https://github.com/rg0now/l7mp",
     "dependencies": {
+        "duplexer2": "^0.1.4",
         "jq-web": "^0.5.0",
         "json-predicate": "^0.9.5",
+        "merge-stream": "^2.0.0",
         "minimist": "^1.2.0",
         "mississippi": "^4.0.0",
         "npmlog": "^4.1.2",

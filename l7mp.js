@@ -40,7 +40,7 @@ const Route      = require('./route.js').Route;
 const hostname   = os.hostname();
 
 global.dump = function dump(o){
-    return util.inspect(o, {compact: 100000, breakLength: Infinity, depth: 50});
+    return util.inspect(o, {compact: 100000, breakLength: Infinity, depth: 3});
 }
 
 class L7mp {
@@ -103,13 +103,13 @@ class L7mp {
         s.route.pipeline(s).then(
             // set up event listeners
             (route) => s.setRoute(route),
-            // on error
-            (e) => {
-                log.warn('L7mp.route', `${e.message}`);
-                listener.origin.reject(s, e);
-                this.deleteSession(s.name);
-                return;
-            }
+            // // on error
+            // (e) => {
+            //     log.warn('L7mp.route: pipeline error:', `${e.message}`);
+            //     listener.origin.reject(s, e);
+            //     this.deleteSession(s.name);
+            //     return;
+            // }
         );
     }
 

@@ -22,23 +22,26 @@
 
 'use strict';
 
-const log          = require('npmlog');
-const fs           = require('fs');
-const http         = require('http');
-const WebSocket    = require('ws');
-const udp          = require('dgram');
-const url          = require('url');
-const util         = require('util');
-const stream       = require('stream');
-const streamops    = require("stream-operators");
-const miss         = require('mississippi');
-const EventEmitter = require('events');
-const pTimeout     = require('p-timeout');
-const pEvent       = require('p-event');
+const log           = require('npmlog');
+const fs            = require('fs');
+const http          = require('http');
+const WebSocket     = require('ws');
+const udp           = require('dgram');
+const url           = require('url');
+const util          = require('util');
+const EventEmitter  = require('events');
+const pTimeout      = require('p-timeout');
+const pEvent        = require('p-event');
+
+const stream        = require('stream');
+const streamops     = require("stream-operators");
+const miss          = require('mississippi');
+const jsonPredicate = require("json-predicate")
 
 const StreamCounter = require('./stream-counter.js').StreamCounter;
 const L7mpOpenAPI   = require('./l7mp-openapi.js').L7mpOpenAPI;
 const utils         = require('./utils.js');
+
 
 //------------------------------------
 //
@@ -379,7 +382,7 @@ class UDPCluster extends Cluster {
             // var remote_address = args[1];
             // var remote_port    = args[2];
 
-            this.stream = new utils.DgramStream(socket);
+            this.stream = new utils.DatagramStream(socket);
 
             log.silly('UDPCluster.stream:', `Created`);
 
@@ -522,6 +525,59 @@ class LoggerCluster extends Cluster {
     }
 };
 
+// allows two or more sessions to synchronize
+// definition contains a label as a JSON query to the metadata
+// all streams with the same label will be connected into a single
+// broadcast stream
+class SyncCluster extends Cluster {
+    constructor(c) {
+        super( {
+            name:         c.name || 'SyncCluster',
+            spec:         {protocol: 'Sync' },
+            endpoints:    [],
+            loadbalancer: 'none',
+            type:         'datagram',
+        });
+        this.query    = c.spec.query; // JSON query to get key from medatata
+        this.streams  = {};           // keyed by 'label'
+    }
+
+    toJSON(){
+        log.silly('SyncCluster.toJSON:', `"${this.name}"`);
+        return {
+            name:       this.name,
+            protocol:   this.protocol,
+            type:       'datagram',
+            query:      this.query,
+            streams:    this.streams.length,
+        };
+    }
+
+    connect(s){
+        return Promise.reject('SyncCluster.connect: Not implemented');
+    }
+
+    stream(s){
+        log.silly('SyncCluster.stream', `Session: "${s.name}"`);
+
+        let label = jsonPredicate.dataAtPath(s.metadata, this.query);
+        if(label){
+            if(!(label in this.streams)){
+                // unknown label: create stream
+                this.streams[label] = new utils.BroadcastStream();
+            }
+
+            let port = this.streams[label].add(s);
+            console.log(dump(this.streams));
+            return Promise.resolve(port);
+        } else {
+            return Promise.reject('SyncCluster.stream', `reject`,
+                                  `Session: "${s.name}"`,
+                                  `query "${this.query} empty label`);
+        }
+    }
+};
+
 Cluster.create = (c) => {
     log.silly('Cluster.create', dump(c));
     switch(c.spec.protocol){
@@ -531,6 +587,7 @@ Cluster.create = (c) => {
     case 'Stdio':          return new StdioCluster(c);
     case 'Echo':           return new EchoCluster(c);
     case 'Logger':         return new LoggerCluster(c);
+    case 'Sync':           return new SyncCluster(c);
     case 'L7mpController': return new L7mpControllerCluster(c);
     default:
         log.error('Cluster.create',

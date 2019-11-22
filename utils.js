@@ -22,10 +22,14 @@
 
 'use strict';
 
-const stream_pipe = require('stream').prototype.pipe;
-const { Duplex }  = require('stream');
 const log         = require('npmlog');
 const util        = require('util');
+
+const stream_pipe = require('stream').prototype.pipe;
+const { Duplex, PassThrough }  = require('stream');
+const duplex3     = require("duplexer2");
+const merge3      = require('merge-stream');
+const miss        = require('mississippi');
 
 // // WARNING: The below will switch to the old-style streams API
 // // ("classic" streams) as per having a "data" listener, see
@@ -87,7 +91,7 @@ const util        = require('util');
 //     return socket;
 // }
 
-class DgramStream extends Duplex {
+class DatagramStream extends Duplex {
     constructor(socket, options){
         super({
             ...options,
@@ -103,7 +107,7 @@ class DgramStream extends Duplex {
         try {
             this.remote = socket.remoteAddress();
         } catch(e) {
-            throw 'DgramStream: Cannot create a stream for an unconnected '+
+            throw 'DatagramStream: Cannot create a stream for an unconnected '+
                 'socket: '+ e;
         }
 
@@ -113,11 +117,11 @@ class DgramStream extends Duplex {
         // must drop it
         socket.on('message', (msg, rinfo) => {
             // msg.rinfo = rinfo;
-            log.silly('DgramStream.onmessage:',
+            log.silly('DatagramStream.onmessage:',
                       `rinfo: ${dump(rinfo)}: ${msg}`);
 
             if(!this.push(msg))
-                log.info('DgramStream.onmessage: Dropping message:',
+                log.info('DatagramStream.onmessage: Dropping message:',
                           `rinfo: ${dump(rinfo)}: ${msg}`);
         });
 
@@ -129,12 +133,12 @@ class DgramStream extends Duplex {
         // connected
 
         socket.on('error', (e) => {
-            log.silly('DgramStream.onerror:', e);
+            log.silly('DatagramStream.onerror:', e);
             this.destroy(e);
         });
 
         socket.on('close', () => {
-            log.silly('DgramStream.onclose');
+            log.silly('DatagramStream.onclose');
             this.end();
         });
 
@@ -151,7 +155,7 @@ class DgramStream extends Duplex {
         if(!Buffer.isBuffer(message))
             message = new Buffer(message);
 
-        log.silly('DgramStream._write:', `${this.remote.address}:`+
+        log.silly('DatagramStream._write:', `${this.remote.address}:`+
                   `${this.remote.port}:`,`${message}`);
 
         this.socket.send(message, 0, message.length);
@@ -160,5 +164,70 @@ class DgramStream extends Duplex {
     };
 };
 
+class BroadcastStream {
+    constructor(){
+        this.ports = [];
+        return this;
+    }
+
+    // key is a transparent id
+    add(key) {
+        let input  = new PassThrough({objectMode: true});
+        let output = new merge3();
+        let port   = duplex3(input, output);
+
+        this.ports.push( {port: port, input: input, output: output, key: key} );
+        input.once('end', (e) => { this.remove(key) });
+
+        // input
+        this.ports.forEach( (p) => {
+            if(p.key !== key){
+                miss.pipe(input, p.output);   // will call merge.add
+            }
+        });
+
+        // output
+        this.ports.forEach( (p) => {
+            if(p.key !== key){
+                miss.pipe(p.input, output);   // will call merge.add
+            }
+        });
+
+        return port;
+    }
+
+    isEmpty(){
+        return this.ports.length == 0;
+    }
+
+    remove(k) {
+        let i = this.ports.findIndex( ({key}) => key === k );
+        if(i >= 0){
+            let port   = this.ports[i];
+            let input  = port.input;
+            let output = port.output;
+
+            // input
+            this.ports.forEach( (p) => {
+                if(p.key !== k){
+                    input.unpipe(p.output);
+                }
+            });
+
+            // output
+            this.ports.forEach( (p) => {
+                if(p.key !== k){
+                    p.input.unpipe(output);
+                }
+            });
+
+            if(port.output.readable) { port.output.end() };
+
+            this.ports.splice(i, 1);
+        }
+    }
+};
+
 // module.exports.socket2dgramstream = socket2dgramstream;
-module.exports.DgramStream = DgramStream;
+module.exports.DatagramStream = DatagramStream;
+module.exports.BroadcastStream = BroadcastStream;

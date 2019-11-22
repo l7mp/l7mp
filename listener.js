@@ -224,10 +224,11 @@ class WebSocketListener extends Listener {
     }
 
     reject(s, e){
-        s.priv.res.writeHead(404, {
-            'Content-Length': e.length,
-            'Content-Type': 'text/plain'
-        }).end(e);
+        log.info('WebSocketListener:', 'reject');
+        // 1011: Internal Error: The server is terminating the
+        // connection because it encountered an unexpected condition
+        // that prevented it from fulfilling the request.
+        s.priv.socket.close(1011, e.toString());
     }
 };
 
@@ -278,7 +279,7 @@ class UDPSingletonListener extends Listener {
 
                                this.socket = socket;
                                this.stream =
-                                   new utils.DgramStream(socket);
+                                   new utils.DatagramStream(socket);
 
                                this.stream.once('listening', () =>
                                                 this.onRequest());
