@@ -18,3 +18,4 @@
 
 ** TODO connection/stream disconnect (currently losing a WebSocket stream along a chain does not disconnect the session)
 ** TODO stream segmentation correctness (do datagram streams correctly maintain message boundaries)?
+** TODO verify each dependency for streams3 support
