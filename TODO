@@ -1,7 +1,20 @@
-* implement stream debugger (inline json dump of stream contents)
-* jquery-based rules
-* stream statistics
-* expose statistics to prometheus (prometheus_listener)
-* expose statistics to jquery rules(this would allow simple qos/rate-limiting)
-* write openapi API definition and auto-generate HTTP routes
-* document!
+* Importance: high
+
+** DONE implement rule matching
+** DONE documentation + github
+** DONE implement OpenAPI definitions for the REST API and use auto-generated request routing in L7mpController
+** DONE implement stream debugging (Logger, Echo)
+** TODO session setup retries/timeout
+** TODO sync cluster (allow sessions to sync at a cluster)
+** TODO stream statistics
+** TODO expose statistics to prometheus (prometheus_listener)
+** TODO expose statistics to rules matching (this would allow simple qos/rate-limiting)
+
+* Importance: minor
+
+** TODO JSON schema validation for JSONPredicate rules
+
+* Test
+
+** TODO connection/stream disconnect (currently losing a WebSocket stream along a chain does not disconnect the session)
+** TODO stream segmentation correctness (do datagram streams correctly maintain message boundaries)?
