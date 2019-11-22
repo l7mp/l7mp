@@ -1,0 +1,32 @@
+admin:
+  log_level: silly
+  log_file: stdout
+  access_log_path: /tmp/admin_access.log
+listeners:
+  - name: controller-listener
+    spec: { protocol: HTTP, port: 1234 }
+    rules:
+      - action:
+          route:
+            cluster: controller     # northbound: predefined INLINE/stream
+  - name: ws-l
+    spec: { protocol: WebSocket, port: 9999 }
+    rules:
+      - match:
+          op: or
+          apply:
+            - { op: test, path: '/HTTP/headers/token', value: 'secret' }
+            - { op: starts, path: '/HTTP/url/path', value: '/admin' }
+        action:
+          route:
+            cluster: echo
+      - action:
+          route:
+            cluster: stdio
+clusters:
+  - name: controller
+    spec: { protocol: L7mpController }
+  - name: stdio
+    spec: { protocol: Stdio }
+  - name: echo
+    spec: { protocol: Echo }

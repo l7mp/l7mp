@@ -22,9 +22,17 @@
 
 'use strict';
 
-// const jq = require('libjq-js');
-const log = require('npmlog');
-const _   = require('underscore');
+const log           = require('npmlog');
+const _             = require('underscore');
+
+const jsonPredicate = require("json-predicate")
+// TODO: se use json-predicate.dataAtPath to query metadata but this
+// is pretty basic; eventually, we should monkey-patch dataAtPath with
+// with something like json-query or jsonpath to enable complex
+// queries
+
+// see doc at https://tools.ietf.org/html/draft-snell-json-test-07
+
 
 //------------------------------------
 //
@@ -49,32 +57,32 @@ class Wildcard extends Match {
     }
 };
 
-// class Jq extends Match {
-//     constructor(m) {
-//         this.query = m;
-//     }
+class JSONPredicate extends Match {
+    constructor(m) {
+        super();
+        // TODO: validate query. We now accept invalid queries and
+        // silently fail during runtime
+        this.predicate = m;
+    }
 
-//     apply(s){
-//         log.silly("Jq.apply", `query: "${this.query}"`);
-//         let res = jq.json(s.metadata);
-//         log.silly("JqMatch.apply", `resuts: "${res}"`);
-//         return res == true;
-//     }
+    apply(s){
+        log.silly("JSONPredicate.apply",
+                  `Session: ${s.name}, predicate: "${this.predicate}"`);
+        let res = jsonPredicate.test(s.metadata, this.predicate);
 
-//     toJSON(){
-//         return '*';
-//     }
-// };
+        log.silly("JSONPredicate.apply", `resuts: "${res}"`);
+        return res === true;
+    }
+
+    toJSON(){ return this.predicate; }
+};
 
 Match.create = (m) => {
     log.silly("Match.create:", dump(m));
     if(typeof m === 'string'){
-        switch(m){
-        case '*': return new Wildcard();
-        // default: return new JqMatch(m);
-        }
+        return new Wildcard();
     } else {
-        log.error("Match.apply", "TODO: Only Wildcard implemented");
+        return new JSONPredicate(m);
     }
 }
 

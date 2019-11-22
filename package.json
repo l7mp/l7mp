@@ -16,6 +16,7 @@
     "homepage": "https://github.com/rg0now/l7mp",
     "dependencies": {
         "jq-web": "^0.5.0",
+        "json-predicate": "^0.9.5",
         "minimist": "^1.2.0",
         "mississippi": "^4.0.0",
         "npmlog": "^4.1.2",
