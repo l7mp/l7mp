@@ -37,12 +37,9 @@ const StreamCounter = require('./stream-counter.js').StreamCounter;
 // - Event: 'connect': Emitted when a session stream pipeline is
 //   successfully established.
 
-// - Event: 'close': Emitted if one of the streams in the session's
-//   pipeline is closed.
-
-// - Event: 'error' (<Error>): Emitted when an error occurs in the
-//   pipeline. The 'close' event will be called directly following
-//   this event.
+// - Event: 'end': Emitted if one of the streams in the session's
+//   pipeline is closed. (sometimes it's 'close' but the 'route' takes
+//   cares of this), if error is defined, then it's an error
 
 class Session {
     constructor(m, l, p){
@@ -52,6 +49,7 @@ class Session {
         this.route    = undefined;
         this.stats    = { counter: new StreamCounter() };
         this.priv     = p || {};
+        this.retryPolicy = 'NEVER';
     }
 
     toJSON(){
@@ -65,27 +63,38 @@ class Session {
     setRoute(r){
         this.route = r;
 
-        this.route.on('close', (origin, stream) => {
-            this.onClose(origin, stream);
-        });
-
-        this.route.on('error', (e, origin, stream) => {
-            this.onError(e, origin, stream);
+        this.route.on('end', (origin, stream, error) => {
+            log.info('Session.end event:',
+                     `Route.end for session "${this.name}"`);
+            this.onDisconnect('end', origin, stream, error);
         });
     }
 
-    onClose(o, s){
-        log.info('Session.onClose',
-                 `TODO: Close event on session "${this.name}"`);
-        //  from`, `origin: ${o.name}`);
-        this.metadata.status = 'DISCONNECT';
+    onDisconnect(event, origin, stream, error){
+        log.silly('Session.onDisconnect event:',
+                 `Route.${event} for session "${this.name}":`,
+                  (error) ? dumper(error, 1) : '',
+                  `origin: "${origin.name}"`);
+
+        switch(this.retryPolicy){
+        case 'NEVER':
+            this.disconnect(event, error);
+            break;
+        default:
+            log.warn('Session.onDisconnect:',
+                     'unknown retry policy, not retrying');
+            this.disconnect(event, error);
+        }
     }
 
-    onError(e, o, s){
-        log.info('Session.onError',
-                 `TODO: Error event on session "${this.name}"`);
-        //from`, `origin: ${o.name}: ${e}`);
-        this.metadata.status = 'DISCONNECT';
+    disconnect(e, error){
+        log.silly('Session.disconnect');
+        dump(this.metadata);
+        if(this.metadata.status === 'ESTABLISHED'){
+            this.emit('end', this, error);
+        } else {
+            log.silly('Session.disconnect: session not established, ignoring');
+        }
     }
 };
 util.inherits(Session, EventEmitter);

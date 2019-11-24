@@ -36,18 +36,20 @@ const utils         = require('./utils.js');
 
 class Listener {
     constructor(l){
-        this.protocol = l.spec.protocol;
-        this.name     = l.name;
-        this.spec     = l.spec;
-        // rules are added explicitly from addRule
-        this.rules    = [];
-        this.type     = "";
-        this.stats    = {
+        this.protocol  = l.spec.protocol;
+        this.name      = l.name;
+        this.spec      = l.spec;
+        this.rules     = [];
+        this.type      = "";
+        this.sessionId = 0;
+        this.stats     = {
             active_sessions:   0,
             accepted_sessions: 0,
             counter: new StreamCounter()
         };
     }
+
+    getNewSessionId() { return this.sessionId++; }
 
     toJSON(){
         log.silly('Listener.toJSON', `"${this.name}"`);
@@ -97,7 +99,8 @@ class HTTPListener extends Listener {
             `HTTP:${req.connection.remoteAddress}:` +
             `${req.connection.remotePort}::` +
             `${req.connection.localAddress}:` +
-            `${req.connection.localPort}`;
+            `${req.connection.localPort}-` +
+            this.getNewSessionId();
 
         try {
             var query = url.parse(req.url);
@@ -183,7 +186,8 @@ class WebSocketListener extends Listener {
             `WS:${req.connection.remoteAddress}:` +
             `${req.connection.remotePort}::` +
             `${req.connection.localAddress}:` +
-            `${req.connection.localPort}`;
+            `${req.connection.localPort}-` +
+            this.getNewSessionId();
 
         try {
             var query = url.parse(req.url);
@@ -254,10 +258,11 @@ class UDPSingletonListener extends Listener {
                 socket.emit('listening');
             })});
 
-        socket.on('error', (e) => {
-            log.warn('UDPSingletonListener.new: Error:', e);
-            return;
-        });
+        // let the stream above (and then the route object) handle this
+        // socket.on('error', (e) => {
+        //     log.warn('UDPSingletonListener.new: Error:', e);
+        //     return;
+        // });
 
         socket.bind({
             port: this.local_port,
@@ -291,10 +296,10 @@ class UDPSingletonListener extends Listener {
         log.silly('UDPSingletonListener.onRequest', `Listener: ${this.name}`);
 
         var name =
-            `UDP-singleton:${this.remote_address}:` +
-            `${this.remote_port}::` +
-            `${this.local_address}:` +
-            `${this.local_port}`;
+            `UDP-singleton:${this.remote_address}:${this.remote_port}::` +
+            `${this.local_address}:${this.local_port}-` +
+            this.getNewSessionId();
+
         let metadata = {
             name: name,
             IP: {
@@ -320,7 +325,7 @@ class UDPSingletonListener extends Listener {
 };
 
 Listener.create = (l) => {
-    log.silly('Listener.create', dump(l));
+    log.silly('Listener.create', dumper(l));
     let protocol = l.spec.protocol;
     switch(protocol){
     case 'HTTP':          return new HTTPListener(l);

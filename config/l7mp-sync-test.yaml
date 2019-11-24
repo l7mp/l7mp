@@ -1,0 +1,14 @@
+admin:
+  log_level: silly
+  log_file: stdout
+  access_log_path: /tmp/admin_access.log
+listeners:
+  - name: ws-l
+    spec: { protocol: WebSocket, port: 9000 }
+    rules:
+      - action:
+          route:
+            cluster: sync
+clusters:
+  - name: sync
+    spec: { protocol: Sync, query: '/HTTP/headers/id' }

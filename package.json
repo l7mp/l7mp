@@ -16,6 +16,7 @@
     "homepage": "https://github.com/rg0now/l7mp",
     "dependencies": {
         "duplexer2": "^0.1.4",
+        "event-debug": "^2.1.0",
         "jq-web": "^0.5.0",
         "json-predicate": "^0.9.5",
         "merge-stream": "^2.0.0",

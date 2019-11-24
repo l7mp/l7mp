@@ -20,12 +20,12 @@ listeners:
     rules:
       - action:
           route:
-            cluster: udp-cluster
-            # cluster: stdio
-            # ingress:
-            #   - up
-            # egress:
-            #   - up
+            # cluster: udp-cluster
+            cluster: stdio
+            ingress:
+              - up
+            egress:
+              - up
 clusters:
   - name: up
     spec: { protocol: "WebSocket", port: 8080 }

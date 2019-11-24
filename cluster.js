@@ -297,7 +297,7 @@ class Cluster {
     }
 
     addEndPoint(e){
-        log.silly('Cluster.addEndPoint:', dump(e));
+        log.silly('Cluster.addEndPoint:', dumper(e));
         this.endpoints.push(EndPoint.create(this, e));
     }
 
@@ -306,7 +306,7 @@ class Cluster {
     }
 
     deleteEndPoint(e){
-        log.silly('Cluster.deleteEndPoint:', dump(e));
+        log.silly('Cluster.deleteEndPoint:', dumper(e));
 
         var i = this.endpoints.findIndex( ({name}) => name === e.name );
         if(i < 0){
@@ -568,7 +568,9 @@ class SyncCluster extends Cluster {
             }
 
             let port = this.streams[label].add(s);
-            console.log(dump(this.streams));
+
+            dump(this.streams, 2);
+
             return Promise.resolve(port);
         } else {
             return Promise.reject('SyncCluster.stream', `reject`,
@@ -579,7 +581,7 @@ class SyncCluster extends Cluster {
 };
 
 Cluster.create = (c) => {
-    log.silly('Cluster.create', dump(c));
+    log.silly('Cluster.create', dumper(c));
     switch(c.spec.protocol){
     case 'HTTP':           return new HTTPCluster(c);
     case 'WebSocket':      return new WebSocketCluster(c);

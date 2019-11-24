@@ -39,8 +39,14 @@ const Route      = require('./route.js').Route;
 
 const hostname   = os.hostname();
 
-global.dump = function dump(o){
-    return util.inspect(o, {compact: 100000, breakLength: Infinity, depth: 3});
+global.dumper = function dumper(o, depth=1){
+    return util.inspect(o, {compact: 100000,
+                            breakLength: Infinity,
+                            depth: depth});
+}
+
+global.dump = function dump(o, depth=5){
+    console.log(dumper(o, depth));
 }
 
 class L7mp {
@@ -74,6 +80,7 @@ class L7mp {
                  `listener: ${listener.origin.name}`);
 
         let s = this.addSession(metadata, listener.origin, priv);
+        s.once('end', (ses, e) => { this.deleteSessionIfExists(s.name) });
 
         // match rules
         var rules = s.listener.rules;
@@ -97,20 +104,25 @@ class L7mp {
             await s.route.destination.origin.connect(s);
             // s.metadata.status = 'ESTABLISHED';
             l7mp.deleteSession(s.name);
+            s.metadata.status = 'DISCONNECTED';
             return;
         }
 
         s.route.pipeline(s).then(
             // set up event listeners
             (route) => s.setRoute(route),
-            // // on error
-            // (e) => {
-            //     log.warn('L7mp.route: pipeline error:', `${e.message}`);
-            //     listener.origin.reject(s, e);
-            //     this.deleteSession(s.name);
-            //     return;
-            // }
+            // on error
+            (e) => {
+                log.info('L7mp.route: pipeline error',
+                         (e) ? `: ${e.message}` : '');
+                listener.origin.reject(s, e);
+                this.deleteSession(s.name);
+                s.metadata.status = 'DISCONNECTED';
+                return;
+            }
         );
+
+        s.metadata.status = 'ESTABLISHED';
     }
 
     readConfig(config){
@@ -145,7 +157,7 @@ class L7mp {
     }
 
     applyAdmin(admin) {
-        log.info('L7mp.applyAdmin', dump(admin));
+        log.info('L7mp.applyAdmin', dumper(admin));
         this.admin.log_level = log.level = 'log_level' in admin ?
             admin.log_level : log.level;
         if('log_file' in admin){
@@ -178,7 +190,7 @@ class L7mp {
     }
 
     addListener(l) {
-        log.info('L7mp.addListener', dump(l));
+        log.info('L7mp.addListener', dumper(l));
 
         if(this.getListener(l.name)){
             let e = `Listener "${l.name}" already defined`;
@@ -227,7 +239,7 @@ class L7mp {
     }
 
     addCluster(c) {
-        log.info('L7mp.addCluster', dump(c));
+        log.info('L7mp.addCluster', dumper(c));
 
         if(this.getCluster(c.name)){
             let e = `Cluster "${c.name}" already defined`;
@@ -258,7 +270,7 @@ class L7mp {
     }
 
     addRule(r) {
-        log.info('L7mp.addRule', dump(r));
+        log.info('L7mp.addRule', dumper(r, 5));
 
         if(r.name && this.getRule(r.name)){
             let e = `Rule "${r.name}" already defined`;
@@ -297,8 +309,7 @@ class L7mp {
     }
 
     deleteSession(n){
-        log.info('L7mp.deleteSession:', `"${n}"`,
-                 'TODO: actually delete the session!');
+        log.info('L7mp.deleteSession:', `"${n}"`);
 
         let i = this.sessions.findIndex( ({name}) => name === n);
         if(i < 0){
@@ -307,13 +318,21 @@ class L7mp {
             throw new Error(e);
         }
 
+        let s = this.sessions[i];
         try{
-            if(this.sessions[i].route)
-                this.deleteRoute(this.sessions[i].route.name);
+            if(s.route)
+                this.deleteRoute(s.route.name);
         } catch(e){
             log.error('catch', e);
         }
+
+        s.metadata.status = 'DISCONNECTED';
+
         this.sessions.splice(i, 1);
+    }
+
+    deleteSessionIfExists(n){
+        if(this.getSession(n)) this.deleteSession(n);
     }
 
     getSession(n){
@@ -353,7 +372,7 @@ class L7mp {
                 this.checkRoute(ro, c);
             });
         }
-        this.checkRoute(ro, cluster);
+        this.checkRoute(ro, cluster, s);
 
         s.setRoute(ro);
         this.routes.push(ro);
@@ -377,7 +396,7 @@ class L7mp {
         }
     }
 
-    checkRoute(r, to){
+    checkRoute(r, to, s){
         // incompatible: session with everyting: this is an error
         if(r.type === 'session' && to.type !== 'session')
             throw `Incompatible streams: session stream routed to` +
@@ -385,7 +404,8 @@ class L7mp {
 
         // incompatible: datagram to session: warn
         if(r.type === 'datagram' && to.type !== 'datagram'){
-            log.warn('L7mp.addRoute', `Stream down-conversion: datagram-stream`,
+            log.warn('L7mp.addRoute:', `Session "${s.name}":`,
+                     `Stream down-conversion: datagram-stream`,
                      `routed to a "${to.type}"-type stream "${to.name}":`,
                      'Can no longer enforce datagam boundaries');
             r.type = 'stream';

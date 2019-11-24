@@ -27,6 +27,7 @@ const EventEmitter = require('events').EventEmitter;
 const util         = require('util');
 const miss         = require('mississippi')
 const _            = require('underscore');
+const eventDebug   = require('event-debug')
 
 //------------------------------------
 //
@@ -70,6 +71,8 @@ class Route {
                   `${this.source.origin.name} ->`,
                   `${this.destination.origin.name}`);
 
+        eventDebug(this.source.stream);
+
         // prepare wait_list
         let wait_list = this.pipeline_init(s);
 
@@ -94,18 +97,6 @@ class Route {
         log.silly("Route.pipeline:",
                   `${resolved_list.length} stream(s) initiated`);
 
-        // set up error handlers ('open' and 'unexpected' should have
-        // been handled by the cluster/route)
-        resolved_list.forEach( (r) => {
-            r.stream.on('close', () => {
-                this.emit('close', r.ref, r.stream)
-            });
-
-            r.stream.on('error', (e) => {
-                this.emit('error', e, r.ref, r.stream)
-            });
-        });
-
         // set streams for each route elem
         let d = resolved_list.pop();
         this.destination.stream = d.stream;
@@ -119,6 +110,10 @@ class Route {
         this.pipeline_finish(this.destination, this.source,
                              this.chain.egress, 'egress');
 
+        // set up error handlers ('open' and 'unexpected' should have
+        // been handled by the cluster/route)
+        this.pipeline_event_handlers();
+
         return this;
     }
 
@@ -127,16 +122,18 @@ class Route {
         for(let dir of ['ingress', 'egress']){
             this.chain[dir].forEach( (e) => {
                 wait_list.push( e.origin.stream(s).then(
-                    (stream) => { return {ref: e, stream: stream}; }
-                ));
+                    (stream) => { eventDebug(stream);
+                                  return {ref: e,
+                                          stream: stream};
+                                }));
             });
         }
 
         wait_list.push(
             this.destination.origin.stream(s).then(
                 (stream) => { return {ref: this.destination,
-                                      stream: stream}; }
-            ));
+                                      stream: stream};
+                            }));
 
         return wait_list;
     }
@@ -156,38 +153,100 @@ class Route {
         this.pipe(from.stream, dest.stream);
     }
 
-    // local override to allow experimenting with mississippi.pipe
+    pipeline_event_handlers(){
+        // Writable has 'close', readable has 'end', duplex has who-knows...
+        this.set_event_handler(this.source, 'end');
+        this.set_event_handler(this.source, 'close');
+        this.set_event_handler(this.source, 'error');
+
+        for(let dir of ['ingress', 'egress']){
+            this.chain[dir].forEach( (e) => {
+                this.set_event_handler(e, 'end');
+                this.set_event_handler(e, 'close');
+                this.set_event_handler(e, 'error');
+            });
+        }
+
+        this.set_event_handler(this.destination, 'end');
+        this.set_event_handler(this.destination, 'close');
+        this.set_event_handler(this.destination, 'error');
+    }
+
+    set_event_handler(e, event){
+        log.silly("Route.pipeline:", `setting "${event}" event handlers`,
+                  `for stream: origin: "${e.origin.name}"`);
+
+        // miss.pipe: handles evrything at one place -> see "end-of-stream"
+        // miss.finished(e.stream,  (err) => {
+
+        e.stream.once(event, (err) => {
+            log.silly(`Route.event:`, `"${event}" event received:`,
+                      `${e.origin.name}`,
+                      (err) ? `Error: ${err}` : '');
+            // if err is defined, then it's an error
+            this.emit('end', e.origin, e.stream, err);
+        });
+    }
+
+    // local override to allow experimenting with mississippi.pipe or
+    // other pipe implementations
     pipe(from, to){
-        // default
+        // default: source remains alive is destination closes/errs
         return from.pipe(to);
+        // this will kill the source if the destination fails
         // miss.pipe(from, to, (error) => {
-        //     this.emit('error', error);
+        //     error = error || '';
+        //     log.silly("Route.pipe.Error event: ", `${error}`);
+        //     this.emit('error', error, from, to);
         // });
     }
 
-    all_streams(){
+    getIngressStreams(){
         let streams = [];
         if(this.source.stream)
             streams.push(this.source.stream);
+        if(this.chain && this.chain['ingress'])
+            this.chain['ingress'].forEach( (e) => {
+                if(e.stream)
+                    streams.push(e.stream);
+            });
+
+        return streams;
+    }
+
+    getEgressStreams(){
+        let streams = [];
+        if(this.chain && this.chain['egress'])
+            this.chain['egress'].forEach( (e) => {
+                if(e.stream)
+                    streams.push(e.stream);
+            });
         if(this.destination && this.destination.stream)
             streams.push(this.destination.stream);
-        for(let dir of ['ingress', 'egress'])
-            if(this.chain && this.chain[dir])
-                this.chain[dir].forEach( (e) => {
-                    if(e.stream)
-                        streams.push(e.stream);
-                });
+
+        return streams;
+    }
+
+    getStreams(){
+        let streams = this.getIngressStreams().concat(this.getEgressStreams());
+
+        // remove duplicates as per https://stackoverflow.com/questions/1960473/get-all-unique-values-in-a-javascript-array-remove-duplicates
+        streams = [...new Set(streams)]
         return streams;
     }
 
     end(){
         if(this.type === 'session')
             return;
-        let queue = this.all_streams();
-        log.silly('Route.destroy:', `${this.name}:`,
+        let queue = this.getStreams();
+        log.silly('Route.end:', `${this.name}:`,
                   `deleting ${queue.length} streams`);
         queue.forEach( (s) => {
-            s.end();
+            if(!s.destroyed){
+                log.silly('Route.end:', '(stream.destroyed != true)',
+                          'calling end()');
+                s.end();
+            }
         });
     }
 };

@@ -78,7 +78,7 @@ class JSONPredicate extends Match {
 };
 
 Match.create = (m) => {
-    log.silly("Match.create:", dump(m));
+    log.silly("Match.create:", dumper(m));
     if(typeof m === 'string'){
         return new Wildcard();
     } else {
@@ -110,7 +110,7 @@ class Rule {
 
     // apply rule to session
     apply(s){
-        log.silly(`Rule.apply: ${dump(this)}`);
+        log.silly('Rule.apply:', `${dumper(this)}`);
 
         if(this.match.apply(s)){
             _.extend(s.metadata, this.action.set);
@@ -124,7 +124,7 @@ class Rule {
 Rule.index = 0;
 
 Rule.create = (r) => {
-    log.silly("Rule.create:", dump(r));
+    log.silly("Rule.create:", dumper(r, 5));
     return new Rule(r);
 }
 

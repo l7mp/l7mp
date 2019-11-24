@@ -118,11 +118,11 @@ class DatagramStream extends Duplex {
         socket.on('message', (msg, rinfo) => {
             // msg.rinfo = rinfo;
             log.silly('DatagramStream.onmessage:',
-                      `rinfo: ${dump(rinfo)}: ${msg}`);
+                      `rinfo: ${dumper(rinfo)}: ${msg}`);
 
             if(!this.push(msg))
                 log.info('DatagramStream.onmessage: Dropping message:',
-                          `rinfo: ${dump(rinfo)}: ${msg}`);
+                          `rinfo: ${dumper(rinfo)}: ${msg}`);
         });
 
         socket.once('listening', () => {
@@ -133,7 +133,7 @@ class DatagramStream extends Duplex {
         // connected
 
         socket.on('error', (e) => {
-            log.silly('DatagramStream.onerror:', e);
+            log.silly('DatagramStream.onerror:', dumper(e));
             this.destroy(e);
         });
 
@@ -177,7 +177,10 @@ class BroadcastStream {
         let port   = duplex3(input, output);
 
         this.ports.push( {port: port, input: input, output: output, key: key} );
-        input.once('end', (e) => { this.remove(key) });
+        input.once('close', (e) => { console.log('BroadcastStream.close!'); this.remove(key) });
+        input.once('error', (e) => { console.log('BroadcastStream.error!'); this.remove(key) });
+        output.once('close', (e) => { console.log('BroadcastStream.close!'); this.remove(key) });
+        output.once('error', (e) => { console.log('BroadcastStream.error!'); this.remove(key) });
 
         // input
         this.ports.forEach( (p) => {
