@@ -161,7 +161,9 @@ class WebSocketEndPoint extends EndPoint {
 
         // note: ws events will be caught by the cluster (pEvent)
         var options = this.bind ? {localAddress: this.local_address} : {};
-        var ws = new WebSocket(url, options );
+        if(s.metadata.HTTP && s.metadata.HTTP.headers)
+            options.headers = {...s.metadata.HTTP.headers};
+        var ws = new WebSocket(url, options);
 
         // re-emit 'open', otherwise we lose the socket in pEvent
         ws.once('open', () => ws.emit('open', ws));

@@ -707,9 +707,11 @@ font-style: italic;
   "listeners" : [ {
     "name" : "name",
     "rules" : [ {
-      "match" : "{}",
       "action" : {
-        "metadata" : "{}",
+        "metadata" : {
+          "path" : "path",
+          "value" : ""
+        },
         "route" : {
           "cluster" : "cluster",
           "ingress" : [ "ingress", "ingress" ],
@@ -717,9 +719,11 @@ font-style: italic;
         }
       }
     }, {
-      "match" : "{}",
       "action" : {
-        "metadata" : "{}",
+        "metadata" : {
+          "path" : "path",
+          "value" : ""
+        },
         "route" : {
           "cluster" : "cluster",
           "ingress" : [ "ingress", "ingress" ],
@@ -731,9 +735,11 @@ font-style: italic;
   }, {
     "name" : "name",
     "rules" : [ {
-      "match" : "{}",
       "action" : {
-        "metadata" : "{}",
+        "metadata" : {
+          "path" : "path",
+          "value" : ""
+        },
         "route" : {
           "cluster" : "cluster",
           "ingress" : [ "ingress", "ingress" ],
@@ -741,9 +747,11 @@ font-style: italic;
         }
       }
     }, {
-      "match" : "{}",
       "action" : {
-        "metadata" : "{}",
+        "metadata" : {
+          "path" : "path",
+          "value" : ""
+        },
         "route" : {
           "cluster" : "cluster",
           "ingress" : [ "ingress", "ingress" ],
@@ -826,9 +834,11 @@ font-style: italic;
     <pre class="example"><code>{
   "name" : "name",
   "rules" : [ {
-    "match" : "{}",
     "action" : {
-      "metadata" : "{}",
+      "metadata" : {
+        "path" : "path",
+        "value" : ""
+      },
       "route" : {
         "cluster" : "cluster",
         "ingress" : [ "ingress", "ingress" ],
@@ -836,9 +846,11 @@ font-style: italic;
       }
     }
   }, {
-    "match" : "{}",
     "action" : {
-      "metadata" : "{}",
+      "metadata" : {
+        "path" : "path",
+        "value" : ""
+      },
       "route" : {
         "cluster" : "cluster",
         "ingress" : [ "ingress", "ingress" ],
@@ -891,9 +903,11 @@ font-style: italic;
     <pre class="example"><code>{
   "name" : "name",
   "rules" : [ {
-    "match" : "{}",
     "action" : {
-      "metadata" : "{}",
+      "metadata" : {
+        "path" : "path",
+        "value" : ""
+      },
       "route" : {
         "cluster" : "cluster",
         "ingress" : [ "ingress", "ingress" ],
@@ -901,9 +915,11 @@ font-style: italic;
       }
     }
   }, {
-    "match" : "{}",
     "action" : {
-      "metadata" : "{}",
+      "metadata" : {
+        "path" : "path",
+        "value" : ""
+      },
       "route" : {
         "cluster" : "cluster",
         "ingress" : [ "ingress", "ingress" ],
@@ -1082,7 +1098,9 @@ font-style: italic;
     <li><a href="#io.l7mp.api.v1.L7mpControllerSpec"><code>io.l7mp.api.v1.L7mpControllerSpec</code> - </a></li>
     <li><a href="#io.l7mp.api.v1.Listener"><code>io.l7mp.api.v1.Listener</code> - </a></li>
     <li><a href="#io.l7mp.api.v1.LoggerClusterSpec"><code>io.l7mp.api.v1.LoggerClusterSpec</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.Match"><code>io.l7mp.api.v1.Match</code> - </a></li>
     <li><a href="#io.l7mp.api.v1.Parameter.AddressPortPair"><code>io.l7mp.api.v1.Parameter.AddressPortPair</code> - </a></li>
+    <li><a href="#io.l7mp.api.v1.Rewrite"><code>io.l7mp.api.v1.Rewrite</code> - </a></li>
     <li><a href="#io.l7mp.api.v1.Route"><code>io.l7mp.api.v1.Route</code> - </a></li>
     <li><a href="#io.l7mp.api.v1.Rule"><code>io.l7mp.api.v1.Rule</code> - </a></li>
     <li><a href="#io.l7mp.api.v1.Status"><code>io.l7mp.api.v1.Status</code> - </a></li>
@@ -1099,7 +1117,7 @@ font-style: italic;
     <h3><a name="io.l7mp.api.v1.Action"><code>io.l7mp.api.v1.Action</code> - </a> <a class="up" href="#__Models">Up</a></h3>
     <div class='model-description'>The &quot;action&quot; part of a math-action rule that assigns a route to the matched sessions.</div>
     <div class="field-items">
-      <div class="param">metadata (optional)</div><div class="param-desc"><span class="param-type"><a href="#">Object</a></span> JSON query for manipulating session metadata (optional). </div>
+      <div class="param">metadata (optional)</div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Rewrite">io.l7mp.api.v1.Rewrite</a></span>  </div>
 <div class="param">route </div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Route">io.l7mp.api.v1.Route</a></span>  </div>
     </div>  <!-- field-items -->
   </div>
@@ -1203,11 +1221,25 @@ font-style: italic;
     </div>  <!-- field-items -->
   </div>
   <div class="model">
+    <h3><a name="io.l7mp.api.v1.Match"><code>io.l7mp.api.v1.Match</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>The &quot;filter&quot; part of a math-action rule that filters on session metadata.</div>
+    <div class="field-items">
+          </div>  <!-- field-items -->
+  </div>
+  <div class="model">
     <h3><a name="io.l7mp.api.v1.Parameter.AddressPortPair"><code>io.l7mp.api.v1.Parameter.AddressPortPair</code> - </a> <a class="up" href="#__Models">Up</a></h3>
     <div class='model-description'>A pair of a network layer (IP/IPv6) address/domain name and a transport layer port.</div>
     <div class="field-items">
       <div class="param">address </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> A network layer (IP/IPv6) address or domain name. </div>
 <div class="param">port </div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span> The valid transport protocol port. </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="io.l7mp.api.v1.Rewrite"><code>io.l7mp.api.v1.Rewrite</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'>Metadata rewrite rule. Find or create metadata at the specified path and set it to the specified value.</div>
+    <div class="field-items">
+      <div class="param">path </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> The JSON path to the metadata field to rewrite. Will be created if path does not exist. </div>
+<div class="param">value </div><div class="param-desc"><span class="param-type"><a href="#object">Object</a></span> The value to rewrite the metadata field at the specified path. Can be a simple string or a JSON/YAML snippet. </div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
@@ -1221,9 +1253,9 @@ font-style: italic;
   </div>
   <div class="model">
     <h3><a name="io.l7mp.api.v1.Rule"><code>io.l7mp.api.v1.Rule</code> - </a> <a class="up" href="#__Models">Up</a></h3>
-    <div class='model-description'>A math-action rule that defines the route of a connection through the L7mp pipeline.</div>
+    <div class='model-description'>A math-action rule that defines the route of a connection through the L7mp pipeline. May contain a match and an action. If no match is specified, a wildcard match is automatically installed.</div>
     <div class="field-items">
-      <div class="param">match (optional)</div><div class="param-desc"><span class="param-type"><a href="#">Object</a></span> The &quot;filter&quot; part of a math-action rule that filters on session metadata. </div>
+      <div class="param">match (optional)</div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Match">io.l7mp.api.v1.Match</a></span>  </div>
 <div class="param">action </div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Action">io.l7mp.api.v1.Action</a></span>  </div>
     </div>  <!-- field-items -->
   </div>

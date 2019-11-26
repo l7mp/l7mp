@@ -199,6 +199,21 @@ The "filter" part of a math-action rule that filters on session metadata.
 
 
 
+# io.l7mp.api.v1.JSONPredicate
+A complex filter specified as a JSON predicate, see https://tools.ietf.org/html/draft-snell-json-test-07
+
+
+
+# io.l7mp.api.v1.Rewrite
+Metadata rewrite rule. Find or create metadata at the specified path and set it to the specified value.
+
+
+## Properties
+| property | required | type | description | details | example |
+| :--- | :---: | :---: | :--- | :--- | :--- |
+| path | Y | string | The JSON path to the metadata field to rewrite. Will be created if path does not exist. | &nbsp; | &nbsp; |
+| value | Y | undefined | The value to rewrite the metadata field at the specified path. Can be a simple string or a JSON/YAML snippet. | &nbsp; | &nbsp; |
+
 # io.l7mp.api.v1.Action
 The "action" part of a math-action rule that assigns a route to the matched sessions.
 
@@ -206,11 +221,11 @@ The "action" part of a math-action rule that assigns a route to the matched sess
 ## Properties
 | property | required | type | description | details | example |
 | :--- | :---: | :---: | :--- | :--- | :--- |
-| metadata | &nbsp; | object | JSON query for manipulating session metadata (optional). | &nbsp; | &nbsp; |
+| metadata | &nbsp; | io.l7mp.api.v1.Rewrite | &nbsp; | &nbsp; | &nbsp; |
 | route | Y | io.l7mp.api.v1.Route | &nbsp; | &nbsp; | &nbsp; |
 
 # io.l7mp.api.v1.Rule
-A math-action rule that defines the route of a connection through the L7mp pipeline.
+A math-action rule that defines the route of a connection through the L7mp pipeline. May contain a match and an action. If no match is specified, a wildcard match is automatically installed.
 
 
 ## Properties

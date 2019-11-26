@@ -314,7 +314,7 @@ other way around (warn!)
 
 * Documentation
 
-- [[https://github.com/rg0now/l7mp/blob/master/openapi/README.md][API model]] and the REST API
+- [[https://github.com/rg0now/l7mp/blob/master/doc/README.md][API model]] and the REST API
   [[https://github.com/rg0now/l7mp/blob/master/openapi/index.html][endpoints]]
 - Main [[https://github.com/rg0now/l7mp/blob/master/openapi/README.md][concepts]]
 

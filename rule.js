@@ -26,13 +26,12 @@ const log           = require('npmlog');
 const _             = require('underscore');
 
 const jsonPredicate = require("json-predicate")
-// TODO: se use json-predicate.dataAtPath to query metadata but this
-// is pretty basic; eventually, we should monkey-patch dataAtPath with
-// with something like json-query or jsonpath to enable complex
-// queries
-
+// use json-predicate.dataAtPath to query metadata
 // see doc at https://tools.ietf.org/html/draft-snell-json-test-07
 
+// this is pretty basic: eventually, we should monkey-patch dataAtPath
+// with with something like json-query or jsonpath to enable complex
+// queries
 
 //------------------------------------
 //
@@ -126,6 +125,31 @@ Rule.index = 0;
 Rule.create = (r) => {
     log.silly("Rule.create:", dumper(r, 5));
     return new Rule(r);
+}
+
+// no equivalent setAtPath for dataAtPath, we have to special-case
+// this here:
+// if data under path does not exist, we create it
+// value can be object, in this case it will be deepcopied
+Rule.setAtPath = (data, path, value) => {
+    var loc, locs = path.split('/');
+    if(locs.length && locs[0] === '/')
+        locs.shift();
+    while((loc = locs.shift())) {
+        if(locs.length === 0) {
+            if(typeof value !== 'object'){
+                data[loc] = value;
+            } else {
+                data[loc] = {... value};
+            }
+        } else {
+            if(data[loc]){
+                data = data[loc];
+            } else {
+                data = data[loc] = {};
+            }
+        }
+    }
 }
 
 module.exports.Rule = Rule;

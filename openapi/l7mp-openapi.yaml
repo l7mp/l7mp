@@ -324,18 +324,27 @@ components:
       description: A complex filter specified as a JSON predicate, see https://tools.ietf.org/html/draft-snell-json-test-07
       type: object
 
+    io.l7mp.api.v1.Rewrite:
+      description: Metadata rewrite rule. Find or create metadata at the specified path and set it to the specified value.
+      type: object
+      required:
+        - path
+        - value
+      properties:
+        path:
+          description: The JSON path to the metadata field to rewrite. Will be created if path does not exist.
+          type: string
+        value:
+          description: The value to rewrite the metadata field at the specified path. Can be a simple string or a JSON/YAML snippet.
+
     io.l7mp.api.v1.Action:
       description: The "action" part of a math-action rule that assigns a route to the matched sessions.
       type: object
       required:
         - route
       properties:
-        # set:
-        #   description: Set/rewrite session metadata (optional).
-        #   type: object
         metadata:
-          description: Set/rewrite session metadata with a JSON snippet (optional).
-          type: object
+          $ref: '#/components/schemas/io.l7mp.api.v1.Rewrite'
         route:
           $ref: '#/components/schemas/io.l7mp.api.v1.Route'
 

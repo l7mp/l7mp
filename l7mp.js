@@ -92,6 +92,17 @@ class L7mp {
             if (action) break;
         }
 
+        // apply metadata rewrite rules
+        if(action.metadata){
+            action.metadata.forEach( (r) => {
+                log.silly('L7mp.route', `Applying metadata rule:`,
+                          dumper(r, 3));
+                Rule.setAtPath(s.metadata, r.path, r.value)
+            });
+        }
+
+        // dump(s.metadata);
+
         try {
             this.addRoute(s, listener, action);
         } catch(e) {
@@ -102,7 +113,7 @@ class L7mp {
         }
 
         if(s.route.type === 'session'){
-            log.warn('L7mp.route', 'TODO: Fully implement session mode');
+            log.warn('L7mp.route', 'TODO: Implement session mode');
             await s.route.destination.origin.connect(s);
             // s.metadata.status = 'ESTABLISHED';
             l7mp.deleteSession(s.name);

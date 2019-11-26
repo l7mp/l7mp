@@ -89,7 +89,7 @@ class Session {
 
     disconnect(e, error){
         log.silly('Session.disconnect');
-        dump(this.metadata);
+        // dump(this.metadata);
         if(this.metadata.status === 'ESTABLISHED'){
             this.emit('end', this, error);
         } else {
