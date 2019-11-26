@@ -1,18 +1,24 @@
 * Importance: high
 
-** DONE implement rule matching
+** DONE implement rule matching using the standard JSON query language
 ** DONE documentation + github
-** DONE implement OpenAPI definitions for the REST API and use auto-generated request routing in L7mpController
+** DONE implement OpenAPI definitions for the REST API
+** DONE implement auto-generated API request routing in L7mpController
 ** DONE implement stream debugging (Logger, Echo)
+** DONE sync cluster (allow sessions to sync at a cluster)
 ** TODO session setup retries/timeout
-** TODO sync cluster (allow sessions to sync at a cluster)
+** TODO metadata set/rewrite + expose via OpenAPI
 ** TODO stream statistics
-** TODO expose statistics to prometheus (prometheus_listener)
-** TODO expose statistics to rules matching (this would allow simple qos/rate-limiting)
+** TODO expose statistics to Prometheus (implement the prometheus_listener)
+** TODO expose statistics to rule-matching (this would allow simple qos/rate-limiting)
+** TODO health-check: kubelet should be able to detect if L7mp is running
+** TODO L7mp: die on detecting unhandled promises
+** TODO
 
 * Importance: minor
 
 ** TODO JSON schema validation for JSONPredicate rules
+** TODO expose the L7mp REST API doc from L7mp itself on a dedicated HTTP listener
 
 * Test
 
