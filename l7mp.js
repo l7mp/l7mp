@@ -126,8 +126,8 @@ class L7mp {
             (route) => s.setRoute(route),
             // on error
             (e) => {
-                log.info('L7mp.route: pipeline error',
-                         (e) ? `: ${e.message}` : '');
+                log.info('L7mp.route: pipeline error:',
+                         (e) ? `${e.message}` : '');
                 listener.origin.reject(s, e);
                 this.deleteSession(s.name);
                 s.metadata.status = 'DISCONNECTED';
@@ -203,7 +203,7 @@ class L7mp {
     }
 
     addListener(l) {
-        log.info('L7mp.addListener', dumper(l));
+        log.info('L7mp.addListener', dumper(l, 9));
 
         if(this.getListener(l.name)){
             let e = `Listener "${l.name}" already defined`;

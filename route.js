@@ -243,8 +243,8 @@ class Route {
                   `deleting ${queue.length} streams`);
         queue.forEach( (s) => {
             if(!s.destroyed){
-                log.silly('Route.end:', '(stream.destroyed != true)',
-                          'calling end()');
+                // log.silly('Route.end:', '(stream.destroyed != true)',
+                //           'calling end()');
                 s.end();
             }
         });

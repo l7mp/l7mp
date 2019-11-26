@@ -155,7 +155,7 @@ class WebSocketEndPoint extends EndPoint {
 
     connect(s){
         let path = s.metadata.url ? s.metadata.url.toString() : '';
-        var url = `ws:${this.remote_address}:${this.remote_port}${path}`;
+        var url = `ws://${this.remote_address}:${this.remote_port}${path}`;
         log.silly(`WebSocketEndPoint.connect:`,
                   `${this.full_name}: URL: ${url}`);
 
@@ -167,6 +167,9 @@ class WebSocketEndPoint extends EndPoint {
 
         // re-emit 'open', otherwise we lose the socket in pEvent
         ws.once('open', () => ws.emit('open', ws));
+        ws.once('error', (e) => { log.info('WebSocketEndPoint:connect:error', dumper(e, 1));
+                                  log.silly('WebSocketEndPoint:connect:error', e); });
+        ws.once('end', () => { log.info('WebSocketEndPoint:end'); });
 
         return ws;
     }
