@@ -1,0 +1,26 @@
+# js-yaml l7mp-simple.yaml  >l7mp-simple.json
+admin:
+  log_level: silly
+  log_file: stdout
+  access_log_path: /tmp/admin_access.log
+listeners:
+  - name: udp-l
+    spec:
+      protocol: UDP
+      port: 9999
+      connect:
+        address: '127.0.0.1'
+        port: 5555
+    rules:
+      - action:
+          route:
+            # inline cluster
+            cluster:
+              spec: { protocol: "WebSocket", port: 8080 }
+              endpoints:
+                - spec: { address:  "127.0.0.1" }
+            ingress:
+              - spec: { protocol: "Logger" }
+          rewrite:
+            - path: "HTTP/headers"
+              value: { session_id: 1, cookies: "test: test" }
