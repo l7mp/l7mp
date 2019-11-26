@@ -93,9 +93,9 @@ class L7mp {
         }
 
         // apply metadata rewrite rules
-        if(action.metadata){
-            action.metadata.forEach( (r) => {
-                log.silly('L7mp.route', `Applying metadata rule:`,
+        if(action.rewrite){
+            action.rewrite.forEach( (r) => {
+                log.silly('L7mp.route', `Applying metadata rewrite rule:`,
                           dumper(r, 3));
                 Rule.setAtPath(s.metadata, r.path, r.value)
             });
