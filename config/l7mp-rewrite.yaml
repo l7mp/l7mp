@@ -16,9 +16,10 @@ listeners:
           route:
             # inline cluster
             cluster:
-              spec: { protocol: "WebSocket", port: 8080 }
+              spec: { protocol: "WebSocket", port: 80 }
               endpoints:
-                - spec: { address:  "127.0.0.1" }
+                # - spec: { address:  "127.0.0.1" }
+                - spec: { address:  "echo.websocket.org" }
             ingress:
               - spec: { protocol: "Logger" }
           rewrite:
