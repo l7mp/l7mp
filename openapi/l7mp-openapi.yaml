@@ -343,7 +343,7 @@ components:
       required:
         - route
       properties:
-        metadata:
+        rewrite:
           $ref: '#/components/schemas/io.l7mp.api.v1.Rewrite'
         route:
           $ref: '#/components/schemas/io.l7mp.api.v1.Route'
