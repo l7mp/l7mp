@@ -31,65 +31,6 @@ const duplex3     = require("duplexer2");
 const merge3      = require('merge-stream');
 const miss        = require('mississippi');
 
-// // WARNING: The below will switch to the old-style streams API
-// // ("classic" streams) as per having a "data" listener, see
-// // https://github.com/substack/stream-handbook
-// //
-// // TODO: rewrite in "new-style" (streams3) by properly subclassing
-// // streams.Duplex, see ws/lib/streams.js in the source of the 'ws'
-// // module for how to do that
-// function socket2dgramstream(socket, remote){
-//     socket.readable = true;
-//     socket.writable = true;
-
-//     socket.write = function (message) {
-//         if (typeof message === "string")
-//             message = new Buffer(message, "utf8");
-//         if(!Buffer.isBuffer(message))
-//             message = new Buffer(message);
-
-//         log.silly('socket2dgramstream.write:',
-//                   `${remote.address}:${remote.port}:`,
-//                   `${message}`);
-
-//         socket.send(message, 0, message.length,
-//                     remote.port, remote.address);
-//         return true;
-//     };
-
-//     socket.end = function () {
-//         setImmediate(function () {
-//             socket.emit('end')
-//             socket.close();
-//         });
-//     };
-
-//     socket.pause = function () {
-//         socket.paused = true;
-//         return socket;
-//     };
-
-//     socket.resume = function () {
-//         socket.paused = false;
-//         return socket;
-//     };
-
-//     socket.on('message', function (msg, rinfo) {
-//         // msg.rinfo = rinfo;
-//         log.silly('socket2dgramstream.onmessage:',
-//                   `rinfo: ${dump(rinfo)}: ${msg}`);
-//         socket.emit('data', msg);
-//     });
-
-//     socket.on('error', (e) => {
-//         log.warn(`Error in datagram-stream: ${e}`);
-//         socket.destroy();
-//         return;
-//     });
-
-//     socket.pipe = stream_pipe;
-//     return socket;
-// }
 
 class DatagramStream extends Duplex {
     constructor(socket, options){

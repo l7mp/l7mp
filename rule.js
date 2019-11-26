@@ -93,7 +93,7 @@ Match.create = (m) => {
 //------------------------------------
 class Rule {
     constructor(r){
-        this.name   = r.name || `Rule_${Rule.index++}`;
+        this.name   = r.name;
         this.match  = Match.create(r.match || "*");
         this.action = r.action;
         this.stats  = { total_applied: 0 };

@@ -318,6 +318,7 @@ class Cluster {
     }
 
 };
+Cluster.index = 0;
 
 // Inherit from EventEmitter: roughly equivalent to:
 // Cluster.prototype = Object.create(EventEmitter.prototype)

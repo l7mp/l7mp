@@ -39,6 +39,8 @@ const Route      = require('./route.js').Route;
 
 const hostname   = os.hostname();
 
+const MAX_NAME_ATTEMPTS = 20;
+
 global.dumper = function dumper(o, depth=1){
     return util.inspect(o, {compact: 100000,
                             breakLength: Infinity,
@@ -272,8 +274,10 @@ class L7mp {
     addRule(r) {
         log.info('L7mp.addRule', dumper(r, 5));
 
-        if(r.name && this.getRule(r.name)){
-            let e = `Rule "${r.name}" already defined`;
+        r.name = this.newName(r.name || `Rule_${Rule.index++}`, this.getRule);
+        if(!r.name){
+            let e =
+                `Could not find new name after ${MAX_NAME_ATTEMPTS} iterations`;
             log.warn('L7mp.addRule', e);
             throw new Error(e);
         }
@@ -292,15 +296,14 @@ class L7mp {
     addSession(metadata, listener, priv){
         log.silly('L7mp.addSession:', `Session: ${metadata.name}`);
         var i = 0;
-        do{
-            if(i > 20){
-                let e = 'Could not insert session after 20 iterations'
-                log.warn('L7mp.addSession', e);
-                throw new Error(e);
-            }
-            var name = metadata.name + (i > 0 ? `_${i}` : '');
-            i++;
-        } while(this.getSession(name));
+
+        let name = this.newName(metadata.name, this.getSession);
+        if(!name){
+            let e =
+                `Could not find new name after ${MAX_NAME_ATTEMPTS} iterations`;
+            log.warn('L7mp.addSession', e);
+            throw new Error(e);
+        }
 
         metadata.name = name;
         let se = new Session(metadata, listener, priv)
@@ -344,17 +347,29 @@ class L7mp {
     addRoute(s, l, a){
         log.silly('L7mp.addRoute:', `Session: ${s.name}`);
         if(!a) throw `No matching rule`;
+
         // deep copy!
         let r = { ... a.route};
-
         if(!r) throw `No route in matching rule`;
+
         if(!r.cluster)
             throw `Invalid route: Empty cluster`;
+        let cluster;
+        if(typeof r.cluster === 'string'){
+            // this is a cluster name, substitute ref to Rule
+            cluster = this.getCluster(r.cluster);
+            if(!cluster)
+                throw `Unknown cluster in route: "${r.cluster}"`;
+        } else {
+            // inline cluster def
+            let name = this.newName(`Cluster_${Cluster.index++}`, this.getCluster);
+            if(!name)
+                throw `Could not find new name after ${MAX_NAME_ATTEMPTS} iterations`;
+            r.cluster.name = name;
+            cluster = this.addCluster(r.cluster);
+        }
+        r.cluster = { origin: cluster };
 
-        let cluster = this.getCluster(r.cluster);
-        if(!cluster)
-            throw `Unknown cluster in route: "${r.cluster}"`;
-        r.cluster  = { origin: cluster };
         r.listener = l;
 
         let ro = Route.create(r);
@@ -412,6 +427,16 @@ class L7mp {
         }
     }
 
+    newName(name, find){
+        let i = 0;
+        do{
+            if(i > MAX_NAME_ATTEMPTS)
+                return;
+            var newname = name + (i > 0 ? `_${i}` : '');
+            i++;
+        } while(find.bind(this)(newname));
+        return newname;
+    }
 };
 
 var usage = 'l7mp -c <static_config>'
