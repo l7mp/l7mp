@@ -1,0 +1,18 @@
+# Controller listening on 1234, plus some useful debug clusters
+admin:
+  log_level: silly
+  log_file: stdout
+  access_log_path: /tmp/admin_access.log
+listeners:
+  - name: controller-listener
+    spec: { protocol: HTTP, port: 1234 }
+    rules:
+      - action:
+          route:
+            cluster:
+              spec: { protocol: L7mpController }
+clusters:
+  - name: stdio
+    spec: { protocol: "Stdio" }
+  - name: logger
+    spec: { protocol: "Logger" }

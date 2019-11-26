@@ -3,7 +3,9 @@
     "description": "A programmable L7 meta-proxy",
     "version": "1.0.0",
     "main": "l7mp.js",
+    "files": [ "cluster.js", "l7mp.js", "l7mp-openapi.js", "listener.js", "route.js", "rule.js", "session.js", "stream-counter.js", "utils.js", "openapi/l7mp-openapi.yaml" ]
     "scripts": {
+        "start": "node l7mp.js"
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "repository": {
