@@ -356,7 +356,7 @@ class L7mp {
             throw `Invalid route: Empty cluster`;
         let cluster;
         if(typeof r.cluster === 'string'){
-            // this is a cluster name, substitute ref to Rule
+            // this is a cluster name, substitute ref
             cluster = this.getCluster(r.cluster);
             if(!cluster)
                 throw `Unknown cluster in route: "${r.cluster}"`;
@@ -377,12 +377,24 @@ class L7mp {
 
         for(let dir of ['ingress', 'egress']){
             if(!r[dir]) continue;
-            r[dir].forEach( (cname) => {
-                let c = this.getCluster(cname);
-                if(!c)
-                    throw `Unknown transform cluster "${cname}" in ` +
-                    `"${dir}" route`;
-
+            r[dir].forEach( (cl) => {
+                let c;
+                if(typeof cl === 'string'){
+                    // this is a cluster name, substitute ref
+                    c = this.getCluster(cl);
+                    if(!c)
+                        throw `Unknown transform cluster "${cl}" in ` +
+                        `"${dir}" route`;
+                } else {
+                    // inline cluster def
+                    let name = this.newName(`Cluster_${Cluster.index++}`,
+                                            this.getCluster);
+                    if(!name)
+                        throw `Could not find new name after` +
+                        `${MAX_NAME_ATTEMPTS} iterations`;
+                    cl.name = name;
+                    c = this.addCluster(cl);
+                }
                 ro.chain[dir].push({ origin: c });
                 this.checkRoute(ro, c);
             });
