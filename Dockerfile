@@ -1,3 +1,5 @@
+# docker build -t retvari/l7mp .
+
 FROM node:12-alpine
 
 # Create app directory
