@@ -203,7 +203,7 @@ class L7mp {
     }
 
     addListener(l) {
-        log.info('L7mp.addListener', dumper(l, 9));
+        log.info('L7mp.addListener', dumper(l, 8));
 
         if(this.getListener(l.name)){
             let e = `Listener "${l.name}" already defined`;
@@ -252,7 +252,7 @@ class L7mp {
     }
 
     addCluster(c) {
-        log.info('L7mp.addCluster', dumper(c));
+        log.info('L7mp.addCluster', dumper(c, 8));
 
         if(this.getCluster(c.name)){
             let e = `Cluster "${c.name}" already defined`;
@@ -263,6 +263,30 @@ class L7mp {
         var cl = Cluster.create(c);
         this.clusters.push(cl);
         return cl;
+    }
+
+    addInlineCluster(c){
+        log.silly('L7mp.addInlineCluster', dumper(c, 8));
+        if(typeof c === 'string'){
+            // this is a cluster name, substitute ref
+            let cluster = this.getCluster(r.cluster);
+            if(!cluster)
+                throw `Unknown cluster in route: "${r.cluster}"`;
+            return c;
+        } else {
+            // inline cluster def
+            if(c.spec && c.spec.protocol){
+                let name = this.newName(`${c.spec.protocol}_Cluster_${Cluster.index++}`,
+                                        this.getCluster);
+                if(!name)
+                    throw `Could not find new name after ${MAX_NAME_ATTEMPTS} iterations`;
+                c.name = name;
+                let cluster = this.addCluster(c);
+                return name;
+            } else {
+                throw `No spec in inline cluster definition`;
+            }
+        }
     }
 
     getCluster(n){
@@ -283,22 +307,45 @@ class L7mp {
     }
 
     addRule(r) {
-        log.info('L7mp.addRule', dumper(r, 5));
+        log.info('L7mp.addRule', dumper(r, 8));
 
         r.name = this.newName(r.name || `Rule_${Rule.index++}`, this.getRule);
         if(!r.name){
             let e =
                 `Could not find new name after ${MAX_NAME_ATTEMPTS} iterations`;
-            log.warn('L7mp.addRule', e);
+            log.error('L7mp.addRule', e);
             throw new Error(e);
         }
 
         var ru = Rule.create(r);
         this.rules.push(ru);
+
+        // substitute inline clusters (in the ingress/egress chain or
+        // the destination of the rule) with a reference
+        if(r.action && r.action.route){
+            let route = r.action.route;
+
+            // destination
+            let n = this.addInlineCluster(route.cluster);
+            route.cluster = n;
+            for(let dir of ['ingress', 'egress']){
+                if(!route[dir]) continue;
+                for(let i = 0; i < route[dir].length; i++) {
+                    n = this.addInlineCluster(route[dir][i]);
+                    route[dir][i] = n;
+                }
+            }
+        } else {
+            let e =
+                `Invalid Rule "${ru.name}": No action and/or route found in rule`;
+            log.error('L7mp.addRule', e);
+            throw new Error(e);
+        }
+
         return ru;
     }
 
-    getRule(n){
+     getRule(n){
         log.silly('L7mp.getRule:', n);
         return this.rules.find( ({name}) => name === n );
     }
@@ -365,20 +412,14 @@ class L7mp {
 
         if(!r.cluster)
             throw `Invalid route: Empty cluster`;
-        let cluster;
-        if(typeof r.cluster === 'string'){
-            // this is a cluster name, substitute ref
-            cluster = this.getCluster(r.cluster);
-            if(!cluster)
-                throw `Unknown cluster in route: "${r.cluster}"`;
-        } else {
-            // inline cluster def
-            let name = this.newName(`Cluster_${Cluster.index++}`, this.getCluster);
-            if(!name)
-                throw `Could not find new name after ${MAX_NAME_ATTEMPTS} iterations`;
-            r.cluster.name = name;
-            cluster = this.addCluster(r.cluster);
-        }
+        if(typeof r.cluster !== 'string')
+            throw 'Internal error: Inline destination cluster def found in route: '+
+            dumper(r.cluster, 5);
+
+        // this is a cluster name, substitute ref
+        let cluster = this.getCluster(r.cluster);
+        if(!cluster)
+            throw `Unknown cluster in route: "${r.cluster}"`;
         r.cluster = { origin: cluster };
 
         r.listener = l;
@@ -388,29 +429,21 @@ class L7mp {
 
         for(let dir of ['ingress', 'egress']){
             if(!r[dir]) continue;
-            r[dir].forEach( (cl) => {
-                let c;
-                if(typeof cl === 'string'){
-                    // this is a cluster name, substitute ref
-                    c = this.getCluster(cl);
-                    if(!c)
-                        throw `Unknown transform cluster "${cl}" in ` +
-                        `"${dir}" route`;
-                } else {
-                    // inline cluster def
-                    let name = this.newName(`Cluster_${Cluster.index++}`,
-                                            this.getCluster);
-                    if(!name)
-                        throw `Could not find new name after` +
-                        `${MAX_NAME_ATTEMPTS} iterations`;
-                    cl.name = name;
-                    c = this.addCluster(cl);
-                }
+            r[dir].forEach( (c) => {
+                if(typeof c !== 'string')
+                    throw 'Internal error: Inline cluster def found in ' +
+                    `${dir} route: ` + dumper(c, 5);
+
+                // this is a cluster name, substitute ref
+                c = this.getCluster(c);
+                if(!c)
+                    throw `Unknown transform cluster "${c}" in ` +
+                    `"${dir}" route`;
                 ro.chain[dir].push({ origin: c });
                 this.checkRoute(ro, c);
             });
+            this.checkRoute(ro, cluster, s);
         }
-        this.checkRoute(ro, cluster, s);
 
         s.setRoute(ro);
         this.routes.push(ro);
