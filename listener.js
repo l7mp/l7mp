@@ -273,7 +273,7 @@ class UDPSingletonListener extends Listener {
                       `"${this.name}" bound to ${this.local_address}:` +
                       `${this.local_port}`)
 
-            socket.connect(this.remote_port, this.remote_addesss,
+            socket.connect(this.remote_port, this.remote_address,
                            () => {
                                log.info('UDPSingletonListener:',
                                         `"${this.name}" connected`,
