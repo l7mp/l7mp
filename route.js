@@ -71,7 +71,7 @@ class Route {
                   `${this.source.origin.name} ->`,
                   `${this.destination.origin.name}`);
 
-        eventDebug(this.source.stream);
+        //eventDebug(this.source.stream);
 
         // prepare wait_list
         let wait_list = this.pipeline_init(s);
@@ -122,7 +122,7 @@ class Route {
         for(let dir of ['ingress', 'egress']){
             this.chain[dir].forEach( (e) => {
                 wait_list.push( e.origin.stream(s).then(
-                    (stream) => { eventDebug(stream);
+                    (stream) => { //eventDebug(stream);
                                   return {ref: e,
                                           stream: stream};
                                 }));

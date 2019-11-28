@@ -346,7 +346,7 @@ class UDPSingletonListener extends Listener {
         log.silly('UDPSingletonListener.onRequest', `Listener: ${this.name}`);
 
         var name =
-            `UDP-singleton:${this.remote_address}:${this.remote_port}::` +
+            `UDPsingleton:${this.remote_address}:${this.remote_port}::` +
             `${this.local_address}:${this.local_port}-` +
             this.getNewSessionId();
 
@@ -375,7 +375,7 @@ class UDPSingletonListener extends Listener {
 };
 
 Listener.create = (l) => {
-    log.silly('Listener.create', dumper(l));
+    log.silly('Listener.create', dumper(l, 8));
     let protocol = l.spec.protocol;
     switch(protocol){
     case 'HTTP':          return new HTTPListener(l);
