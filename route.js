@@ -80,9 +80,9 @@ class Route {
         var resolved_list = await Promise.all(wait_list).catch(
             (e) => {
                 log.warn("Route.pipeline:", `Session: ${s.name}:`,
-                         `Error: ${e.message}, ${e}`);
-                // if(log.level === 'silly')
-                //     console.trace();
+                         `Error: ${e.message}:`, dumper(e, 3));
+                if(log.level === 'silly')
+                    console.trace();
                 throw e;
             });
 

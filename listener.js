@@ -266,7 +266,7 @@ class UDPSingletonListener extends Listener {
 
         var socket = udp.createSocket({type: 'udp4', reuseAddr: true});
 
-        eventDebug(socket);
+        // eventDebug(socket);
 
         // socket.once('listening', () => {
         //     setImmediate(() => {
