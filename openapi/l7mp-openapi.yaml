@@ -122,7 +122,7 @@ components:
 
     io.l7mp.api.v1.UDPSingletonListenerSpec:
       description: |
-        A connected UDP listener that accepts UDP datagrams from a specified remote address-port pair.
+        A connected UDP listener that accepts UDP datagrams from a specified remote address-port pair. In connected mode, waits for the first packet from the specified remote IP/port pair and connects back. In unconnected mode (connect field not specified), waits for the first packet and uses the source IP/port in that packet as remote to which it connects back. In any case, subsequent packets will be accepted only from the same remote.
         - protocol: UDP
         - session ID: IP 5-tuple
         - type: datagram
@@ -131,7 +131,6 @@ components:
       required:
         - protocol
         - port
-        - connect
       properties:
         protocol:
           description: The protocol, must be "UDP".

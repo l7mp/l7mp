@@ -30,6 +30,7 @@ const url          = require('url');
 const EventEmitter = require('events').EventEmitter;
 const util         = require('util');
 const miss         = require('mississippi');
+const eventDebug   = require('event-debug')
 
 const StreamCounter = require('./stream-counter.js').StreamCounter;
 const utils         = require('./utils.js');
@@ -237,59 +238,164 @@ class WebSocketListener extends Listener {
 };
 
 class UDPSingletonListener extends Listener {
+    // constructor(l){
+    //     super(l);
+    //     this.type = 'datagram';
+    //     this.mode = 'singleton';
+    //     if(!(l.spec.connect && l.spec.connect.address && l.spec.connect.port))
+    //         log.error('UDPSingletonListener', 'Only "connected" mode supported but no remote addr:port pair defined');
+    //     if(this.stream)
+    //         log.error('UDPSingletonListener', 'Listener already connected');
+
+    //     this.local_address  = this.spec.address || '0.0.0.0';
+    //     this.local_port     = this.spec.port || 0;
+    //     this.remote_address = this.spec.connect.address;
+    //     this.remote_port    = this.spec.connect.port;
+
+    //     var socket = udp.createSocket({type: 'udp4', reuseAddr: true});
+
+    //     socket.once('listening', () => {
+    //         setImmediate(() => {
+    //             socket.emit('listening');
+    //         })});
+
+    //     // let the stream above (and then the route object) handle this
+    //     // socket.on('error', (e) => {
+    //     //     log.warn('UDPSingletonListener.new: Error:', e);
+    //     //     return;
+    //     // });
+
+    //     socket.bind({
+    //         port: this.local_port,
+    //         address: this.local_address,
+    //         exclusive: false
+    //     }, () => {
+    //         log.silly('UDPSingletonListener:',
+    //                   `"${this.name}" bound to ${this.local_address}:` +
+    //                   `${this.local_port}`)
+
+    //         socket.connect(this.remote_port, this.remote_address,
+    //                        () => {
+    //                            log.info('UDPSingletonListener:',
+    //                                     `"${this.name}" connected`,
+    //                                     `for ${this.remote_address}:`+
+    //                                     `${this.remote_port} on`,
+    //                                     `${this.local_address}:`+
+    //                                     `${this.local_port}`);
+
+    //                            this.socket = socket;
+    //                            this.stream =
+    //                                new utils.DatagramStream(socket);
+
+    //                            this.stream.once('listening', () =>
+    //                                             this.onRequest());
+    //                        });
+    //     });
+    // }
+
+    //
+
+    // unconnected mode: bind socket, wait for the first packet, use
+    // the source IP and source port as remote, connect back to this
+    // remote, create a stream
+    // connected mode: bind socket, wait for the first packet whose
+    // remote address and port match, connect back to the remote,
+    // create a stream
     constructor(l){
         super(l);
-        this.type = 'datagram';
-        this.mode = 'singleton';
-        if(!(l.spec.connect && l.spec.connect.address && l.spec.connect.port))
-            log.error('UDPSingletonListener', 'Only "connected" mode supported but no remote addr:port pair defined');
         if(this.stream)
             log.error('UDPSingletonListener', 'Listener already connected');
+        this.type = 'datagram';
+        this.mode = 'singleton';
+
+        this.connected = false;
+        if(l.spec.connect && l.spec.connect.address && l.spec.connect.port){
+            this.connected      = true;
+            this.remote_address = this.spec.connect.address;
+            this.remote_port    = this.spec.connect.port;
+            log.info('UDPSingletonListener:', 'Connected mode: remote:',
+                     `${this.remote_address}:${this.remote_port}`);
+        }
 
         this.local_address  = this.spec.address || '0.0.0.0';
-        this.local_port     = this.spec.port || 0;
-        this.remote_address = this.spec.connect.address;
-        this.remote_port    = this.spec.connect.port;
+        this.local_port     = this.spec.port || -1;
 
         var socket = udp.createSocket({type: 'udp4', reuseAddr: true});
 
-        socket.once('listening', () => {
-            setImmediate(() => {
-                socket.emit('listening');
-            })});
+        eventDebug(socket);
 
-        // let the stream above (and then the route object) handle this
-        // socket.on('error', (e) => {
-        //     log.warn('UDPSingletonListener.new: Error:', e);
-        //     return;
+        // socket.once('listening', () => {
+        //     setImmediate(() => {
+        //         socket.emit('listening');
+        //     })});
+
+        // socket.once('listening', () => {
+        //     log.silly('UDPSingletonListener:', `"${this.name}" listening`);
         // });
+
+        this.socket = socket;
 
         socket.bind({
             port: this.local_port,
             address: this.local_address,
             exclusive: false
         }, () => {
-            log.silly('UDPListener:',
-                      `"${this.name}" bound to ${this.local_address}:` +
-                      `${this.local_port}`)
+            log.silly('UDPSingletonListener:', `"${this.name}" bound to`,
+                      `${this.local_address}:${this.local_port}`);
 
-            socket.connect(this.remote_port, this.remote_address,
-                           () => {
-                               log.info('UDPSingletonListener:',
-                                        `"${this.name}" connected`,
-                                        `for ${this.remote_address}:`+
-                                        `${this.remote_port} on`,
-                                        `${this.local_address}:`+
-                                        `${this.local_port}`);
-
-                               this.socket = socket;
-                               this.stream =
-                                   new utils.DatagramStream(socket);
-
-                               this.stream.once('listening', () =>
-                                                this.onRequest());
-                           });
+            this.onConn = this.onConnect.bind(this);
+            socket.on('message', this.onConn);
         });
+    }
+
+    onConnect(msg, rinfo){
+        if(this.connected){
+            if(rinfo.address !== this.remote_address ||
+               rinfo.port !== this.remote_port){
+                log.warn('UDPSingletonListener:onConnect:', `"${this.name}:"`,
+                         `packet received from unknown peer:`,
+                         `${rinfo.address}:${rinfo.port}, expecting`,
+                         `${this.remote_address}:${this.remote_port}`);
+                return;
+            }
+        } else {
+            // use packet source IP:port are remote
+            this.remote_address = rinfo.address;
+            this.remote_port = rinfo.port;
+        }
+
+        log.info('UDPSingletonListener:onConnect:', `"${this.name}:"`,
+                 `packet received, connecting to peer:`,
+                 `${rinfo.address}:${rinfo.port}`);
+
+        var self = this;
+        let socket = this.socket;
+
+        // stop accepting packets
+        socket.removeListener("message", this.onConn);
+
+        socket.connect(this.remote_port, this.remote_address,
+                       () => {
+                           log.silly(`UDPSingletonListener: "${this.name}"`,
+                                     `connected for remote`,
+                                     `${this.remote_address}:`+
+                                     `${this.remote_port} on`,
+                                     `${this.local_address}:`+
+                                     `${this.local_port}`);
+
+                           self.stream =
+                               new utils.DatagramStream(socket);
+
+                           self.stream.once('listening', () => {
+                               // reemit message event
+                               socket.emit('message', msg, rinfo);
+                               self.onRequest();
+                           });
+
+                           setImmediate(() => {
+                               socket.emit('listening');
+                           });
+                       });
     }
 
     onRequest(){
@@ -330,11 +436,11 @@ Listener.create = (l) => {
     switch(protocol){
     case 'HTTP':          return new HTTPListener(l);
     case 'WebSocket':     return new WebSocketListener(l);
-    case 'UDP-singleton': return new UDPSingletonListener(l);
-    case 'UDP':           if(l.spec.connect){
-        return new UDPSingletonListener(l);
-    } else { log.error('Listener.create', 'TODO: UDP server mode unimplemented');}
-    default:  log.error('Listener.create', `Unknown protocol: "${protocol}"`);
+    case 'UDP':           log.warn('Listener.create:', 'UDP listener:',
+                                   'falling back to UDPSingleton');
+    case 'UDPSingleton':  return new UDPSingletonListener(l);
+    default:  log.error('Listener.create',
+                        `Unknown protocol: "${protocol}"`);
     }
 }
 

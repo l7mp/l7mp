@@ -8,9 +8,9 @@ listeners:
     spec:
       protocol: UDP
       port: 9999
-      connect:
-        address: '127.0.0.1'
-        port: 5555
+      # connect:
+      #   address: '127.0.0.1'
+      #   port: 5555
     rules:
       - action:
           route:
