@@ -62,8 +62,8 @@ class DatagramStream extends Duplex {
                       `rinfo: ${dumper(rinfo)}: ${msg}`);
 
             if(!this.push(msg))
-                log.info('DatagramStream.onmessage: Dropping message:',
-                          `rinfo: ${dumper(rinfo)}: ${msg}`);
+                log.verbose('DatagramStream.onmessage: Dropping message:',
+                            `rinfo: ${dumper(rinfo)}: ${msg}`);
         });
 
         socket.once('listening', () => {

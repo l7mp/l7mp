@@ -64,8 +64,8 @@ class Session {
         this.route = r;
 
         this.route.on('end', (origin, stream, error) => {
-            log.info('Session.end event:',
-                     `Route.end for session "${this.name}"`);
+            log.verbose('Session.end event:',
+                        `Route.end for session "${this.name}"`);
             this.onDisconnect('end', origin, stream, error);
         });
     }
