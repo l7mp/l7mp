@@ -213,7 +213,13 @@ class WebSocketListener extends Listener {
             },
             HTTP: {
                 version: req.httpVersion,
-                url:     query,
+                url:     {
+                    href:     query.href,
+                    protocol: query.protocol,
+                    host:     query.host,
+                    port:     query.port,
+                    path:     query.path,
+                },
                 headers: req.headers,
             },
             status: 'CONNECT',

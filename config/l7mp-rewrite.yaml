@@ -5,12 +5,7 @@ admin:
   access_log_path: /tmp/admin_access.log
 listeners:
   - name: udp-l
-    spec:
-      protocol: UDP
-      port: 9999
-      # connect:
-      #   address: '127.0.0.1'
-      #   port: 5555
+    spec: { protocol: UDP, port: 9999 }
     rules:
       - action:
           route:

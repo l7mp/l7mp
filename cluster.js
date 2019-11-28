@@ -154,17 +154,34 @@ class WebSocketEndPoint extends EndPoint {
     }
 
     connect(s){
-        let url = s.metadata.url ? s.metadata.url :
-            `ws://${this.remote_address}:${this.remote_port}/`;
+        let url = {};
+        if(s.metadata.HTTP && s.metadata.HTTP.url){
+            // source listener is HTTP compatible and/or the user has
+            // created a nice URL using rewrite rules
+            url = {... s.metadata.HTTP.url};
+        }
 
-        // note: ws events will be caught by the cluster (pEvent)
+        // set defaults
+        url.protocol = url.protocol || 'ws';
+        url.host     = url.host     || this.remote_address;
+        url.port     = url.port     || this.remote_port;
+        url.path     = url.path     || '/';
+
+
         var options = this.bind ? {localAddress: this.local_address} : {};
-        if(s.metadata.HTTP && s.metadata.HTTP.headers)
+        if(s.metadata.HTTP && s.metadata.HTTP.headers){
             options.headers = {...s.metadata.HTTP.headers};
+            // use host from header if specified
+            if(s.metadata.HTTP.headers.host)
+                url.host = s.metadata.HTTP.headers.host;
+        }
 
+        // manually override hostname to remove port
+        options.hostname = options.host = url.host;
+
+        url = new URL(`${url.protocol}://${url.host}:${url.port}/${url.path}`);
         log.silly(`WebSocketEndPoint.connect:`,
                   `${this.full_name}: URL: ${url.toString()}`);
-        log.silly(dumper(url, 10));
 
         var ws = new WebSocket(url, options);
 
