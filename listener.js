@@ -238,62 +238,6 @@ class WebSocketListener extends Listener {
 };
 
 class UDPSingletonListener extends Listener {
-    // constructor(l){
-    //     super(l);
-    //     this.type = 'datagram';
-    //     this.mode = 'singleton';
-    //     if(!(l.spec.connect && l.spec.connect.address && l.spec.connect.port))
-    //         log.error('UDPSingletonListener', 'Only "connected" mode supported but no remote addr:port pair defined');
-    //     if(this.stream)
-    //         log.error('UDPSingletonListener', 'Listener already connected');
-
-    //     this.local_address  = this.spec.address || '0.0.0.0';
-    //     this.local_port     = this.spec.port || 0;
-    //     this.remote_address = this.spec.connect.address;
-    //     this.remote_port    = this.spec.connect.port;
-
-    //     var socket = udp.createSocket({type: 'udp4', reuseAddr: true});
-
-    //     socket.once('listening', () => {
-    //         setImmediate(() => {
-    //             socket.emit('listening');
-    //         })});
-
-    //     // let the stream above (and then the route object) handle this
-    //     // socket.on('error', (e) => {
-    //     //     log.warn('UDPSingletonListener.new: Error:', e);
-    //     //     return;
-    //     // });
-
-    //     socket.bind({
-    //         port: this.local_port,
-    //         address: this.local_address,
-    //         exclusive: false
-    //     }, () => {
-    //         log.silly('UDPSingletonListener:',
-    //                   `"${this.name}" bound to ${this.local_address}:` +
-    //                   `${this.local_port}`)
-
-    //         socket.connect(this.remote_port, this.remote_address,
-    //                        () => {
-    //                            log.info('UDPSingletonListener:',
-    //                                     `"${this.name}" connected`,
-    //                                     `for ${this.remote_address}:`+
-    //                                     `${this.remote_port} on`,
-    //                                     `${this.local_address}:`+
-    //                                     `${this.local_port}`);
-
-    //                            this.socket = socket;
-    //                            this.stream =
-    //                                new utils.DatagramStream(socket);
-
-    //                            this.stream.once('listening', () =>
-    //                                             this.onRequest());
-    //                        });
-    //     });
-    // }
-
-    //
 
     // unconnected mode: bind socket, wait for the first packet, use
     // the source IP and source port as remote, connect back to this
