@@ -511,15 +511,14 @@ log.on('log.error', (msg) => {
 global.l7mp = new L7mp();
 var config = argv.c;
 try {
+    // applies config.admin
     l7mp.readConfig(config);
 } catch(e) {
     log.error(`Could not read static configuration ${config}`, e);
 }
 
-// applies config.admin
-
 // override loglevel
-log.level = 'l' in argv ? argv.l : 'silly';
+if('l' in argv) log.level = argv.l;
 
 if(!l7mp.static_config)
     log.error('No static configuration found');
