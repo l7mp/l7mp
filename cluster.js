@@ -501,14 +501,16 @@ class LoggerCluster extends Cluster {
             type:         'datagram'
         } );
         this.log_file = c.spec.log_file || '-';
+        this.log_prefix = c.spec.log_prefix || '';
     }
 
     toJSON(){
         log.silly('LoggerCluster.toJSON:', `"${this.name}"`);
         return {
-            name:      this.name,
-            protocol:  this.protocol,
-            log_file:  this.log_file,
+            name:       this.name,
+            protocol:   this.protocol,
+            log_file:   this.log_file,
+            log_prefix: this.log_prefix,
         };
     }
 
@@ -526,7 +528,9 @@ class LoggerCluster extends Cluster {
         }
 
         return Promise.resolve( streamops.map( (arg) => {
-            log_stream.write(arg); return arg;
+            let log_msg = (this.log_prefix) ?
+                `${this.log_prefix}: ${arg}` : arg;
+            log_stream.write(log_msg); return arg;
         }));
     }
 };

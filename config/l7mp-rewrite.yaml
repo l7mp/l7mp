@@ -21,7 +21,9 @@ listeners:
                 # - spec: { address:  "127.0.0.1" }
                 - spec: { address:  "echo.websocket.org" }
             ingress:
-              - spec: { protocol: "Logger" }
+              - spec: { protocol: "Logger", log_prefix: "ingress" }
+            egress:
+              - spec: { protocol: "Logger", log_prefix: "egress" }
           rewrite:
             - path: "HTTP/headers"
               value: { session_id: 1, cookies: "test: test" }

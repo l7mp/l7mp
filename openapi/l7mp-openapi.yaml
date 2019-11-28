@@ -248,6 +248,9 @@ components:
         log_file:
           description: The file to log to. Opened it mode "w" (create or truncate if exists). Default is '-' (stdout).
           type: string
+        log_prefix:
+          description: Prefix log messages. Default is no prefix.
+          type: string
 
     io.l7mp.api.v1.Session:
       description: A socket that originates connections to external services, an abstraction for an "egress port".
