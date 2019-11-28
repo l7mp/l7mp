@@ -1,6 +1,6 @@
 # Controller listening on 1234, plus some useful debug clusters
 admin:
-  log_level: silly
+  log_level: info
   log_file: stdout
   access_log_path: /tmp/admin_access.log
 listeners:
