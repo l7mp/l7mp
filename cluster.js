@@ -154,15 +154,18 @@ class WebSocketEndPoint extends EndPoint {
     }
 
     connect(s){
-        let path = s.metadata.url ? s.metadata.url.toString() : '';
-        var url = `ws://${this.remote_address}:${this.remote_port}${path}`;
-        log.silly(`WebSocketEndPoint.connect:`,
-                  `${this.full_name}: URL: ${url}`);
+        let url = s.metadata.url ? s.metadata.url :
+            `ws://${this.remote_address}:${this.remote_port}/`;
 
         // note: ws events will be caught by the cluster (pEvent)
         var options = this.bind ? {localAddress: this.local_address} : {};
         if(s.metadata.HTTP && s.metadata.HTTP.headers)
             options.headers = {...s.metadata.HTTP.headers};
+
+        log.silly(`WebSocketEndPoint.connect:`,
+                  `${this.full_name}: URL: ${url.toString()}`);
+        log.silly(dumper(url, 10));
+
         var ws = new WebSocket(url, options);
 
         // re-emit 'open', otherwise we lose the socket in pEvent
