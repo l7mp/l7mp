@@ -150,15 +150,16 @@ class L7mp {
 
     run(){
         log.silly('L7mp.run');
-        if('listeners' in this.static_config){
-            this.static_config.listeners.forEach(
-                (l) => this.addListener(l)
-            );
-        }
 
         if('clusters' in this.static_config){
             this.static_config.clusters.forEach(
                 (c) => this.addCluster(c)
+            );
+        }
+
+        if('listeners' in this.static_config){
+            this.static_config.listeners.forEach(
+                (l) => this.addListener(l)
             );
         }
 
@@ -265,13 +266,13 @@ class L7mp {
         return cl;
     }
 
-    addInlineCluster(c){
-        log.silly('L7mp.addInlineCluster', dumper(c, 8));
+    addClusterMaybeInline(c){
+        log.silly('L7mp.addClusterMaybeInline', dumper(c, 8));
         if(typeof c === 'string'){
             // this is a cluster name, substitute ref
-            let cluster = this.getCluster(r.cluster);
+            let cluster = this.getCluster(c);
             if(!cluster)
-                throw `Unknown cluster in route: "${r.cluster}"`;
+                throw `Unknown cluster in route: "${c}"`;
             return c;
         } else {
             // inline cluster def
@@ -326,12 +327,12 @@ class L7mp {
             let route = r.action.route;
 
             // destination
-            let n = this.addInlineCluster(route.cluster);
+            let n = this.addClusterMaybeInline(route.cluster);
             route.cluster = n;
             for(let dir of ['ingress', 'egress']){
                 if(!route[dir]) continue;
                 for(let i = 0; i < route[dir].length; i++) {
-                    n = this.addInlineCluster(route[dir][i]);
+                    n = this.addClusterMaybeInline(route[dir][i]);
                     route[dir][i] = n;
                 }
             }
