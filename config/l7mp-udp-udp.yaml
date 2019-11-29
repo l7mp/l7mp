@@ -10,10 +10,10 @@ listeners:
       - action:
           route:
             cluster: sync
-            ingress:
-              - spec: { protocol: "Logger", log_prefix: "ingress1" }
-            egress:
-              - spec: { protocol: "Logger", log_prefix: "egress1" }
+            # ingress:
+            #   - spec: { protocol: "Logger", log_prefix: "ingress1" }
+            # egress:
+            #   - spec: { protocol: "Logger", log_prefix: "egress1" }
           rewrite:
             - path: "labels/session_id"
               value: 1
@@ -23,10 +23,10 @@ listeners:
       - action:
           route:
             cluster: sync
-            ingress:
-              - spec: { protocol: "Logger", log_prefix: "ingress2" }
-            egress:
-              - spec: { protocol: "Logger", log_prefix: "egress2" }
+            # ingress:
+            #   - spec: { protocol: "Logger", log_prefix: "ingress2" }
+            # egress:
+            #   - spec: { protocol: "Logger", log_prefix: "egress2" }
           rewrite:
             - path: "labels/session_id"
               value: 1
