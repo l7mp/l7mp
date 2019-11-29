@@ -82,7 +82,25 @@ class L7mp {
                  `listener: ${listener.origin.name}`);
 
         let s = this.addSession(metadata, listener.origin, priv);
-        s.once('end', (ses, e) => { this.deleteSessionIfExists(s.name) });
+
+        // status is INIT
+
+        // error
+        s.on('error', (e) => {
+            log.silly('Session.error:', `Session "${s.name}":`, e);
+            listener.origin.finish(s, e);
+            s.metadata.status = 'DESTROYED';
+            this.deleteSessionIfExists(s.name);
+        });
+
+        // normal end
+        s.on('end', () => {
+            log.silly('Session.end:',
+                      `Session "${s.name}" ended normally`);
+            listener.origin.finish(s);
+            s.metadata.status = 'DESTROYED';
+            this.deleteSessionIfExists(s.name);
+        });
 
         // match rules
         var rules = s.listener.rules;
@@ -101,41 +119,37 @@ class L7mp {
             });
         }
 
-        // dump(s.metadata);
-
+        // init the ingress/egress chains but do not connect them for now
         try {
             this.addRoute(s, listener, action);
         } catch(e) {
             log.warn('L7mp.route', `Session "${s.name}" rejected:`, e);
+            s.emit('end', )
             listener.origin.reject(s, e);
             this.deleteSession(s.name);
             return;
         }
 
-        if(s.route.type === 'session'){
-            log.warn('L7mp.route', 'TODO: Implement session mode');
-            await s.route.destination.origin.connect(s);
-            // s.metadata.status = 'ESTABLISHED';
-            l7mp.deleteSession(s.name);
+        s.on('connect', () => {
+            log.silly('Session.connect:',
+                      `Session "${s.name}" successully connected.`);
+            s.metadata.status = 'CONNECTED';
+            listener.origin.ack(s);
+        });
+
+        s.on('disconnect', () => {
+            log.silly('Session.disconnect:',
+                      `Session "${s.name}" temporarily disconnected.`);
             s.metadata.status = 'DISCONNECTED';
-            return;
-        }
+        });
 
         s.route.pipeline(s).then(
-            // set up event listeners
-            (route) => s.setRoute(route),
+            (route) => {
+                s.emit('connect');
+            },
             // on error
-            (e) => {
-                log.info('L7mp.route: pipeline error:',
-                         (e) ? `${e.message}` : '');
-                listener.origin.reject(s, e);
-                this.deleteSession(s.name);
-                s.metadata.status = 'DISCONNECTED';
-                return;
-            }
+            (e) => s.emit('error', e)
         );
-
-        s.metadata.status = 'ESTABLISHED';
     }
 
     readConfig(config){
@@ -213,7 +227,7 @@ class L7mp {
         }
 
         var li = Listener.create(l);
-        li.on('connection', (m, l, p) => this.route(m, l, p));
+        li.on('init', (m, l, p) => this.route(m, l, p));
         this.listeners.push(li);
 
         l.rules.forEach( (r) => {
@@ -388,8 +402,6 @@ class L7mp {
             log.error('catch', e);
         }
 
-        s.metadata.status = 'DISCONNECTED';
-
         this.sessions.splice(i, 1);
     }
 
@@ -462,7 +474,6 @@ class L7mp {
         log.silly('L7mp.deleteRoute:', n);
         let i = this.routes.findIndex(({name}) => name === n);
         if(i >= 0){
-            this.routes[i].end();
             this.routes.splice(i, 1);
             return;
         }

@@ -438,18 +438,20 @@ class L7mpControllerCluster extends Cluster {
 
     connect(s){
         log.silly('L7mpControllerCluster.connect', `Session: "${s.name}"`);
-        var req = s.priv.req;
-        var res = s.priv.res;
-
-        this.openapi.handleRequest(req, res);
-
-        log.silly('L7mpControllerCluster.connect', `Request processed`);
-
         return Promise.resolve();
     }
 
     stream(s){
-        return Promise.reject('L7mpControllerCluster.stream: Not supported');
+        log.silly('L7mpControllerCluster.stream', `Session: "${s.name}"`);
+
+        // the writable part is in objectMode: result is status/message
+        let stream = new stream.PassThrough({writableObjectMode: true});
+
+        s.metadata.body = '';
+        stream.on('data', (chunk) => { s.metadata.body += chunk; });
+        stream.end('end', () => this.openapi.handleRequest(s) );
+
+        return Promise.resolve(stream);
     }
 };
 

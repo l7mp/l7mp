@@ -60,6 +60,10 @@ class Listener {
             rules:    this.rules
         };
     }
+
+    // for listeners that want to acknowledge the connection setup
+    // (HTTP:200 eg.)
+    ack(){ return; }
 }
 
 // Inherit from EventEmitter: roughly equivalent to:
@@ -103,12 +107,13 @@ class HTTPListener extends Listener {
             `${req.connection.localPort}-` +
             this.getNewSessionId();
 
+        let stream = miss.duplex(res, req, {objectMode: false});
+
         try {
             var query = url.parse(req.url);
         } catch(e){
             let error = `Could not parse URL: "${req.url}":` + e;
-            this._reject(res, error);
-            return req.destroy(error);
+            this.finalize(res, 404, error);
         }
 
         let metadata = {
@@ -135,25 +140,44 @@ class HTTPListener extends Listener {
                 },
                 headers: req.headers,
             },
-            status: 'CONNECT',
+            status: 'INIT',
         };
 
         let listener = {  // immutable
             origin: this,
-            stream: miss.duplex(res, req, {objectMode: false})
+            stream: stream,
         };
 
         var priv = { req: req, res: res };
-        this.emit('connection', metadata, listener, priv);
+        this.emit('init', metadata, listener, priv);
     }
 
-    reject(s, e){ this._reject(s.priv.res, e); }
-    _reject(res, e) {
-        res.writeHead(404, {
-            'Content-Length': e.length,
-            'Content-Type': 'text/plain'
-        });
-        res.end(e);
+    ack(s) {
+        this.finalize(s.priv.res, 200, e);
+    }
+
+    finish(s, e){
+        if(e) this.finalize(s.priv.res, 404, e);
+        // normal end
+        let status = s.metadata.status || 404;
+        let message = s.metadata.message || 'Unknown error';
+        this.finalize(s.priv.res, status, message);
+    }
+
+    finalize(res, status, message){
+        if(typeof message === 'string'){
+            res.writeHead(status, {
+                'Content-Length': message.length,
+                'Content-Type': 'text/plain'
+            });
+        } else {
+            message = message.toJSON();
+            res.writeHead(status, {
+                'Content-Length': message.length,
+                'Content-Type': 'application/json'
+            });
+        }
+        res.end(message);
     }
 };
 
@@ -180,7 +204,7 @@ class WebSocketListener extends Listener {
             return;
         }
 
-        this.server.on('connection',
+        this.server.on('init',
                        (req, res) => this.onReq(req, res));
     }
 
@@ -197,8 +221,7 @@ class WebSocketListener extends Listener {
             var query = url.parse(req.url);
         } catch(e){
             let error = `Could not parse URL: "${req.url}":` + e;
-            this._reject(req, error);
-            return req.destroy(error);
+            this.reject(req, error);
         }
 
         const duplex =
@@ -216,6 +239,7 @@ class WebSocketListener extends Listener {
             },
             HTTP: {
                 version: req.httpVersion,
+                method:  req.method || 'ws',
                 url:     {
                     url:      req.url,
                     href:     query.href || '',
@@ -227,7 +251,7 @@ class WebSocketListener extends Listener {
                 },
                 headers: req.headers,
             },
-            status: 'CONNECT',
+            status: 'INIT',
         };
 
         let listener = {
@@ -236,8 +260,13 @@ class WebSocketListener extends Listener {
         };
 
         var priv = { socket: socket, req: req };
-        this.emit('connection', metadata, listener, priv);
+        this.emit('init', metadata, listener, priv);
     }
+
+    // do we need this??? ws seems to handle 200 responses just fine
+    // ack(s) { }
+
+    finish(s, e){ this.reject(s.priv.res, e); }
 
     reject(s, e){
         log.info('WebSocketListener:', 'reject');
@@ -371,7 +400,7 @@ class UDPSingletonListener extends Listener {
                 src_port: this.remote_port,
                 dst_port: this.local_port,
             },
-            status: 'CONNECT',
+            status: 'INIT',
         };
 
         let listener = {
@@ -379,10 +408,10 @@ class UDPSingletonListener extends Listener {
             stream: this.stream,
         };
 
-        this.emit('connection', metadata, listener);
+        this.emit('init', metadata, listener);
     }
 
-    reject(s, e){ this.socket.close(); }
+    finish(s, e){ this.socket.close(); }
 };
 
 Listener.create = (l) => {

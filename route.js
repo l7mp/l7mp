@@ -35,23 +35,15 @@ const eventDebug   = require('event-debug')
 //
 //------------------------------------
 
-// - Event: 'connect': Promisified in order to let l7mp.route wait for
-//   all clusters in the route to connect.
-
-// - Event: 'close': Emitted if one of the streams in the pipeline is
-//   closed.
-
-// - Event: 'error' (<Error>): Emitted when an error occurs in the
-//   pipeline. The 'close' event will be called directly following
-//   this event.
-
 class Route {
     constructor(r){
         this.name        = r.name || `Route_${Route.index++}`;  // id
+        this.session     = null;
         this.source      = r.listener;    // listener: {origin/stream}
         this.destination = r.cluster;     // cluster:  {origin/stream}
         this.chain       = { ingress: [], egress: [] };
         this.type        = this.source.origin.type;  // init
+        this.retry       = r.retry || { policy: 'never' };
     }
 
     toJSON(){
@@ -62,7 +54,8 @@ class Route {
             listener: this.source.origin.name,
             cluster:  this.destination.origin.name,
             ingress:  this.chain.ingress.map( (e) => e.origin.name ),
-            egress:   this.chain.egress.map( (e) => e.origin.name )
+            egress:   this.chain.egress.map( (e) => e.origin.name ),
+            retry:    this.retry,
         };
     }
 
@@ -154,7 +147,8 @@ class Route {
     }
 
     pipeline_event_handlers(){
-        // Writable has 'close', readable has 'end', duplex has who-knows...
+        // Writable has 'close', readable has 'end', duplex has
+        // who-knows...
         this.set_event_handler(this.source, 'end');
         this.set_event_handler(this.source, 'close');
         this.set_event_handler(this.source, 'error');
@@ -173,18 +167,17 @@ class Route {
     }
 
     set_event_handler(e, event){
-        log.silly("Route.pipeline:", `setting "${event}" event handlers`,
-                  `for stream: origin: "${e.origin.name}"`);
+        // log.silly("Route.pipeline:", `setting "${event}" event`,
+        //           `handlers for stream:`,
+        //           `origin: "${e.origin.name}"`);
 
         // miss.pipe: handles evrything at one place -> see "end-of-stream"
         // miss.finished(e.stream,  (err) => {
 
-        e.stream.once(event, (err) => {
+        e.stream.on(event, (err) => {
             log.silly(`Route.event:`, `"${event}" event received:`,
-                      `${e.origin.name}`,
-                      (err) ? `Error: ${err}` : '');
-            // if err is defined, then it's an error
-            this.emit('end', e.origin, e.stream, err);
+                      `${e.origin.name}, Error:`, err || '');
+            this.disconnect.bind(this)(e.origin, e.stream, err);
         });
     }
 
@@ -235,22 +228,37 @@ class Route {
         return streams;
     }
 
-    end(){
-        if(this.type === 'session')
-            return;
+    // if error is defined, emit an error event
+    end(error){
         let queue = this.getStreams();
-        log.silly('Route.end:', `${this.name}:`,
-                  `deleting ${queue.length} streams`);
-        queue.forEach( (s) => {
-            if(!s.destroyed){
-                // log.silly('Route.end:', '(stream.destroyed != true)',
-                //           'calling end()');
-                s.end();
-            }
-        });
+        log.silly('Route.end:', `${this.name}:`, `error:`,
+                  error || 'NONE', `deleting ${queue.length} streams`);
+        queue.forEach( (s) => { if(!s.destroyed) s.end(); });
+        if(error)
+            this.session.emit('error', error);
+        else
+            this.session.emit('end');
+    }
+
+    // called when one of the streams fail
+    disconnect(origin, stream, error){
+        log.silly('Route.disconnect');
+
+        this.session.emit('disconnect', origin, error);
+
+        switch(this.retry.policy){
+        case 'autoreconnect':
+            // should implement autoreconnect policy (retry forever)
+        case 'retry':
+            // should implement retry policy (retry 'n' times)
+        case 'never': // never retry, fail immediately
+        case undefined:
+        default:
+            this.end(`Stream disconnected: origin: ${origin.name}`);
+        }
     }
 };
-util.inherits(Route, EventEmitter);
+//util.inherits(Route, EventEmitter);
 Route.index = 0;
 
 Route.create = (r) => {

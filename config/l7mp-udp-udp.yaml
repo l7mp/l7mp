@@ -11,6 +11,12 @@ listeners:
           route:
             cluster: sync
             # ingress:
+            #   - spec:
+            #       protocol: "WebSocket"
+            #       port: 8080
+            #     endpoints:
+            #       - spec: { address:  "127.0.0.1" }
+            # ingress:
             #   - spec: { protocol: "Logger", log_prefix: "ingress1" }
             # egress:
             #   - spec: { protocol: "Logger", log_prefix: "egress1" }

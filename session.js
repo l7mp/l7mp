@@ -34,12 +34,33 @@ const StreamCounter = require('./stream-counter.js').StreamCounter;
 //
 //------------------------------------
 
-// - Event: 'connect': Emitted when a session stream pipeline is
-//   successfully established.
+// - Event: 'init': Emitted when the listener emits a new
+//   stream.
+//   status: INIT
+//   args:
 
-// - Event: 'end': Emitted if one of the streams in the session's
-//   pipeline is closed. (sometimes it's 'close' but the 'route' takes
-//   cares of this), if error is defined, then it's an error
+// - Event: 'connect': Emitted after an 'init' session's stream
+//   pipeline was successfully established or when it is re-connected
+//   after 'disconnect' event.
+//   status: INIT/DISCONNECTED -> CONNECTED
+//   args: -
+
+// - Event: 'disconnect': Emitted if one of the streams in the
+//   session's pipeline is prematurely closed. This state is temporal:
+//   the session may still re-connect later as per the retry policy.
+//   status: CONNECTED -> DISCONNECTED
+//   args: origin, error
+
+// - Event: 'error': Emitted if one or more of the streams that
+//   underlie a session fail and we cannot reconnect it, under the
+//   retry policy.
+//   status: CONNECTED/DISCONNECTED -> DESTROYED
+//   args: error
+
+// - Event: 'end': Emitted if the session the session is deleted from
+//   the API or ends normally.
+//   status: CONNECTED/DISCONNECTED -> DESTROYED
+//   args: -
 
 class Session {
     constructor(m, l, p){
@@ -49,7 +70,6 @@ class Session {
         this.route    = undefined;
         this.stats    = { counter: new StreamCounter() };
         this.priv     = p || {};
-        this.retryPolicy = 'NEVER';
     }
 
     toJSON(){
@@ -62,39 +82,8 @@ class Session {
 
     setRoute(r){
         this.route = r;
-
-        this.route.on('end', (origin, stream, error) => {
-            log.verbose('Session.end event:',
-                        `Route.end for session "${this.name}"`);
-            this.onDisconnect('end', origin, stream, error);
-        });
-    }
-
-    onDisconnect(event, origin, stream, error){
-        log.silly('Session.onDisconnect event:',
-                 `Route.${event} for session "${this.name}":`,
-                  (error) ? dumper(error, 1) : '',
-                  `origin: "${origin.name}"`);
-
-        switch(this.retryPolicy){
-        case 'NEVER':
-            this.disconnect(event, error);
-            break;
-        default:
-            log.warn('Session.onDisconnect:',
-                     'unknown retry policy, not retrying');
-            this.disconnect(event, error);
-        }
-    }
-
-    disconnect(e, error){
-        log.silly('Session.disconnect');
-        // dump(this.metadata);
-        if(this.metadata.status === 'ESTABLISHED'){
-            this.emit('end', this, error);
-        } else {
-            log.silly('Session.disconnect: session not established, ignoring');
-        }
+        // TODO: break circular dependency
+        r.session = this;
     }
 };
 util.inherits(Session, EventEmitter);
