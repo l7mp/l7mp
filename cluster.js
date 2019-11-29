@@ -598,9 +598,6 @@ class SyncCluster extends Cluster {
             }
 
             let port = this.streams[label].add(s);
-
-            dump(this.streams, 2);
-
             return Promise.resolve(port);
         } else {
             return Promise.reject('SyncCluster.stream', `reject`,
