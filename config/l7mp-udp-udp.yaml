@@ -1,0 +1,35 @@
+# js-yaml l7mp-simple.yaml  >l7mp-simple.json
+admin:
+  log_level: silly
+  log_file: stdout
+  access_log_path: /tmp/admin_access.log
+listeners:
+  - name: udp-1
+    spec: { protocol: UDP, port: 9001 }
+    rules:
+      - action:
+          route:
+            cluster: sync
+            ingress:
+              - spec: { protocol: "Logger", log_prefix: "ingress1" }
+            egress:
+              - spec: { protocol: "Logger", log_prefix: "egress1" }
+          rewrite:
+            - path: "labels/session_id"
+              value: 1
+  - name: udp-2
+    spec: { protocol: UDP, port: 9002 }
+    rules:
+      - action:
+          route:
+            cluster: sync
+            ingress:
+              - spec: { protocol: "Logger", log_prefix: "ingress2" }
+            egress:
+              - spec: { protocol: "Logger", log_prefix: "egress2" }
+          rewrite:
+            - path: "labels/session_id"
+              value: 1
+clusters:
+  - name: sync
+    spec: { protocol: "Sync", query: '/labels/session_id' }
