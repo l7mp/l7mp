@@ -220,7 +220,7 @@ class L7mpOpenAPI {
             //     }));
             // } else {
             // {
-            ctx.session.emit('end');
+            // ctx.session.emit('end');
             // }
         });
     }
@@ -242,10 +242,9 @@ class L7mpOpenAPI {
             body:    req.body,
             query:   url.query,
             headers: req.headers,
-            session: s,
         };
 
-        dump(ctx.body, 20);
+        // dump(ctx.body, 20);
 
         try {
             switch(req.headers['content-type']){
@@ -280,6 +279,8 @@ class L7mpOpenAPI {
             // should receive a status/msg pair
             s.emit('error', e);
         }
+
+        s.emit('end');
     }
 };
 

@@ -30,7 +30,7 @@ const url          = require('url');
 const EventEmitter = require('events').EventEmitter;
 const util         = require('util');
 const miss         = require('mississippi');
-const eventDebug   = require('event-debug')
+const eventDebug   = require('event-debug');
 
 const StreamCounter = require('./stream-counter.js').StreamCounter;
 const utils         = require('./stream.js');
@@ -171,7 +171,7 @@ class HTTPListener extends Listener {
                 'Content-Type': 'text/plain'
             });
         } else {
-            message = JSON.stringify(message);
+            message = JSON.stringify(message, null, 4);
             res.writeHead(status, {
                 'Content-Length': message.length,
                 'Content-Type': 'application/json'

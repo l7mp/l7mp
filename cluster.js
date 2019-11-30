@@ -37,6 +37,7 @@ const stream        = require('stream');
 const streamops     = require("stream-operators");
 const miss          = require('mississippi');
 const jsonPredicate = require("json-predicate")
+const eventDebug    = require('event-debug');
 
 const StreamCounter = require('./stream-counter.js').StreamCounter;
 const L7mpOpenAPI   = require('./l7mp-openapi.js').L7mpOpenAPI;
@@ -445,13 +446,14 @@ class L7mpControllerCluster extends Cluster {
         log.silly('L7mpControllerCluster.stream', `Session: "${s.name}"`);
 
         // the writable part is in objectMode: result is status/message
-        let strm = new stream.PassThrough({writableObjectMode: true});
-
+        let passthrough = new utils.DuplexPassthrough({}, {writableObjectMode: true});
+        let strm = passthrough.right;
+        // eventDebug(strm);
         s.metadata.HTTP.body = '';
         strm.on('data', (chunk) => { s.metadata.HTTP.body += chunk; });
         strm.on('end', () => { this.openapi.handleRequest(s) } );
 
-        return Promise.resolve(strm);
+        return Promise.resolve(passthrough.left);
     }
 };
 

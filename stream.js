@@ -172,6 +172,26 @@ class BroadcastStream {
     }
 };
 
+//     left   right
+//        +---+
+//     W -+---+> R    upper
+//        |   |
+//     R <+---+- W    lower
+//        +---+
+
+class DuplexPassthrough {
+    constructor(upperOptions, lowerOptions){
+        this.upper = new PassThrough(upperOptions);
+        this.lower = new PassThrough(lowerOptions);
+        this.left  = duplex3(this.upper, this.lower);
+        this.right = duplex3(this.lower, this.upper);
+    }
+
+    // left()  { return this.left }
+    // right() { return this.right }
+};
+
 // module.exports.socket2dgramstream = socket2dgramstream;
-module.exports.DatagramStream = DatagramStream;
-module.exports.BroadcastStream = BroadcastStream;
+module.exports.DatagramStream    = DatagramStream;
+module.exports.BroadcastStream   = BroadcastStream;
+module.exports.DuplexPassthrough = DuplexPassthrough;

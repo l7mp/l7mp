@@ -88,7 +88,7 @@ class L7mp {
         // error
         s.on('error', (e) => {
             log.silly('Session.error:', `Session "${s.name}":`, e);
-            listener.origin.finish(s, e);
+            listener.origin.finish(s, 'Internal error');
             s.metadata.status = 'DESTROYED';
             this.deleteSessionIfExists(s.name);
         });
@@ -134,7 +134,7 @@ class L7mp {
             log.silly('Session.connect:',
                       `Session "${s.name}" successully connected.`);
             s.metadata.status = 'CONNECTED';
-            listener.origin.ack(s);
+            // listener.origin.ack(s);
         });
 
         s.on('disconnect', () => {
@@ -144,11 +144,8 @@ class L7mp {
         });
 
         s.route.pipeline(s).then(
-            (route) => {
-                s.emit('connect');
-            },
-            // on error
-            (e) => s.emit('error', e)
+            (route) => s.emit('connect'),
+            (e)     => s.emit('error', e)
         );
     }
 

@@ -85,7 +85,7 @@ class Route {
                          `Empty stream for cluster`,
                          `${resolved_list[i].ref.origin.name}`);
                 return new Error('Empty stream');
-            }
+           }
 
         log.silly("Route.pipeline:",
                   `${resolved_list.length} stream(s) initiated`);
@@ -176,7 +176,8 @@ class Route {
 
         e.stream.on(event, (err) => {
             log.silly(`Route.event:`, `"${event}" event received:`,
-                      `${e.origin.name}, Error:`, err || '');
+                      `${e.origin.name}`,
+                      (err) ? ` Error: ${err}` : '');
             this.disconnect.bind(this)(e.origin, e.stream, err);
         });
     }
@@ -254,7 +255,8 @@ class Route {
         case 'never': // never retry, fail immediately
         case undefined:
         default:
-            this.end(`Stream disconnected: origin: ${origin.name}`);
+            setImmediate(() => this.end(`Stream disconnected: origin:`,
+                                        `${origin.name}`));
         }
     }
 };
