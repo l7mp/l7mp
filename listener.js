@@ -29,7 +29,8 @@ const udp          = require('dgram');
 const url          = require('url');
 const EventEmitter = require('events').EventEmitter;
 const util         = require('util');
-const miss         = require('mississippi');
+const miss         = require("mississippi");
+const duplex3      = require("duplexer2");
 const eventDebug   = require('event-debug');
 
 const StreamCounter = require('./stream-counter.js').StreamCounter;
@@ -60,10 +61,6 @@ class Listener {
             rules:    this.rules
         };
     }
-
-    // for listeners that want to acknowledge the connection setup
-    // (HTTP:200 eg.)
-    ack(){ return; }
 }
 
 // Inherit from EventEmitter: roughly equivalent to:
@@ -107,6 +104,7 @@ class HTTPListener extends Listener {
             `${req.connection.localPort}-` +
             this.getNewSessionId();
 
+        // let stream = duplex3(res, req, {objectMode: false});
         let stream = miss.duplex(res, req, {objectMode: false});
 
         try {
@@ -150,10 +148,6 @@ class HTTPListener extends Listener {
 
         var priv = { req: req, res: res };
         this.emit('init', metadata, listener, priv);
-    }
-
-    ack(s) {
-        this.finalize(s.priv.res, 200, 'OK');
     }
 
     finish(s, e){
@@ -262,9 +256,6 @@ class WebSocketListener extends Listener {
         var priv = { socket: socket, req: req };
         this.emit('init', metadata, listener, priv);
     }
-
-    // do we need this??? ws seems to handle 200 responses just fine
-    // ack(s) { }
 
     finish(s, e){ this.reject(s.priv.res, e); }
 

@@ -49,166 +49,166 @@ class L7mpOpenAPI {
 
         this.api.init();
 
-        this.api.registerHandler('getConf', (ctx, req) => {
+        this.api.registerHandler('getConf', (ctx, req, res) => {
             log.info("L7mp.api.getConf");
-            req.status = 200;
-            req.message = l7mp;
+            res.status = 200;
+            res.message = l7mp;
         });
 
-        this.api.registerHandler('setConf', (ctx, req) => {
+        this.api.registerHandler('setConf', (ctx, req, res) => {
             log.info("L7mp.api.setConf");
             try {
                 l7mp.static_config = req.body.config;
                 let result = l7mp.run();
-                req.status = 200;
-                req.message = 'OK';
+                res.status = 200;
+                res.message = 'OK';
             } catch(e) {
-                req.status = 400;
-                req.message = e.msg;
+                res.status = 400;
+                res.message = e.msg;
             }
         });
 
-        this.api.registerHandler('getAdmin', (ctx, req) => {
+        this.api.registerHandler('getAdmin', (ctx, req, res) => {
             log.info("L7mp.api.getAdmin");
-            req.status = 200;
-            req.message = l7mp.getAdmin();
+            res.status = 200;
+            res.message = l7mp.getAdmin();
         });
 
-        this.api.registerHandler('getListeners', (ctx, req) => {
+        this.api.registerHandler('getListeners', (ctx, req, res) => {
             log.info("L7mp.api.getListeners");
-            req.status = 200;
-            req.message = l7mp.listeners;
+            res.status = 200;
+            res.message = l7mp.listeners;
         });
 
-        this.api.registerHandler('getListener', (ctx, req) => {
+        this.api.registerHandler('getListener', (ctx, req, res) => {
             log.info("L7mp.api.getListener");
             let result = l7mp.getListener(ctx.request.params.name);
             if(result){
-                req.status = 200;
-                req.message = result;
+                res.status = 200;
+                res.message = result;
             } else {
-                req.status = 400;
-                req.message = 'No such listener';
+                res.status = 400;
+                res.message = 'No such listener';
             }
         });
 
-        this.api.registerHandler('addListener', (ctx, req) => {
+        this.api.registerHandler('addListener', (ctx, req, res) => {
             log.info("L7mp.api.addListener");
             try {
                 let result = l7mp.addListener(req.body.listener);
-                req.status = 200;
-                req.message = 'OK';
+                res.status = 200;
+                res.message = 'OK';
             } catch(e) {
-                req.status = 400;
-                req.message = e.msg;
+                res.status = 400;
+                res.message = e.msg;
             }
         });
 
-        this.api.registerHandler('deleteListener', (ctx, req) => {
+        this.api.registerHandler('deleteListener', (ctx, req, res) => {
             log.info("L7mp.api.deleteListener");
             try {
                 let result =
                     l7mp.deleteListener(ctx.request.params.name);
-                req.status = 200;
-                req.message = 'OK';
+                res.status = 200;
+                res.message = 'OK';
             } catch(e) {
-                req.status = 400;
-                req.message = e.msg;
+                res.status = 400;
+                res.message = e.msg;
             }
         });
 
-        this.api.registerHandler('getClusters', (ctx, req) => {
+        this.api.registerHandler('getClusters', (ctx, req, res) => {
             log.info("L7mp.api.getClusters");
-            req.status = 200;
-            req.message = l7mp.clusters;
+            res.status = 200;
+            res.message = l7mp.clusters;
         });
 
-        this.api.registerHandler('getCluster', (ctx, req) => {
+        this.api.registerHandler('getCluster', (ctx, req, res) => {
             log.info("L7mp.api.getCluster");
             let result = l7mp.getCluster(ctx.request.params.name);
             if(result){
-                req.status = 200;
-                req.message = result;
+                res.status = 200;
+                res.message = result;
             } else {
-                req.status = 400;
-                req.message = 'No such cluster';
+                res.status = 400;
+                res.message = 'No such cluster';
             }
         });
 
-        this.api.registerHandler('addCluster', (ctx, req) => {
+        this.api.registerHandler('addCluster', (ctx, req, res) => {
             log.info("L7mp.api.addCluster");
             try {
                 let result = l7mp.addCluster(req.body.cluster);
-                req.status = 200;
-                req.message = 'OK';
+                res.status = 200;
+                res.message = 'OK';
             } catch(e) {
-                req.status = 400;
-                req.message = e.msg;
+                res.status = 400;
+                res.message = e.msg;
             }
         });
 
-        this.api.registerHandler('deleteCluster', (ctx, req) => {
+        this.api.registerHandler('deleteCluster', (ctx, req, res) => {
             log.info("L7mp.api.deleteCluster");
             try {
                 let result =
                     l7mp.deleteCluster(ctx.request.params.name);
-                req.status = 200;
-                req.message = 'OK';
+                res.status = 200;
+                res.message = 'OK';
             } catch(e) {
-                req.status = 400;
-                req.message = e.msg;
+                res.status = 400;
+                res.message = e.msg;
             }
         });
 
-        this.api.registerHandler('getSessions', (ctx, req) => {
+        this.api.registerHandler('getSessions', (ctx, req, res) => {
             log.info("L7mp.api.getSessions");
-            req.status = 200;
-            req.message = l7mp.sessions;
+            res.status = 200;
+            res.message = l7mp.sessions;
         });
 
-        this.api.registerHandler('getSession', (ctx, req) => {
+        this.api.registerHandler('getSession', (ctx, req, res) => {
             log.info("L7mp.api.getSession");
             let result = l7mp.getSession(ctx.request.params.name);
             if(result){
-                req.status = 200;
-                req.message = result;
+                res.status = 200;
+                res.message = result;
             } else {
-                req.status = 400;
-                req.message = 'No such session';
+                res.status = 400;
+                res.message = 'No such session';
             }
         });
 
-        this.api.registerHandler('deleteSession', (ctx, req) => {
+        this.api.registerHandler('deleteSession', (ctx, req, res) => {
             log.info("L7mp.api.deleteSession");
             try {
                 l7mp.deleteSession(ctx.request.params.name);
-                req.status = 200;
-                req.message = 'OK';
+                res.status = 200;
+                res.message = 'OK';
             } catch(e) {
-                req.status = 400;
-                req.message = e.msg;
+                res.status = 400;
+                res.message = e.msg;
             }
         });
 
-        this.api.register('validationFail', (ctx, req) => {
+        this.api.register('validationFail', (ctx, req, res) => {
             log.info("L7mp.api.validationFail");
-            req.status = 400;
-            req.message = ctx.validation.errors;
+            res.status = 400;
+            res.message = ctx.validation.errors;
         });
 
-        this.api.register('notFound', (ctx, req) => {
+        this.api.register('notFound', (ctx, req, res) => {
             log.info("L7mp.api.notFound");
-            req.status = 404;
-            req.message = 'Not found';
+            res.status = 404;
+            res.message = 'Not found';
         });
 
-        this.api.register('notImplemented', (ctx, req) => {
+        this.api.register('notImplemented', (ctx, req, res) => {
             log.info("L7mp.api.notImplemented");
-            req.status = 501;
-            req.message = 'No handler registered for operation';
+            res.status = 501;
+            res.message = 'No handler registered for operation';
         });
 
-        this.api.register('postResponseHandler', (ctx, req) => {
+        this.api.register('postResponseHandler', (ctx, req, res) => {
             // const valid = ctx.api.validateResponse(ctx.response,
             //                                        ctx.operation);
             // if (valid.errors) {
@@ -225,7 +225,9 @@ class L7mpOpenAPI {
         });
     }
 
-    async handleRequest(s){
+    async handleRequest(s, stream){
+        log.silly('l7mp.openapi: handleRequest');
+
         // prepare
         if(!(s.metadata.HTTP && s.metadata.HTTP.method &&
              s.metadata.HTTP.url.path)){
@@ -246,6 +248,8 @@ class L7mpOpenAPI {
 
         // dump(ctx.body, 20);
 
+        let res = {};
+
         try {
             switch(req.headers['content-type']){
             case 'application/json':
@@ -255,6 +259,7 @@ class L7mpOpenAPI {
                 log.silly('l7mp.openapi: handleRequest',
                           'Received JSON reuqest');
                 req.body = JSON.parse(req.body);
+                req.content_type = 'JSON';
                 break;
             case 'text/yaml':
             case 'text/x-yaml':
@@ -263,6 +268,7 @@ class L7mpOpenAPI {
                 log.silly('l7mp.openapi: handleRequest',
                           'Received YAML reuqest');
                 req.body = YAML.parse(req.body);
+                req.content_type = 'YAML';
                 break;
             default:
                 if(req.method === 'POST' || req.method === 'PUT'){
@@ -274,13 +280,18 @@ class L7mpOpenAPI {
                     s.emit('error', e);
                 }
             }
-            await this.api.handleRequest(ctx, req, null);
+            await this.api.handleRequest(ctx, req, res);
+
+            if(res.status)
+                stream.end(JSON.stringify(res.message, null, 4));
+            else
+                stream.end();
+            // make sure we never retry this, even if policy requires
+            setImmediate(() => s.emit('end'));
         } catch(e) {
             // should receive a status/msg pair
             s.emit('error', e);
         }
-
-        s.emit('end');
     }
 };
 

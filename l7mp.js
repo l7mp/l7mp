@@ -134,7 +134,6 @@ class L7mp {
             log.silly('Session.connect:',
                       `Session "${s.name}" successully connected.`);
             s.metadata.status = 'CONNECTED';
-            // listener.origin.ack(s);
         });
 
         s.on('disconnect', () => {

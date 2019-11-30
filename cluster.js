@@ -451,7 +451,7 @@ class L7mpControllerCluster extends Cluster {
         // eventDebug(strm);
         s.metadata.HTTP.body = '';
         strm.on('data', (chunk) => { s.metadata.HTTP.body += chunk; });
-        strm.on('end', () => { this.openapi.handleRequest(s) } );
+        strm.on('end', () => { this.openapi.handleRequest(s, strm) } );
 
         return Promise.resolve(passthrough.left);
     }
