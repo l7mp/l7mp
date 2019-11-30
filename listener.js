@@ -33,7 +33,7 @@ const miss         = require('mississippi');
 const eventDebug   = require('event-debug')
 
 const StreamCounter = require('./stream-counter.js').StreamCounter;
-const utils         = require('./utils.js');
+const utils         = require('./stream.js');
 
 class Listener {
     constructor(l){
@@ -153,14 +153,14 @@ class HTTPListener extends Listener {
     }
 
     ack(s) {
-        this.finalize(s.priv.res, 200, e);
+        this.finalize(s.priv.res, 200, 'OK');
     }
 
     finish(s, e){
         if(e) this.finalize(s.priv.res, 404, e);
         // normal end
-        let status = s.metadata.status || 404;
-        let message = s.metadata.message || 'Unknown error';
+        let status = s.metadata.HTTP.status || 404;
+        let message = s.metadata.HTTP.message || 'Unknown error';
         this.finalize(s.priv.res, status, message);
     }
 
@@ -171,7 +171,7 @@ class HTTPListener extends Listener {
                 'Content-Type': 'text/plain'
             });
         } else {
-            message = message.toJSON();
+            message = JSON.stringify(message);
             res.writeHead(status, {
                 'Content-Length': message.length,
                 'Content-Type': 'application/json'
