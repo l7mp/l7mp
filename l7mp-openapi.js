@@ -49,13 +49,13 @@ class L7mpOpenAPI {
 
         this.api.init();
 
-        this.api.registerHandler('getConf', (ctx, req, stream) => {
+        this.api.registerHandler('getConf', (ctx, req) => {
             log.info("L7mp.api.getConf");
             req.status = 200;
             req.message = l7mp;
         });
 
-        this.api.registerHandler('setConf', (ctx, req, stream) => {
+        this.api.registerHandler('setConf', (ctx, req) => {
             log.info("L7mp.api.setConf");
             try {
                 l7mp.static_config = req.body.config;
@@ -68,19 +68,19 @@ class L7mpOpenAPI {
             }
         });
 
-        this.api.registerHandler('getAdmin', (ctx, req, stream) => {
+        this.api.registerHandler('getAdmin', (ctx, req) => {
             log.info("L7mp.api.getAdmin");
             req.status = 200;
             req.message = l7mp.getAdmin();
         });
 
-        this.api.registerHandler('getListeners', (ctx, req, stream) => {
+        this.api.registerHandler('getListeners', (ctx, req) => {
             log.info("L7mp.api.getListeners");
             req.status = 200;
             req.message = l7mp.listeners;
         });
 
-        this.api.registerHandler('getListener', (ctx, req, stream) => {
+        this.api.registerHandler('getListener', (ctx, req) => {
             log.info("L7mp.api.getListener");
             let result = l7mp.getListener(ctx.request.params.name);
             if(result){
@@ -92,7 +92,7 @@ class L7mpOpenAPI {
             }
         });
 
-        this.api.registerHandler('addListener', (ctx, req, stream) => {
+        this.api.registerHandler('addListener', (ctx, req) => {
             log.info("L7mp.api.addListener");
             try {
                 let result = l7mp.addListener(req.body.listener);
@@ -104,7 +104,7 @@ class L7mpOpenAPI {
             }
         });
 
-        this.api.registerHandler('deleteListener', (ctx, req, stream) => {
+        this.api.registerHandler('deleteListener', (ctx, req) => {
             log.info("L7mp.api.deleteListener");
             try {
                 let result =
@@ -117,13 +117,13 @@ class L7mpOpenAPI {
             }
         });
 
-        this.api.registerHandler('getClusters', (ctx, req, stream) => {
+        this.api.registerHandler('getClusters', (ctx, req) => {
             log.info("L7mp.api.getClusters");
             req.status = 200;
             req.message = l7mp.clusters;
         });
 
-        this.api.registerHandler('getCluster', (ctx, req, stream) => {
+        this.api.registerHandler('getCluster', (ctx, req) => {
             log.info("L7mp.api.getCluster");
             let result = l7mp.getCluster(ctx.request.params.name);
             if(result){
@@ -135,7 +135,7 @@ class L7mpOpenAPI {
             }
         });
 
-        this.api.registerHandler('addCluster', (ctx, req, stream) => {
+        this.api.registerHandler('addCluster', (ctx, req) => {
             log.info("L7mp.api.addCluster");
             try {
                 let result = l7mp.addCluster(req.body.cluster);
@@ -147,7 +147,7 @@ class L7mpOpenAPI {
             }
         });
 
-        this.api.registerHandler('deleteCluster', (ctx, req, stream) => {
+        this.api.registerHandler('deleteCluster', (ctx, req) => {
             log.info("L7mp.api.deleteCluster");
             try {
                 let result =
@@ -160,13 +160,13 @@ class L7mpOpenAPI {
             }
         });
 
-        this.api.registerHandler('getSessions', (ctx, req, stream) => {
+        this.api.registerHandler('getSessions', (ctx, req) => {
             log.info("L7mp.api.getSessions");
             req.status = 200;
             req.message = l7mp.sessions;
         });
 
-        this.api.registerHandler('getSession', (ctx, req, stream) => {
+        this.api.registerHandler('getSession', (ctx, req) => {
             log.info("L7mp.api.getSession");
             let result = l7mp.getSession(ctx.request.params.name);
             if(result){
@@ -178,7 +178,7 @@ class L7mpOpenAPI {
             }
         });
 
-        this.api.registerHandler('deleteSession', (ctx, req, stream) => {
+        this.api.registerHandler('deleteSession', (ctx, req) => {
             log.info("L7mp.api.deleteSession");
             try {
                 l7mp.deleteSession(ctx.request.params.name);
@@ -190,25 +190,25 @@ class L7mpOpenAPI {
             }
         });
 
-        this.api.register('validationFail', (ctx, req, stream) => {
+        this.api.register('validationFail', (ctx, req) => {
             log.info("L7mp.api.validationFail");
             req.status = 400;
             req.message = ctx.validation.errors;
         });
 
-        this.api.register('notFound', (ctx, req, stream) => {
+        this.api.register('notFound', (ctx, req) => {
             log.info("L7mp.api.notFound");
             req.status = 404;
             req.message = 'Not found';
         });
 
-        this.api.register('notImplemented', (ctx, req, stream) => {
+        this.api.register('notImplemented', (ctx, req) => {
             log.info("L7mp.api.notImplemented");
             req.status = 501;
             req.message = 'No handler registered for operation';
         });
 
-        this.api.register('postResponseHandler', (ctx, req, stream) => {
+        this.api.register('postResponseHandler', (ctx, req) => {
             // const valid = ctx.api.validateResponse(ctx.response,
             //                                        ctx.operation);
             // if (valid.errors) {
@@ -227,13 +227,6 @@ class L7mpOpenAPI {
 
     async handleRequest(s){
         // prepare
-        if(!(s.metadata.status === 'CONNECT' && s.route &&
-             s.route.destination && s.route.destination.stream)){
-            log.error('L7mpOpenAPI.handleRequest:',
-                      'Error: Request not ready');
-            return;
-        }
-
         if(!(s.metadata.HTTP && s.metadata.HTTP.method &&
              s.metadata.HTTP.url.path)){
             log.error('L7mpOpenAPI.handleRequest:',
@@ -241,7 +234,6 @@ class L7mpOpenAPI {
             return;
         }
 
-        let stream = s.route.destination.stream;
         let req = s.metadata.HTTP;
         let url = req.url;
         let ctx = {
@@ -252,6 +244,8 @@ class L7mpOpenAPI {
             headers: req.headers,
             session: s,
         };
+
+        dump(ctx.body, 20);
 
         try {
             switch(req.headers['content-type']){
@@ -281,7 +275,7 @@ class L7mpOpenAPI {
                     s.emit('error', e);
                 }
             }
-            await this.api.handleRequest(ctx, req, stream);
+            await this.api.handleRequest(ctx, req, null);
         } catch(e) {
             // should receive a status/msg pair
             s.emit('error', e);
