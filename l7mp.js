@@ -89,16 +89,23 @@ class L7mp {
         s.on('error', (e) => {
             log.silly('Session.error:', `Session "${s.name}":`, e);
             listener.origin.end(s, e);
-            s.metadata.status = 'DESTROYED';
-            this.deleteSessionIfExists(s.name);
+            s.status = 'FINALIZING';
         });
 
         // normal end
         s.on('end', () => {
+            log.silly('Session.end:', `Session "${s.name}":`,
+                      `Ending normally`);
+            s.status = 'FINALIZING';
+        });
+
+        s.on('destroy', () => {
             log.silly('Session.end:',
-                      `Session "${s.name}" ended normally`);
-            s.metadata.status = 'DESTROYED';
-            this.deleteSessionIfExists(s.name);
+                      `Session "${s.name}" destroyed`);
+            s.status = 'DESTROYED';
+            // let I/O still happen
+            setImmediate(() =>
+                         this.deleteSessionIfExists(s.name));
         });
 
         // match rules
@@ -131,14 +138,14 @@ class L7mp {
 
         s.on('connect', () => {
             log.silly('Session.connect:',
-                      `Session "${s.name}" successully connected.`);
-            s.metadata.status = 'CONNECTED';
+                      `Session "${s.name}" successully connected`);
+            s.status = 'CONNECTED';
         });
 
         s.on('disconnect', () => {
             log.silly('Session.disconnect:',
-                      `Session "${s.name}" temporarily disconnected.`);
-            s.metadata.status = 'DISCONNECTED';
+                      `Session "${s.name}" temporarily disconnected`);
+            s.status = 'DISCONNECTED';
         });
 
         s.route.pipeline(s).then(

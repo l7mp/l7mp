@@ -25,6 +25,7 @@
 const log          = require('npmlog');
 const EventEmitter = require('events').EventEmitter;
 const util         = require('util');
+const eventDebug   = require('event-debug')
 
 const StreamCounter = require('./stream-counter.js').StreamCounter;
 
@@ -54,12 +55,17 @@ const StreamCounter = require('./stream-counter.js').StreamCounter;
 // - Event: 'error': Emitted if one or more of the streams that
 //   underlie a session fail and we cannot reconnect it, under the
 //   retry policy.
-//   status: CONNECTED/DISCONNECTED -> DESTROYED
+//   status: CONNECTED/DISCONNECTED -> FINALIZING
 //   args: error
 
-// - Event: 'end': Emitted if the session the session is deleted from
-//   the API or ends normally.
-//   status: CONNECTED/DISCONNECTED -> DESTROYED
+// - Event: 'end': Emitted if the session is deleted from the API or
+//   ends normally.
+//   status: CONNECTED/DISCONNECTED -> FINALIZING
+//   args: -
+
+// - Event: 'destroy': Emitted when all streams of the session have
+// - closed down successfully
+//   status: FINALIZING -> DESTROYED
 //   args: -
 
 class Session {
@@ -70,6 +76,8 @@ class Session {
         this.route    = undefined;
         this.stats    = { counter: new StreamCounter() };
         this.priv     = p || {};
+
+        // eventDebug(this);
     }
 
     toJSON(){

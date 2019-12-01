@@ -44,6 +44,7 @@ class Route {
         this.chain       = { ingress: [], egress: [] };
         this.type        = this.source.origin.type;  // init
         this.retry       = r.retry || { policy: 'never' };
+        this.active_streams = 1;   // the listener stream is already active
     }
 
     toJSON(){
@@ -87,13 +88,17 @@ class Route {
                 return new Error('Empty stream');
            }
 
-        log.silly("Route.pipeline:",
-                  `${resolved_list.length} stream(s) initiated`);
-
         // set streams for each route elem
         let d = resolved_list.pop();
         this.destination.stream = d.stream;
-        resolved_list.forEach( (r) => { r.ref.stream = r.stream });
+        this.active_streams++;
+        resolved_list.forEach( (r) => {
+            r.ref.stream = r.stream;
+            this.active_streams++;
+        });
+
+        log.verbose("Route.pipeline:",
+                    `${this.active_streams} stream(s) initiated`);
 
         // pipe: ingress dir
         this.pipeline_finish(this.source, this.destination,
@@ -227,9 +232,15 @@ class Route {
 
     // called when one of the streams fail
     disconnect(origin, stream, error){
-        log.silly('Route.disconnect');
+        log.silly('Route.disconnect:', `origin: ${origin.name}`,
+                  (error) ? `Error: ${dumper(error, 2)}` : '');
+        this.active_streams--;
 
-        this.session.emit('disconnect', origin, error);
+        if(this.session.status === 'CONNECTED')
+            this.session.emit('disconnect', origin, error);
+        if(this.active_streams === 0)
+            // let streams so I/O
+            this.session.emit('destroy');
 
         switch(this.retry.policy){
         case 'autoreconnect':
@@ -239,8 +250,15 @@ class Route {
         case 'never': // never retry, fail immediately
         case undefined:
         default:
-            setImmediate(() => this.end(`Stream disconnected: origin:`+
-                                        origin.name));
+            // do not delete the route, deleteSession will do this
+            // suppress event for sessions that are already being
+            // destroyed
+            if(this.session.status !== 'FINALIZING'){
+                if(error)
+                    this.session.emit('error', error);
+                else
+                    this.session.emit('end');
+            }
         }
     }
 
@@ -258,14 +276,9 @@ class Route {
 
             if(!s.destroyed) s.end();
         });
-        if(error)
-            this.session.emit('error', error);
-        else
-            this.session.emit('end');
     }
 
 };
-//util.inherits(Route, EventEmitter);
 Route.index = 0;
 
 Route.create = (r) => {
