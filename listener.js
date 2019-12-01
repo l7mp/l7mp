@@ -150,28 +150,18 @@ class HTTPListener extends Listener {
         this.emit('init', metadata, listener, priv);
     }
 
-    finish(s, e){
-        if(e) this.finalize(s.priv.res, 404, e);
-        // normal end
-        let status = s.metadata.HTTP.status || 404;
-        let message = s.metadata.HTTP.message || 'Unknown error';
-        this.finalize(s.priv.res, status, message);
-    }
-
-    finalize(res, status, message){
-        if(typeof message === 'string'){
-            res.writeHead(status, {
-                'Content-Length': message.length,
-                'Content-Type': 'text/plain'
-            });
-        } else {
-            message = JSON.stringify(message, null, 4);
-            res.writeHead(status, {
-                'Content-Length': message.length,
-                'Content-Type': 'application/json'
-            });
-        }
-        res.end(message);
+    end(s, e){
+        let res = s.priv.res;
+        if(!e) e = { status: 404, message: 'Unknown error'};
+        // internal errors should be shown to the user
+        if(typeof e === 'string')
+            e = { status: 500, message: 'Internal Server Error'};
+        let msg = JSON.stringify(e, null, 4);
+        res.writeHead(e.status, {
+            'Content-Length': msg.length,
+            'Content-Type': 'application/json'
+        });
+        res.end(msg);
     }
 };
 

@@ -446,12 +446,13 @@ class L7mpControllerCluster extends Cluster {
         log.silly('L7mpControllerCluster.stream', `Session: "${s.name}"`);
 
         // the writable part is in objectMode: result is status/message
-        let passthrough = new utils.DuplexPassthrough({}, {writableObjectMode: true});
+        let passthrough =
+            new utils.DuplexPassthrough({}, {writableObjectMode: true});
         let strm = passthrough.right;
         // eventDebug(strm);
-        s.metadata.HTTP.body = '';
-        strm.on('data', (chunk) => { s.metadata.HTTP.body += chunk; });
-        strm.on('end', () => { this.openapi.handleRequest(s, strm) } );
+        var body = '';
+        strm.on('data', (chunk) => { body += chunk; });
+        strm.on('end', () => { this.openapi.handleRequest(s, body, strm) } );
 
         return Promise.resolve(passthrough.left);
     }

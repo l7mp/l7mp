@@ -149,37 +149,33 @@ class Route {
     pipeline_event_handlers(){
         // Writable has 'close', readable has 'end', duplex has
         // who-knows...
-        this.set_event_handler(this.source, 'end');
-        this.set_event_handler(this.source, 'close');
-        this.set_event_handler(this.source, 'error');
+
+        // need this for being able to remove listeners
+        let onDisc = this.onDisc = this.disconnect.bind(this);
+        let eh = function(event, e){
+            e.stream.on(event, (err) => {
+                log.silly(`Route.event:`, `"${event}" event received:`,
+                          `${e.origin.name}`,
+                          (err) ? ` Error: ${err}` : '');
+                onDisc(e.origin, e.stream, err);
+            });
+        };
+
+        eh('end', this.source);
+        eh('close', this.source);
+        eh('error', this.source);
 
         for(let dir of ['ingress', 'egress']){
             this.chain[dir].forEach( (e) => {
-                this.set_event_handler(e, 'end');
-                this.set_event_handler(e, 'close');
-                this.set_event_handler(e, 'error');
+                eh('end', e);
+                eh('close', e);
+                eh('error', e);
             });
         }
 
-        this.set_event_handler(this.destination, 'end');
-        this.set_event_handler(this.destination, 'close');
-        this.set_event_handler(this.destination, 'error');
-    }
-
-    set_event_handler(e, event){
-        // log.silly("Route.pipeline:", `setting "${event}" event`,
-        //           `handlers for stream:`,
-        //           `origin: "${e.origin.name}"`);
-
-        // miss.pipe: handles evrything at one place -> see "end-of-stream"
-        // miss.finished(e.stream,  (err) => {
-
-        e.stream.on(event, (err) => {
-            log.silly(`Route.event:`, `"${event}" event received:`,
-                      `${e.origin.name}`,
-                      (err) ? ` Error: ${err}` : '');
-            this.disconnect.bind(this)(e.origin, e.stream, err);
-        });
+        eh('end', this.destination);
+        eh('close', this.destination);
+        eh('error', this.destination);
     }
 
     // local override to allow experimenting with mississippi.pipe or
@@ -229,18 +225,6 @@ class Route {
         return streams;
     }
 
-    // if error is defined, emit an error event
-    end(error){
-        let queue = this.getStreams();
-        log.silly('Route.end:', `${this.name}:`, `error:`,
-                  error || 'NONE', `deleting ${queue.length} streams`);
-        queue.forEach( (s) => { if(!s.destroyed) s.end(); });
-        if(error)
-            this.session.emit('error', error);
-        else
-            this.session.emit('end');
-    }
-
     // called when one of the streams fail
     disconnect(origin, stream, error){
         log.silly('Route.disconnect');
@@ -255,10 +239,31 @@ class Route {
         case 'never': // never retry, fail immediately
         case undefined:
         default:
-            setImmediate(() => this.end(`Stream disconnected: origin:`,
-                                        `${origin.name}`));
+            setImmediate(() => this.end(`Stream disconnected: origin:`+
+                                        origin.name));
         }
     }
+
+    // if error is defined, emit an error event
+    end(error){
+        let queue = this.getStreams();
+        log.silly('Route.end:', `${this.name}:`, `error:`,
+                  error || 'NONE', `deleting ${queue.length} streams`);
+        queue.forEach( (s) => {
+            // remove event handlers to prevent event storms and
+            // recursively re-call us from each event handler
+            s.removeListener("end", this.onDisc);
+            s.removeListener("close", this.onDisc);
+            s.removeListener("error", this.onDisc);
+
+            if(!s.destroyed) s.end();
+        });
+        if(error)
+            this.session.emit('error', error);
+        else
+            this.session.emit('end');
+    }
+
 };
 //util.inherits(Route, EventEmitter);
 Route.index = 0;

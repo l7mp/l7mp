@@ -58,7 +58,7 @@ class L7mpOpenAPI {
         this.api.registerHandler('setConf', (ctx, req, res) => {
             log.info("L7mp.api.setConf");
             try {
-                l7mp.static_config = req.body.config;
+                l7mp.static_config = ctx.body.config;
                 let result = l7mp.run();
                 res.status = 200;
                 res.message = 'OK';
@@ -95,7 +95,7 @@ class L7mpOpenAPI {
         this.api.registerHandler('addListener', (ctx, req, res) => {
             log.info("L7mp.api.addListener");
             try {
-                let result = l7mp.addListener(req.body.listener);
+                let result = l7mp.addListener(ctx.body.listener);
                 res.status = 200;
                 res.message = 'OK';
             } catch(e) {
@@ -138,7 +138,7 @@ class L7mpOpenAPI {
         this.api.registerHandler('addCluster', (ctx, req, res) => {
             log.info("L7mp.api.addCluster");
             try {
-                let result = l7mp.addCluster(req.body.cluster);
+                let result = l7mp.addCluster(ctx.body.cluster);
                 res.status = 200;
                 res.message = 'OK';
             } catch(e) {
@@ -225,7 +225,7 @@ class L7mpOpenAPI {
         });
     }
 
-    async handleRequest(s, stream){
+    async handleRequest(s, body, stream){
         log.silly('l7mp.openapi: handleRequest');
 
         // prepare
@@ -241,7 +241,7 @@ class L7mpOpenAPI {
         let ctx = {
             method:  req.method,
             path:    url.path,
-            body:    req.body,
+            body:    body,
             query:   url.query,
             headers: req.headers,
         };
@@ -258,7 +258,7 @@ class L7mpOpenAPI {
             case 'text/x-json':
                 log.silly('l7mp.openapi: handleRequest',
                           'Received JSON reuqest');
-                req.body = JSON.parse(req.body);
+                ctx.body = JSON.parse(ctx.body);
                 req.content_type = 'JSON';
                 break;
             case 'text/yaml':
@@ -267,7 +267,7 @@ class L7mpOpenAPI {
             case 'application/x-yaml':
                 log.silly('l7mp.openapi: handleRequest',
                           'Received YAML reuqest');
-                req.body = YAML.parse(req.body);
+                ctx.body = YAML.parse(ctx.body);
                 req.content_type = 'YAML';
                 break;
             default:
@@ -282,10 +282,14 @@ class L7mpOpenAPI {
             }
             await this.api.handleRequest(ctx, req, res);
 
-            if(res.status)
+            if(res.status && res.status === 200){
+                // HTTPListener will automatically set status code to
+                // 200
                 stream.end(JSON.stringify(res.message, null, 4));
-            else
-                stream.end();
+            } else {
+                // the "listener.finalize" path
+                s.emit('error', res);
+            }
             // make sure we never retry this, even if policy requires
             setImmediate(() => s.emit('end'));
         } catch(e) {

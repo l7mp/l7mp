@@ -187,8 +187,10 @@ class DuplexPassthrough {
         this.right = duplex3(this.lower, this.upper);
     }
 
-    // left()  { return this.left }
-    // right() { return this.right }
+    upper() { return this.upper }
+    lower() { return this.lower }
+    left()  { return this.left }
+    right() { return this.right }
 };
 
 // module.exports.socket2dgramstream = socket2dgramstream;

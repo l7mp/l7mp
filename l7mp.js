@@ -88,7 +88,7 @@ class L7mp {
         // error
         s.on('error', (e) => {
             log.silly('Session.error:', `Session "${s.name}":`, e);
-            listener.origin.finish(s, 'Internal error');
+            listener.origin.end(s, e);
             s.metadata.status = 'DESTROYED';
             this.deleteSessionIfExists(s.name);
         });
@@ -97,7 +97,6 @@ class L7mp {
         s.on('end', () => {
             log.silly('Session.end:',
                       `Session "${s.name}" ended normally`);
-            listener.origin.finish(s);
             s.metadata.status = 'DESTROYED';
             this.deleteSessionIfExists(s.name);
         });
