@@ -708,26 +708,26 @@ font-style: italic;
     "name" : "name",
     "rules" : [ {
       "action" : {
-        "metadata" : {
-          "path" : "path",
-          "value" : ""
-        },
         "route" : {
           "cluster" : "cluster",
           "ingress" : [ "ingress", "ingress" ],
           "egress" : [ "egress", "egress" ]
+        },
+        "rewrite" : {
+          "path" : "path",
+          "value" : ""
         }
       }
     }, {
       "action" : {
-        "metadata" : {
-          "path" : "path",
-          "value" : ""
-        },
         "route" : {
           "cluster" : "cluster",
           "ingress" : [ "ingress", "ingress" ],
           "egress" : [ "egress", "egress" ]
+        },
+        "rewrite" : {
+          "path" : "path",
+          "value" : ""
         }
       }
     } ],
@@ -736,26 +736,26 @@ font-style: italic;
     "name" : "name",
     "rules" : [ {
       "action" : {
-        "metadata" : {
-          "path" : "path",
-          "value" : ""
-        },
         "route" : {
           "cluster" : "cluster",
           "ingress" : [ "ingress", "ingress" ],
           "egress" : [ "egress", "egress" ]
+        },
+        "rewrite" : {
+          "path" : "path",
+          "value" : ""
         }
       }
     }, {
       "action" : {
-        "metadata" : {
-          "path" : "path",
-          "value" : ""
-        },
         "route" : {
           "cluster" : "cluster",
           "ingress" : [ "ingress", "ingress" ],
           "egress" : [ "egress", "egress" ]
+        },
+        "rewrite" : {
+          "path" : "path",
+          "value" : ""
         }
       }
     } ],
@@ -835,26 +835,26 @@ font-style: italic;
   "name" : "name",
   "rules" : [ {
     "action" : {
-      "metadata" : {
-        "path" : "path",
-        "value" : ""
-      },
       "route" : {
         "cluster" : "cluster",
         "ingress" : [ "ingress", "ingress" ],
         "egress" : [ "egress", "egress" ]
+      },
+      "rewrite" : {
+        "path" : "path",
+        "value" : ""
       }
     }
   }, {
     "action" : {
-      "metadata" : {
-        "path" : "path",
-        "value" : ""
-      },
       "route" : {
         "cluster" : "cluster",
         "ingress" : [ "ingress", "ingress" ],
         "egress" : [ "egress", "egress" ]
+      },
+      "rewrite" : {
+        "path" : "path",
+        "value" : ""
       }
     }
   } ],
@@ -904,26 +904,26 @@ font-style: italic;
   "name" : "name",
   "rules" : [ {
     "action" : {
-      "metadata" : {
-        "path" : "path",
-        "value" : ""
-      },
       "route" : {
         "cluster" : "cluster",
         "ingress" : [ "ingress", "ingress" ],
         "egress" : [ "egress", "egress" ]
+      },
+      "rewrite" : {
+        "path" : "path",
+        "value" : ""
       }
     }
   }, {
     "action" : {
-      "metadata" : {
-        "path" : "path",
-        "value" : ""
-      },
       "route" : {
         "cluster" : "cluster",
         "ingress" : [ "ingress", "ingress" ],
         "egress" : [ "egress", "egress" ]
+      },
+      "rewrite" : {
+        "path" : "path",
+        "value" : ""
       }
     }
   } ],
@@ -1117,7 +1117,7 @@ font-style: italic;
     <h3><a name="io.l7mp.api.v1.Action"><code>io.l7mp.api.v1.Action</code> - </a> <a class="up" href="#__Models">Up</a></h3>
     <div class='model-description'>The &quot;action&quot; part of a math-action rule that assigns a route to the matched sessions.</div>
     <div class="field-items">
-      <div class="param">metadata (optional)</div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Rewrite">io.l7mp.api.v1.Rewrite</a></span>  </div>
+      <div class="param">rewrite (optional)</div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Rewrite">io.l7mp.api.v1.Rewrite</a></span>  </div>
 <div class="param">route </div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Route">io.l7mp.api.v1.Route</a></span>  </div>
     </div>  <!-- field-items -->
   </div>
@@ -1218,6 +1218,7 @@ font-style: italic;
         <div class="param-enum-header">Enum:</div>
         <div class="param-enum">logger</div>
 <div class="param">log_file (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> The file to log to. Opened it mode &quot;w&quot; (create or truncate if exists). Default is '-' (stdout). </div>
+<div class="param">log_prefix (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span> Prefix log messages. Default is no prefix. </div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
@@ -1296,7 +1297,7 @@ font-style: italic;
   </div>
   <div class="model">
     <h3><a name="io.l7mp.api.v1.UDPSingletonListenerSpec"><code>io.l7mp.api.v1.UDPSingletonListenerSpec</code> - </a> <a class="up" href="#__Models">Up</a></h3>
-    <div class='model-description'><p>A connected UDP listener that accepts UDP datagrams from a specified remote address-port pair.</p>
+    <div class='model-description'><p>A connected UDP listener that accepts UDP datagrams from a specified remote address-port pair. In connected mode, waits for the first packet from the specified remote IP/port pair and connects back. In unconnected mode (connect field not specified), waits for the first packet and uses the source IP/port in that packet as remote to which it connects back. In any case, subsequent packets will be accepted only from the same remote.</p>
 <ul>
 <li>protocol: UDP</li>
 <li>session ID: IP 5-tuple</li>
@@ -1309,7 +1310,7 @@ font-style: italic;
         <div class="param-enum-header">Enum:</div>
         <div class="param-enum">UDP</div>
 <div class="param">port </div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span> The valid transport protocol port. </div>
-<div class="param">connect </div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Parameter.AddressPortPair">io.l7mp.api.v1.Parameter.AddressPortPair</a></span>  </div>
+<div class="param">connect (optional)</div><div class="param-desc"><span class="param-type"><a href="#io.l7mp.api.v1.Parameter.AddressPortPair">io.l7mp.api.v1.Parameter.AddressPortPair</a></span>  </div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">

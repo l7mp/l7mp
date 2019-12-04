@@ -66,7 +66,7 @@ A WebSocket server specification that accepts HTTP/WebSocket requests at a speci
 | path | &nbsp; | string | HTTP URL for to serve. | &nbsp; | &nbsp; |
 
 # io.l7mp.api.v1.UDPSingletonListenerSpec
-A connected UDP listener that accepts UDP datagrams from a specified remote address-port pair.
+A connected UDP listener that accepts UDP datagrams from a specified remote address-port pair. In connected mode, waits for the first packet from the specified remote IP/port pair and connects back. In unconnected mode (connect field not specified), waits for the first packet and uses the source IP/port in that packet as remote to which it connects back. In any case, subsequent packets will be accepted only from the same remote.
 - protocol: UDP
 - session ID: IP 5-tuple
 - type: datagram
@@ -79,7 +79,7 @@ A connected UDP listener that accepts UDP datagrams from a specified remote addr
 | :--- | :---: | :---: | :--- | :--- | :--- |
 | protocol | Y | enum | The protocol, must be "UDP". | <ul><li>UDP</li></ul> | &nbsp; |
 | port | Y | io.l7mp.api.v1.Parameter.Port | &nbsp; | &nbsp; | &nbsp; |
-| connect | Y | io.l7mp.api.v1.Parameter.AddressPortPair | &nbsp; | &nbsp; | &nbsp; |
+| connect | &nbsp; | io.l7mp.api.v1.Parameter.AddressPortPair | &nbsp; | &nbsp; | &nbsp; |
 
 # io.l7mp.api.v1.Cluster
 A socket that originates connections to external services, an abstraction for an "egress port".
@@ -149,6 +149,7 @@ A virtual cluster that logs everything that passes through it to a log file.
 | :--- | :---: | :---: | :--- | :--- | :--- |
 | protocol | Y | enum | The protocol, must be "logger". | <ul><li>logger</li></ul> | &nbsp; |
 | log_file | &nbsp; | string | The file to log to. Opened it mode "w" (create or truncate if exists). Default is '-' (stdout). | &nbsp; | &nbsp; |
+| log_prefix | &nbsp; | string | Prefix log messages. Default is no prefix. | &nbsp; | &nbsp; |
 
 # io.l7mp.api.v1.Session
 A socket that originates connections to external services, an abstraction for an "egress port".
@@ -221,7 +222,7 @@ The "action" part of a math-action rule that assigns a route to the matched sess
 ## Properties
 | property | required | type | description | details | example |
 | :--- | :---: | :---: | :--- | :--- | :--- |
-| metadata | &nbsp; | io.l7mp.api.v1.Rewrite | &nbsp; | &nbsp; | &nbsp; |
+| rewrite | &nbsp; | io.l7mp.api.v1.Rewrite | &nbsp; | &nbsp; | &nbsp; |
 | route | Y | io.l7mp.api.v1.Route | &nbsp; | &nbsp; | &nbsp; |
 
 # io.l7mp.api.v1.Rule
