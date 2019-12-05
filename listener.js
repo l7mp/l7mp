@@ -111,7 +111,7 @@ class HTTPListener extends Listener {
             var query = url.parse(req.url);
         } catch(e){
             let error = `Could not parse URL: "${req.url}":` + e;
-            this.finalize(res, 404, error);
+            this.finalize(res, {status: 404, message: error});
         }
 
         let metadata = {
@@ -152,6 +152,10 @@ class HTTPListener extends Listener {
 
     end(s, e){
         let res = s.priv.res;
+        this.finalize(res, e);
+    }
+
+    finalize(res, e){
         if(!e) e = { status: 404, message: 'Unknown error'};
         // internal errors should be shown to the user
         if(typeof e === 'string')
