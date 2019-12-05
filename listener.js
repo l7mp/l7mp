@@ -192,8 +192,8 @@ class WebSocketListener extends Listener {
             return;
         }
 
-        this.server.on('init',
-                       (req, res) => this.onReq(req, res));
+        this.server.on('connection',
+                       (socket, res) => this.onReq(socket, res));
     }
 
     onReq(socket, req){
