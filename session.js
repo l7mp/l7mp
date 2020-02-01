@@ -84,7 +84,8 @@ class Session {
         log.silly('Session.toJSON:', `"${this.name}"`);
         return {
             metadata: this.metadata,
-            route:    this.route
+            listener: this.listerer,
+            route:    this.route,
         };
     }
 
