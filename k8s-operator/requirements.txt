@@ -1,0 +1,5 @@
+flask
+flask_apscheduler
+flask_restful
+kubernetes
+munch
