@@ -72,8 +72,9 @@ class TrivialLoadBalancer extends LoadBalancer {
     }
 
     apply(es, s) {
-        if(es.length == 0){
-            log.error('TrivialLoadBalancer.apply', 'No endpoint in cluster');
+        if(es.length === 0){
+            log.error('TrivialLoadBalancer.apply: No endpoint in cluster');
+            process.exit();
         }
         return es[0];
     }
