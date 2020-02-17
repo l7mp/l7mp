@@ -68,6 +68,8 @@ components:
             - $ref: '#/components/schemas/io.l7mp.api.v1.HTTPListenerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.UDPSingletonListenerSpec'
+          discriminator:
+            propertyName: protocol
         rules:
           description: A list of Rule objects (required).
           type: array
@@ -160,6 +162,8 @@ components:
             - $ref: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.LoggerClusterSpec'
+          discriminator:
+            propertyName: protocol
         endpoints:
           description: A list of EndPoint objects.
           type: array
