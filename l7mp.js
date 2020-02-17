@@ -190,6 +190,8 @@ class L7mp {
         log.info('L7mp.applyAdmin', dumper(admin));
         this.admin.log_level = log.level = 'log_level' in admin ?
             admin.log_level : log.level;
+        this.admin.strict = 'strict' in admin ? admin.strict : false;
+
         if('log_file' in admin){
             this.admin.log_file = admin.log_file;
             switch(admin.log_file){
@@ -509,7 +511,9 @@ class L7mp {
     }
 };
 
-var usage = 'l7mp -c <static_config>'
+///////////////////////////////////////
+
+var usage = 'l7mp -c <static_config> -s -l <log-level>'
 var argv = parseArgs(process.argv.slice(2));
 if(!('c' in argv)){
     console.error(usage);
@@ -533,6 +537,10 @@ try {
 
 // override loglevel
 if('l' in argv) log.level = argv.l;
+
+// strict mode: boolean
+if('s' in argv) l7mp.admin.strict = true;
+log.info('Strict mode: ', l7mp.admin.strict ? 'enabled' : 'disabled');
 
 if(!l7mp.static_config)
     log.error('No static configuration found');

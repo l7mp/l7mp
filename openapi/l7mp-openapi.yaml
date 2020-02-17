@@ -49,6 +49,9 @@ components:
         access_log_path:
           type: string
           description: Access log (currently unimplemented).
+        strict:
+          type: boolean
+          description: 'Enable strict mode: validates all REST API calls against OpenAPI schema (default: false).'
 
     io.l7mp.api.v1.Listener:
       description: A socket that listens for incoming connection requests, an abstraction for an "ingress port".

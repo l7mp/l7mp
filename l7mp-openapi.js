@@ -39,8 +39,7 @@ class L7mpOpenAPI {
         this.api = new OpenAPIBackend({
             definition: './openapi/l7mp-openapi.yaml',
             strict: true,
-            // validate: true,
-            validate: false,
+            validate: l7mp.admin.strict,
             withContext: true,
             ajvOpts: { unknownFormats: true },
             customizeAjv: () => new Ajv(),
@@ -209,19 +208,15 @@ class L7mpOpenAPI {
         });
 
         this.api.register('postResponseHandler', (ctx, req, res) => {
-            // const valid = ctx.api.validateResponse(ctx.response,
-            //                                        ctx.operation);
-            // if (valid.errors) {
-            //     res.writeHead(502,
-            //                   {'Content-Type': 'application/json'});
-            //     res.end(JSON.stringify( {
-            //         status: 502,
-            //         err: 'Response validation failed',
-            //     }));
-            // } else {
-            // {
-            // ctx.session.emit('end');
-            // }
+            if(l7mp.admin.strict) {
+                const valid = ctx.api.validateResponse(res.message,
+                                                       ctx.operation);
+                if (valid.errors) {
+                    res.status = 502;
+                    res.message = 'Response validation failed: ' +
+                        dumper(valid.errors,10);
+                }
+            }
         });
     }
 
