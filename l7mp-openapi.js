@@ -213,8 +213,10 @@ class L7mpOpenAPI {
                                                        ctx.operation);
                 if (valid.errors) {
                     res.status = 502;
-                    res.message = 'Response validation failed: ' +
-                        dumper(valid.errors,10);
+                    res.message = {
+                        message: 'Response validation failed',
+                        errors: valid.errors
+                    };
                 }
             }
         });
