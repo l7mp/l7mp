@@ -315,16 +315,16 @@ components:
             description: A transformer cluster.
             type: string
 
-    io.l7mp.api.v1.Match:
-      description: The "filter" part of a math-action rule that filters on session metadata.
-      type: object
-      oneOf:
-        - $ref: '#/components/schemas/io.l7mp.api.v1.WildcardMatch'
-        - $ref: '#/components/schemas/io.l7mp.api.v1.JSONPredicate'
+    # io.l7mp.api.v1.Match:
+    #   description: The "filter" part of a math-action rule that filters on session metadata.
+    #   type: object
+    #   oneOf:
+    #     - $ref: '#/components/schemas/io.l7mp.api.v1.WildcardMatch'
+    #     - $ref: '#/components/schemas/io.l7mp.api.v1.JSONPredicate'
 
-    io.l7mp.api.v1.WildcardMatch:
-      description: A wildcard filter, matches everything.
-      type: string
+    # io.l7mp.api.v1.WildcardMatch:
+    #   description: A wildcard filter, matches everything.
+    #   type: string
 
     io.l7mp.api.v1.JSONPredicate:
       description: A complex filter specified as a JSON predicate, see https://tools.ietf.org/html/draft-snell-json-test-07
@@ -361,7 +361,8 @@ components:
         - action
       properties:
         match:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Match'
+          # $ref: '#/components/schemas/io.l7mp.api.v1.Match'
+          $ref: '#/components/schemas/io.l7mp.api.v1.JSONPredicate'
         action:
           $ref: '#/components/schemas/io.l7mp.api.v1.Action'
 
