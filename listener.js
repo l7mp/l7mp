@@ -156,11 +156,20 @@ class HTTPListener extends Listener {
     }
 
     finalize(res, e){
-        if(!e) e = { status: 404, message: 'Unknown error'};
-        // internal errors should be shown to the user
-        if(typeof e === 'string')
-            e = { status: 500, message: 'Internal Server Error'};
+        // dump(e);
+
+        if(typeof e === 'string' && e)
+            e = { status: 400, message: 'Bad request: ' + e};
+        else if(typeof e === 'object' && e)
+            e = { status: 400, message: e};
+        else
+            e = { status: 500, message:
+                  'Internal Server Error'};
+        // dump(e);
         let msg = JSON.stringify(e, null, 4);
+
+        // dump(msg);
+
         res.writeHead(e.status, {
             'Content-Length': msg.length,
             'Content-Type': 'application/json'
