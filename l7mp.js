@@ -87,7 +87,7 @@ class L7mp {
 
         // error
         s.on('error', (e) => {
-            log.silly('Session.error:', `Session "${s.name}":`, e);
+            log.silly('Session.error:', `Session "${s.name}":`, dumper(e,1));
             listener.origin.end(s, e);
             s.status = 'FINALIZING';
         });

@@ -58,13 +58,13 @@ class L7mpOpenAPI {
         this.api.registerHandler('setConf', (ctx, req, res) => {
             log.info("L7mp.api.setConf");
             try {
-                l7mp.static_config = res.body.config;
+                l7mp.static_config = req.body.config;
                 let result = l7mp.run();
                 res.status = 200;
                 res.message = 'OK';
             } catch(e) {
                 res.status = 400;
-                res.message = e.msg;
+                res.message = e;
             }
         });
 
@@ -95,12 +95,12 @@ class L7mpOpenAPI {
         this.api.registerHandler('addListener', (ctx, req, res) => {
             log.info("L7mp.api.addListener");
             try {
-                let result = l7mp.addListener(res.body.listener);
+                let result = l7mp.addListener(req.body.listener);
                 res.status = 200;
                 res.message = 'OK';
             } catch(e) {
                 res.status = 400;
-                res.message = e.msg;
+                res.message = e;
             }
         });
 
@@ -113,7 +113,7 @@ class L7mpOpenAPI {
                 res.message = 'OK';
             } catch(e) {
                 res.status = 400;
-                res.message = e.msg;
+                res.message = e;
             }
         });
 
@@ -138,12 +138,12 @@ class L7mpOpenAPI {
         this.api.registerHandler('addCluster', (ctx, req, res) => {
             log.info("L7mp.api.addCluster");
             try {
-                let result = l7mp.addCluster(res.body.cluster);
+                let result = l7mp.addCluster(req.body.cluster);
                 res.status = 200;
                 res.message = 'OK';
             } catch(e) {
                 res.status = 400;
-                res.message = e.msg;
+                res.message = e;
             }
         });
 
@@ -156,7 +156,7 @@ class L7mpOpenAPI {
                 res.message = 'OK';
             } catch(e) {
                 res.status = 400;
-                res.message = e.msg;
+                res.message = e;
             }
         });
 
@@ -186,7 +186,7 @@ class L7mpOpenAPI {
                 res.message = 'OK';
             } catch(e) {
                 res.status = 400;
-                res.message = e.msg;
+                res.message = e;
             }
         });
 
@@ -246,6 +246,7 @@ class L7mpOpenAPI {
         };
 
         let res = {};
+        var e;
 
         try {
             switch(req.headers['content-type']){
@@ -254,8 +255,22 @@ class L7mpOpenAPI {
             case 'text/json':
             case 'text/x-json':
                 log.silly('l7mp.openapi: handleRequest',
-                          'Received JSON reuqest');
-                res.body = JSON.parse(body);
+                          'Received JSON request');
+
+                // special casing for API clients that set
+                // content-type to JSON on GET calls and send an empty
+                // body
+                if(req.method === 'GET' && body === '')
+                    req.body = '';
+                else
+                    try {
+                        req.body = JSON.parse(body);
+                    } catch(e){
+                        if (e instanceof SyntaxError)
+                            throw e.message;
+                        else
+                            throw e;
+                    }
                 req.content_type = 'JSON';
                 break;
             case 'text/yaml':
@@ -263,14 +278,18 @@ class L7mpOpenAPI {
             case 'application/yaml':
             case 'application/x-yaml':
                 log.silly('l7mp.openapi: handleRequest',
-                          'Received YAML reuqest');
-                res.body = YAML.parse(body);
+                          'Received YAML request');
+                try {
+                    req.body = YAML.parse(body);
+                } catch(e) {
+                    throw e;  // ugly
+                }
                 req.content_type = 'YAML';
                 break;
             default:
                 if(req.method === 'POST' || req.method === 'PUT'){
                     // we request a known payload
-                    let e = 'Unknown content type: ' +
+                    e = 'Unknown content type: ' +
                         (req.headers['content-type'] || 'N/A');
                     log.silly('l7mp.openapi: handleRequest', e);
                     // Unsupported Media Type: 415

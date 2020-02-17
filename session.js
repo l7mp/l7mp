@@ -35,8 +35,7 @@ const StreamCounter = require('./stream-counter.js').StreamCounter;
 //
 //------------------------------------
 
-// - Event: 'init': Emitted when the listener emits a new
-//   stream.
+// - Event: 'init': Emitted when the listener emits a new stream.
 //   status: INIT
 //   args:
 
@@ -53,8 +52,8 @@ const StreamCounter = require('./stream-counter.js').StreamCounter;
 //   args: origin, error
 
 // - Event: 'error': Emitted if one or more of the streams that
-//   underlie a session fail and we cannot reconnect it, under the
-//   retry policy.
+//   underlie a session fail and we cannot reconnect, under the retry
+//   policy.
 //   status: CONNECTED/DISCONNECTED -> FINALIZING
 //   args: error
 
@@ -64,7 +63,7 @@ const StreamCounter = require('./stream-counter.js').StreamCounter;
 //   args: -
 
 // - Event: 'destroy': Emitted when all streams of the session have
-// - closed down successfully
+//   closed down successfully
 //   status: FINALIZING -> DESTROYED
 //   args: -
 
