@@ -428,12 +428,8 @@ components:
       description: General status info.
       type: object
       required:
-        - status
         - message
       properties:
-        status:
-          description: Status code.
-          type: integer
         message:
           description: Message.
           type: string

@@ -51,7 +51,7 @@ class L7mpOpenAPI {
         this.api.registerHandler('getConf', (ctx, req, res) => {
             log.info("L7mp.api.getConf");
             res.status = 200;
-            res.message = l7mp;
+            res.content = l7mp;
         });
 
         this.api.registerHandler('setConf', (ctx, req, res) => {
@@ -60,24 +60,26 @@ class L7mpOpenAPI {
                 l7mp.static_config = req.body.config;
                 let result = l7mp.run();
                 res.status = 200;
-                res.message = 'OK';
+                res.content = { message : 'OK' };
             } catch(e) {
                 res.status = 400;
-                res.message = 'Bad request';
-                res.error = e.message;
+                res.content = {
+                    message: 'Bad request',
+                    error: e.message,
+                };
             }
         });
 
         this.api.registerHandler('getAdmin', (ctx, req, res) => {
             log.info("L7mp.api.getAdmin");
             res.status = 200;
-            res.message = l7mp.getAdmin();
+            res.content = l7mp.getAdmin();
         });
 
         this.api.registerHandler('getListeners', (ctx, req, res) => {
             log.info("L7mp.api.getListeners");
             res.status = 200;
-            res.message = l7mp.listeners;
+            res.content = l7mp.listeners;
         });
 
         this.api.registerHandler('getListener', (ctx, req, res) => {
@@ -85,11 +87,13 @@ class L7mpOpenAPI {
             let result = l7mp.getListener(ctx.request.params.name);
             if(result){
                 res.status = 200;
-                res.message = result;
+                res.content = result;
             } else {
                 res.status = 400;
-                res.message = 'Bad request';
-                res.error = 'No such listener';
+                res.content = {
+                    message: 'Bad request',
+                    error: 'No such listener',
+                };
             }
         });
 
@@ -98,11 +102,13 @@ class L7mpOpenAPI {
             try {
                 let result = l7mp.addListener(req.body.listener);
                 res.status = 200;
-                res.message = 'OK';
+                res.content = { message: 'OK' };
             } catch(e) {
                 res.status = 400;
-                res.message = 'Bad request';
-                res.error = e.message;
+                res.content = {
+                    message: 'Bad request',
+                    error: e.message,
+                };
             }
         });
 
@@ -112,18 +118,20 @@ class L7mpOpenAPI {
                 let result =
                     l7mp.deleteListener(ctx.request.params.name);
                 res.status = 200;
-                res.message = 'OK';
+                res.content = { message: 'OK' };
             } catch(e) {
                 res.status = 400;
-                res.message = 'Bad request';
-                res.error = e.message;
+                res.content = {
+                    message: 'Bad request',
+                    error: e.message,
+                };
             }
         });
 
         this.api.registerHandler('getClusters', (ctx, req, res) => {
             log.info("L7mp.api.getClusters");
             res.status = 200;
-            res.message = l7mp.clusters;
+            res.content = l7mp.clusters;
         });
 
         this.api.registerHandler('getCluster', (ctx, req, res) => {
@@ -131,11 +139,13 @@ class L7mpOpenAPI {
             let result = l7mp.getCluster(ctx.request.params.name);
             if(result){
                 res.status = 200;
-                res.message = result;
+                res.content = result;
             } else {
                 res.status = 400;
-                res.message = 'Bad request';
-                res.error = 'No such cluster';
+                res.content = {
+                    message: 'Bad request',
+                    error: 'No such cluster',
+                };
             }
         });
 
@@ -144,11 +154,13 @@ class L7mpOpenAPI {
             try {
                 let result = l7mp.addCluster(req.body.cluster);
                 res.status = 200;
-                res.message = 'OK';
+                res.content = { message: 'OK' };
             } catch(e) {
                 res.status = 400;
-                res.message = 'Bad request';
-                res.error = e.message;
+                res.content = {
+                    message: 'Bad request',
+                    error: e.message,
+                };
             }
         });
 
@@ -158,18 +170,20 @@ class L7mpOpenAPI {
                 let result =
                     l7mp.deleteCluster(ctx.request.params.name);
                 res.status = 200;
-                res.message = 'OK';
+                res.content = { message: 'OK' };
             } catch(e) {
                 res.status = 400;
-                res.message = 'Bad request';
-                res.error = e.message;
+                res.content = {
+                    message: 'Bad request',
+                    error: e.message,
+                };
             }
         });
 
         this.api.registerHandler('getSessions', (ctx, req, res) => {
             log.info("L7mp.api.getSessions");
             res.status = 200;
-            res.message = l7mp.sessions;
+            res.content = l7mp.sessions;
         });
 
         this.api.registerHandler('getSession', (ctx, req, res) => {
@@ -177,11 +191,13 @@ class L7mpOpenAPI {
             let result = l7mp.getSession(ctx.request.params.name);
             if(result){
                 res.status = 200;
-                res.message = result;
+                res.content = result;
             } else {
                 res.status = 400;
-                res.message = 'Bad request';
-                res.error = 'No such session';
+                res.content = {
+                    message: 'Bad request',
+                    error: 'No such session',
+                };
             }
         });
 
@@ -190,42 +206,47 @@ class L7mpOpenAPI {
             try {
                 l7mp.deleteSession(ctx.request.params.name);
                 res.status = 200;
-                res.message = 'OK';
+                res.content = 'OK';
             } catch(e) {
                 res.status = 400;
-                res.message = 'Bad request';
-                res.error = e.message;
+                res.content = {
+                    message: 'Bad request',
+                    error: e.message,
+                };
             }
         });
 
         this.api.register('validationFail', (ctx, req, res) => {
             log.info("L7mp.api.validationFail");
             res.status = 400;
-            res.message = 'Bad request: Input validation failed';
-            res.error = ctx.validation.errors;
+            res.content = {
+                message: 'Bad request: Input validation failed',
+                error: ctx.validation.errors,
+            };
         });
 
         this.api.register('notFound', (ctx, req, res) => {
             log.info("L7mp.api.notFound");
             res.status = 404;
-            res.message = 'Not found';
+            res.content = { message: 'Not found' };
         });
 
         this.api.register('notImplemented', (ctx, req, res) => {
             log.info("L7mp.api.notImplemented");
             res.status = 501;
-            res.message = 'No handler registered for operation';
+            res.content = { message: 'No handler registered for operation' };
         });
 
         this.api.register('postResponseHandler', (ctx, req, res) => {
             dump(res,3);
-            dump(ctx.operation,2);
             if(l7mp.admin.strict) {
-                let valid = ctx.api.validateResponse(res, ctx.operation, res.status);
+                let valid = ctx.api.validateResponse(res.content, ctx.operation, res.status);
                 if (valid.errors) {
                     res.status = 500;
-                    res.message = 'Internal server error: Response validation failed';
-                    res.error = valid.errors;
+                    res.content = {
+                        message: 'Internal server error: Response validation failed',
+                        error: valid.errors,
+                    };
                 }
             }
         });
@@ -308,7 +329,7 @@ class L7mpOpenAPI {
             if(res.status && res.status === 200){
                 // HTTPListener will automatically set status code to
                 // 200
-                stream.end(JSON.stringify(res.message, null, 4));
+                stream.end(JSON.stringify(res.content, null, 4));
             } else {
                 // the "listener.finalize" path
                 s.emit('error', res);
