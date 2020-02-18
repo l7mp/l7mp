@@ -175,9 +175,9 @@ components:
               WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
               UDP: '#/components/schemas/io.l7mp.api.v1.UDPSingletonClusterSpec'
               L7mpController: '#/components/schemas/io.l7mp.api.v1.L7mpControllerSpec'
-              stdio: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
-              echo: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
-              logger: '#/components/schemas/io.l7mp.api.v1.LoggerClusterSpec'
+              Stdio: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
+              Echo: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
+              Logger: '#/components/schemas/io.l7mp.api.v1.LoggerClusterSpec'
         endpoints:
           description: A list of EndPoint objects.
           type: array
@@ -238,7 +238,7 @@ components:
           description: The protocol, must be "stdio".
           type: string
           enum:  # fixed value
-            - stdio
+            - Stdio
 
     io.l7mp.api.v1.EchoClusterSpec:
       description: A virtual cluster that echoes back everything it receives.
@@ -250,7 +250,7 @@ components:
           description: The protocol, must be "echo".
           type: string
           enum:  # fixed value
-            - echo
+            - Echo
 
     io.l7mp.api.v1.LoggerClusterSpec:
       description: A virtual cluster that logs everything that passes through it to a log file.
@@ -262,7 +262,7 @@ components:
           description: The protocol, must be "logger".
           type: string
           enum:  # fixed value
-            - logger
+            - Logger
         log_file:
           description: The file to log to. Opened it mode "w" (create or truncate if exists). Default is '-' (stdout).
           type: string
