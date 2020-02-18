@@ -290,7 +290,7 @@ class L7mp {
             // this is a cluster name, substitute ref
             let cluster = this.getCluster(c);
             if(!cluster)
-                throw `Unknown cluster in route: "${c}"`;
+                throw new Error(`Unknown cluster in route: "${c}"`);
             return c;
         } else {
             // inline cluster def
@@ -298,12 +298,12 @@ class L7mp {
                 let name = this.newName(`${c.spec.protocol}_Cluster_${Cluster.index++}`,
                                         this.getCluster);
                 if(!name)
-                    throw `Could not find new name after ${MAX_NAME_ATTEMPTS} iterations`;
+                    throw new Error(`Could not find new name after ${MAX_NAME_ATTEMPTS} iterations`);
                 c.name = name;
                 let cluster = this.addCluster(c);
                 return name;
             } else {
-                throw `No spec in inline cluster definition`;
+                throw new Error(`No spec in inline cluster definition`);
             }
         }
     }

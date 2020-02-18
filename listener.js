@@ -111,7 +111,10 @@ class HTTPListener extends Listener {
             var query = url.parse(req.url);
         } catch(e){
             let error = `Could not parse URL: "${req.url}":` + e;
-            this.finalize(res, {status: 404, message: error});
+            this.finalize(res, { status: 404,
+                                 content: {
+                                     message: 'Not found',
+                                     error: error }});
         }
 
         let metadata = {
@@ -159,14 +162,17 @@ class HTTPListener extends Listener {
         // dump(e);
 
         if(typeof e === 'string' && e)
-            e = { status: 400, message: 'Bad request: ' + e};
-        else if(typeof e === 'object' && e) {}
-            // do nothing
+            e = { status: 400,
+                  content: { message: 'Bad request',
+                             error: e } };
+        else if(typeof e === 'object' && e)
+        {} // do nothing
         else
-            e = { status: 500, message:
-                  'Internal Server Error'};
+            e = { status: 500,
+                  content: {
+                      message: 'Internal Server Error' } };
         // dump(e);
-        let msg = JSON.stringify(e, null, 4);
+        let msg = JSON.stringify(e.content, null, 4);
 
         // dump(msg);
 
