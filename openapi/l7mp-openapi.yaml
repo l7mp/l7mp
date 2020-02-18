@@ -311,13 +311,15 @@ components:
           description: Name (optional, a unique endpoint name will be assigned automatically if not specified.)
           type: string
         spec:
-          type: object
-          oneOf:
-            - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketEndPointSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.UDPSingletonEndPointSpec'
+          $ref: '#/components/schemas/io.l7mp.api.v1.EndPointSpec'
 
-    io.l7mp.api.v1.WebSocketEndPointSpec:
-      description: A WebSocket endpoint specification.
+          # oneOf:
+          #   - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketEndPointSpec'
+          #   - $ref: '#/components/schemas/io.l7mp.api.v1.UDPSingletonEndPointSpec'
+
+    # TODO: specialize for different endpoint types
+    io.l7mp.api.v1.EndPointSpec:
+      description: A generic endpoint specification.
       type: object
       required:
         - address
@@ -325,14 +327,23 @@ components:
         address:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
 
-    io.l7mp.api.v1.UDPSingletonEndPointSpec:
-      description: A UDP endpoint specification.
-      type: object
-      required:
-        - address
-      properties:
-        address:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
+    # io.l7mp.api.v1.WebSocketEndPointSpec:
+    #   description: A WebSocket endpoint specification.
+    #   type: object
+    #   required:
+    #     - address
+    #   properties:
+    #     address:
+    #       $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
+
+    # io.l7mp.api.v1.UDPSingletonEndPointSpec:
+    #   description: A UDP endpoint specification.
+    #   type: object
+    #   required:
+    #     - address
+    #   properties:
+    #     address:
+    #       $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
 
     io.l7mp.api.v1.Route:
       description: The route to be assigned to a session in a math-action rule.
@@ -410,6 +421,9 @@ components:
     io.l7mp.api.v1.Status:
       description: General status info.
       type: object
+      required:
+        - status
+        - message
       properties:
         status:
           description: Status code.
