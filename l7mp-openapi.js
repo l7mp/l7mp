@@ -57,7 +57,7 @@ class L7mpOpenAPI {
         this.api.registerHandler('setConf', (ctx, req, res) => {
             log.info("L7mp.api.setConf");
             try {
-                l7mp.static_config = req.body.config;
+                l7mp.static_config = req.body;
                 let result = l7mp.run();
                 res.status = 200;
                 res.content = { message : 'OK' };
@@ -238,7 +238,7 @@ class L7mpOpenAPI {
         });
 
         this.api.register('postResponseHandler', (ctx, req, res) => {
-            dump(res,3);
+            // dump(res,3);
             if(l7mp.admin.strict) {
                 let valid = ctx.api.validateResponse(res.content, ctx.operation, res.status);
                 if (valid.errors) {

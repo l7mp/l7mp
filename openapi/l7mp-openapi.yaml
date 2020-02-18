@@ -182,7 +182,6 @@ components:
       description: A socket that originates connections to external services, an abstraction for an "egress port".
       type: object
       required:
-        - name
         - spec
       properties:
         name:
@@ -353,7 +352,10 @@ components:
       properties:
         cluster:
           description: The "destination" cluster of the route (required).
-          type: string
+          # type: string
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
         ingress:
           description: The set of transforms to be applied in the "ingress" (upstream, from the listener to the cluster) direction (optional).
           type: array
