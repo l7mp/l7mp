@@ -218,6 +218,7 @@ class L7mpOpenAPI {
         });
 
         this.api.register('postResponseHandler', (ctx, req, res) => {
+            // dump(res,100);
             if(l7mp.admin.strict) {
                 const valid = ctx.api.validateResponse(res,
                                                        ctx.operation);

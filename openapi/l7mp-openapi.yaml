@@ -431,19 +431,8 @@ components:
         message:
           description: Message.
           type: string
-
-    io.l7mp.api.v1.Error:
-      description: Error info.
-      type: object
-      required:
-        - status
-        - message
-      properties:
-        status:
-          type: integer
-        message:
-          type: string
         error:
+          description: Error (optional).
           type: string
 
     io.l7mp.api.v1.Parameter.Address:
@@ -502,7 +491,7 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   # Static config API
   /api/v1/admin:
     get:
@@ -536,7 +525,7 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   # Listener API
   /api/v1/listeners:
     get:
@@ -573,7 +562,7 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   /api/v1/listeners/{name}:
     get:
       description: Get a named Listener object
@@ -596,7 +585,7 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     delete:
       description: Delete a named Listener object
       operationId: deleteListener
@@ -618,7 +607,7 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   # Cluster API
   /api/v1/clusters:
     get:
@@ -655,7 +644,7 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   /api/v1/clusters/{name}:
     get:
       description: Get a named Cluster object
@@ -678,7 +667,7 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     delete:
       description: Delete a named Cluster object
       operationId: deleteCluster
@@ -700,7 +689,7 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   # Session API
   /api/v1/sessions:
     get:
@@ -738,7 +727,7 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     delete:
       description: Delete a named Session object
       operationId: deleteSession
@@ -760,4 +749,4 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Error'
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
