@@ -36,6 +36,15 @@ components:
         - listeners
         - clusters
 
+    io.l7mp.api.v1.AdminRequest:
+      description: 'Wrapper for addAdmin calls: contains only a single Admin object.'
+      type: object
+      required:
+        - admin
+      properties:
+        admin:
+          $ref: '#/components/schemas/io.l7mp.api.v1.Admin'
+
     io.l7mp.api.v1.Admin:
       description: Static configuration
       type: object
@@ -52,6 +61,15 @@ components:
         strict:
           type: boolean
           description: 'Enable strict mode: validates all REST API calls against OpenAPI schema (default: false).'
+
+    io.l7mp.api.v1.ListenerRequest:
+      description: 'Wrapper for addListener calls: contains only a single Listener object'
+      type: object
+      required:
+        - listener
+      properties:
+        listener:
+          $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
 
     io.l7mp.api.v1.Listener:
       description: A socket that listens for incoming connection requests, an abstraction for an "ingress port".
@@ -150,6 +168,15 @@ components:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
         connect:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.AddressPortPair'
+
+    io.l7mp.api.v1.ClusterRequest:
+      description: 'Wrapper for addCluster calls: contains only a single Cluster object.'
+      type: object
+      required:
+        - cluster
+      properties:
+        cluster:
+          $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
 
     io.l7mp.api.v1.Cluster:
       description: A socket that originates connections to external services, an abstraction for an "egress port".
@@ -482,7 +509,7 @@ paths:
         content:
           'application/json':
             schema:
-              $ref: '#/components/schemas/io.l7mp.api.v1.Admin'
+              $ref: '#/components/schemas/io.l7mp.api.v1.AdminRequest'
       responses:
         '200':
           description: Status
@@ -519,7 +546,7 @@ paths:
         content:
           'application/json':
             schema:
-              $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
+              $ref: '#/components/schemas/io.l7mp.api.v1.ListenerRequest'
       responses:
         '200':
           description: Status
@@ -601,7 +628,7 @@ paths:
         content:
           'application/json':
             schema:
-              $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
+              $ref: '#/components/schemas/io.l7mp.api.v1.ClusterRequest'
       responses:
         '200':
           description: Status

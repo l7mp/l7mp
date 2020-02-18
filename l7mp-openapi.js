@@ -201,7 +201,7 @@ class L7mpOpenAPI {
         this.api.register('validationFail', (ctx, req, res) => {
             log.info("L7mp.api.validationFail");
             res.status = 400;
-            res.message = 'Input validation failed';
+            res.message = 'Bad request: Input validation failed';
             res.error = ctx.validation.errors;
         });
 
@@ -219,15 +219,12 @@ class L7mpOpenAPI {
 
         this.api.register('postResponseHandler', (ctx, req, res) => {
             if(l7mp.admin.strict) {
-                dump(res, 100);
                 const valid = ctx.api.validateResponse(res,
                                                        ctx.operation);
                 if (valid.errors) {
-                    res.status = 400;  // Bad request
-                    res.message = {
-                        message: 'Response validation failed',
-                        errors: valid.errors
-                    };
+                    res.status = 500;
+                    res.message = 'Internal server error: Response validation failed';
+                    res.error = valid.errors;
                 }
             }
         });
@@ -245,14 +242,6 @@ class L7mpOpenAPI {
         }
 
         let req = s.metadata.HTTP;
-        let url = req.url;
-        let ctx = {
-            method:  req.method,
-            path:    url.path,
-            query:   url.query,
-            headers: req.headers,
-        };
-
         let res = {};
         var e;
 
@@ -266,8 +255,8 @@ class L7mpOpenAPI {
                           'Received JSON request');
 
                 // special casing for API clients that set
-                // content-type to JSON on GET calls and send an empty
-                // body
+                // content-type to JSON on GET/DELETE calls and send
+                // an empty body
                 if((req.method === 'GET' || req.method === 'DELETE' ) && body === '')
                     req.body = '';
                 else
@@ -304,6 +293,15 @@ class L7mpOpenAPI {
                     s.emit('error', e);
                 }
             }
+
+            let ctx = {
+                method:  req.method,
+                path:    req.url.path,
+                query:   req.url.query,
+                headers: req.headers,
+                body:    req.body,
+            };
+
             await this.api.handleRequest(ctx, req, res);
 
             if(res.status && res.status === 200){
