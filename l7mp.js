@@ -214,7 +214,8 @@ class L7mp {
 
     getAdmin(){
         log.silly('L7mp.getAdmin');
-        var admin = { log_level: this.admin.log_level };
+        var admin = { log_level: this.admin.log_level,
+                      strict: this.admin.strict };
         if(this.admin.log_file) admin.log_file = this.admin.log_file;
         if(this.admin.access_log_path)
             admin.access_log_path = this.admin.access_log_path;
