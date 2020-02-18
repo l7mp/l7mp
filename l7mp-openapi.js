@@ -64,7 +64,7 @@ class L7mpOpenAPI {
             } catch(e) {
                 res.status = 400;
                 res.message = 'Bad request';
-                res.error = e;
+                res.error = e.message;
             }
         });
 
@@ -102,7 +102,7 @@ class L7mpOpenAPI {
             } catch(e) {
                 res.status = 400;
                 res.message = 'Bad request';
-                res.error = e;
+                res.error = e.message;
             }
         });
 
@@ -116,7 +116,7 @@ class L7mpOpenAPI {
             } catch(e) {
                 res.status = 400;
                 res.message = 'Bad request';
-                res.error = e;
+                res.error = e.message;
             }
         });
 
@@ -148,7 +148,7 @@ class L7mpOpenAPI {
             } catch(e) {
                 res.status = 400;
                 res.message = 'Bad request';
-                res.error = e;
+                res.error = e.message;
             }
         });
 
@@ -162,7 +162,7 @@ class L7mpOpenAPI {
             } catch(e) {
                 res.status = 400;
                 res.message = 'Bad request';
-                res.error = e;
+                res.error = e.message;
             }
         });
 
@@ -194,7 +194,7 @@ class L7mpOpenAPI {
             } catch(e) {
                 res.status = 400;
                 res.message = 'Bad request';
-                res.error = e;
+                res.error = e.message;
             }
         });
 
@@ -218,10 +218,10 @@ class L7mpOpenAPI {
         });
 
         this.api.register('postResponseHandler', (ctx, req, res) => {
-            // dump(res,100);
+            dump(res,3);
+            dump(ctx.operation,2);
             if(l7mp.admin.strict) {
-                const valid = ctx.api.validateResponse(res,
-                                                       ctx.operation);
+                let valid = ctx.api.validateResponse(res, ctx.operation, res.status);
                 if (valid.errors) {
                     res.status = 500;
                     res.message = 'Internal server error: Response validation failed';
