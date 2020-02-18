@@ -257,7 +257,7 @@ class L7mpOpenAPI {
                 // special casing for API clients that set
                 // content-type to JSON on GET calls and send an empty
                 // body
-                if(req.method === 'GET' && body === '')
+                if((req.method === 'GET' || req.method === 'DELETE' ) && body === '')
                     req.body = '';
                 else
                     try {
