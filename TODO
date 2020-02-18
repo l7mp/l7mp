@@ -3,7 +3,7 @@
 ** TODO UDP server
 ** TODO RTP support: listener in server mode + cluster (modules later)
 ** TODO Felician: bug reportok
-** TODO API validation: switch on
+** DONE API validation: switch on
 ** TODO ConsistentHash loadbalancer (https://www.npmjs.com/package/hashring)
 ** TODO Weighted loadbalancer
 ** TODO access_log
