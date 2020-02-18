@@ -73,6 +73,10 @@ components:
             - $ref: '#/components/schemas/io.l7mp.api.v1.UDPSingletonListenerSpec'
           discriminator:
             propertyName: protocol
+            mapping:
+              HTTP: '#/components/schemas/io.l7mp.api.v1.HTTPListenerSpec'
+              WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
+              UDP: '#/components/schemas/io.l7mp.api.v1.UDPSingletonListenerSpec'
         rules:
           description: A list of Rule objects (required).
           type: array
@@ -167,6 +171,13 @@ components:
             - $ref: '#/components/schemas/io.l7mp.api.v1.LoggerClusterSpec'
           discriminator:
             propertyName: protocol
+            mapping:
+              WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
+              UDP: '#/components/schemas/io.l7mp.api.v1.UDPSingletonClusterSpec'
+              L7mpController: '#/components/schemas/io.l7mp.api.v1.L7mpControllerSpec'
+              stdio: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
+              echo: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
+              logger: '#/components/schemas/io.l7mp.api.v1.LoggerClusterSpec'
         endpoints:
           description: A list of EndPoint objects.
           type: array
