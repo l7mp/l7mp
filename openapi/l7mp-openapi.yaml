@@ -402,7 +402,10 @@ components:
         - route
       properties:
         rewrite:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Rewrite'
+          description: A list of rewrite rules.
+          type: array
+          items:
+            $ref: '#/components/schemas/io.l7mp.api.v1.Rewrite'
         route:
           $ref: '#/components/schemas/io.l7mp.api.v1.Route'
 
@@ -412,6 +415,9 @@ components:
       required:
         - action
       properties:
+        name:
+          description: Name (optional).
+          type: string
         match:
           # $ref: '#/components/schemas/io.l7mp.api.v1.Match'
           $ref: '#/components/schemas/io.l7mp.api.v1.JSONPredicate'
