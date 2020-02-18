@@ -235,7 +235,7 @@ components:
         - protocol
       properties:
         protocol:
-          description: The protocol, must be "stdio".
+          description: The protocol, must be "Stdio".
           type: string
           enum:  # fixed value
             - Stdio
@@ -247,7 +247,7 @@ components:
         - protocol
       properties:
         protocol:
-          description: The protocol, must be "echo".
+          description: The protocol, must be "Echo".
           type: string
           enum:  # fixed value
             - Echo
@@ -259,7 +259,7 @@ components:
         - protocol
       properties:
         protocol:
-          description: The protocol, must be "logger".
+          description: The protocol, must be "Logger".
           type: string
           enum:  # fixed value
             - Logger
