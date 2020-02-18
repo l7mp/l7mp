@@ -63,7 +63,8 @@ class L7mpOpenAPI {
                 res.message = 'OK';
             } catch(e) {
                 res.status = 400;
-                res.message = e;
+                res.message = 'Bad request';
+                res.error = e;
             }
         });
 
@@ -87,7 +88,8 @@ class L7mpOpenAPI {
                 res.message = result;
             } else {
                 res.status = 400;
-                res.message = 'No such listener';
+                res.message = 'Bad request';
+                res.error = 'No such listener';
             }
         });
 
@@ -99,7 +101,8 @@ class L7mpOpenAPI {
                 res.message = 'OK';
             } catch(e) {
                 res.status = 400;
-                res.message = e;
+                res.message = 'Bad request';
+                res.error = e;
             }
         });
 
@@ -112,7 +115,8 @@ class L7mpOpenAPI {
                 res.message = 'OK';
             } catch(e) {
                 res.status = 400;
-                res.message = e;
+                res.message = 'Bad request';
+                res.error = e;
             }
         });
 
@@ -130,7 +134,8 @@ class L7mpOpenAPI {
                 res.message = result;
             } else {
                 res.status = 400;
-                res.message = 'No such cluster';
+                res.message = 'Bad request';
+                res.error = 'No such cluster';
             }
         });
 
@@ -142,7 +147,8 @@ class L7mpOpenAPI {
                 res.message = 'OK';
             } catch(e) {
                 res.status = 400;
-                res.message = e;
+                res.message = 'Bad request';
+                res.error = e;
             }
         });
 
@@ -155,7 +161,8 @@ class L7mpOpenAPI {
                 res.message = 'OK';
             } catch(e) {
                 res.status = 400;
-                res.message = e;
+                res.message = 'Bad request';
+                res.error = e;
             }
         });
 
@@ -173,7 +180,8 @@ class L7mpOpenAPI {
                 res.message = result;
             } else {
                 res.status = 400;
-                res.message = 'No such session';
+                res.message = 'Bad request';
+                res.error = 'No such session';
             }
         });
 
@@ -185,14 +193,16 @@ class L7mpOpenAPI {
                 res.message = 'OK';
             } catch(e) {
                 res.status = 400;
-                res.message = e;
+                res.message = 'Bad request';
+                res.error = e;
             }
         });
 
         this.api.register('validationFail', (ctx, req, res) => {
             log.info("L7mp.api.validationFail");
             res.status = 400;
-            res.message = ctx.validation.errors;
+            res.message = 'Input validation failed';
+            res.error = ctx.validation.errors;
         });
 
         this.api.register('notFound', (ctx, req, res) => {
@@ -209,10 +219,11 @@ class L7mpOpenAPI {
 
         this.api.register('postResponseHandler', (ctx, req, res) => {
             if(l7mp.admin.strict) {
-                const valid = ctx.api.validateResponse(res.message,
+                dump(res, 100);
+                const valid = ctx.api.validateResponse(res,
                                                        ctx.operation);
                 if (valid.errors) {
-                    res.status = 502;
+                    res.status = 400;  // Bad request
                     res.message = {
                         message: 'Response validation failed',
                         errors: valid.errors

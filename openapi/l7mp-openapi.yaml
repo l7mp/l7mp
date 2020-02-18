@@ -387,17 +387,22 @@ components:
         status:
           description: Status code.
           type: integer
-        error:
-          description: Error.
+        message:
+          description: Message.
           type: string
 
     io.l7mp.api.v1.Error:
       description: Error info.
       type: object
+      required:
+        - status
+        - message
       properties:
         status:
           type: integer
-        err:
+        message:
+          type: string
+        error:
           type: string
 
     io.l7mp.api.v1.Parameter.Address:

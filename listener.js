@@ -160,8 +160,8 @@ class HTTPListener extends Listener {
 
         if(typeof e === 'string' && e)
             e = { status: 400, message: 'Bad request: ' + e};
-        else if(typeof e === 'object' && e)
-            e = { status: 400, message: e};
+        else if(typeof e === 'object' && e) {}
+            // do nothing
         else
             e = { status: 500, message:
                   'Internal Server Error'};
