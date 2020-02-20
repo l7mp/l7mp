@@ -351,8 +351,7 @@ components:
         - cluster
       properties:
         cluster:
-          description: The "destination" cluster of the route (required).
-          # type: string
+          description: The "destination" cluster of the route (required). Can be a string in which case it is the name of an existing cluster with the name given, or it can be an inline cluster definition in which case a new cluster will be added.
           oneOf:
             - type: string
             - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
@@ -360,14 +359,18 @@ components:
           description: The set of transforms to be applied in the "ingress" (upstream, from the listener to the cluster) direction (optional).
           type: array
           items:
-            description: A transformer cluster.
-            type: string
+            description: An uplink transformer cluster. Can be a string in which case it is the name of an existing cluster with the name given, or it can be an inline cluster definition in which case a new cluster will be added.
+            oneOf:
+              - type: string
+              - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
         egress:
           description: The set of transforms to be applied in the "eress" (downstream, from the cluster to the listener) direction (optional).
           type: array
           items:
-            description: A transformer cluster.
-            type: string
+            description: A downlink transformer cluster. Can be a string in which case it is the name of an existing cluster with the name given, or it can be an inline cluster definition in which case a new cluster will be added.
+            oneOf:
+              - type: string
+              - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
 
     # io.l7mp.api.v1.Match:
     #   description: The "filter" part of a math-action rule that filters on session metadata.
