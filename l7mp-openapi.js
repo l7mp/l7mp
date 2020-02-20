@@ -228,7 +228,7 @@ class L7mpOpenAPI {
         this.api.register('notFound', (ctx, req, res) => {
             log.info("L7mp.api.notFound");
             res.status = 404;
-            res.content = { message: 'Not found' };
+            res.content = { message: 'Not found', error: 'Unknown API operation' };
         });
 
         this.api.register('notImplemented', (ctx, req, res) => {
@@ -338,7 +338,8 @@ class L7mpOpenAPI {
             setImmediate(() => s.emit('end'));
         } catch(e) {
             // should receive a status/msg pair
-            s.emit('error', e);
+            if(!res) res = { status: 500, content: { message: 'Internal server error' }};
+            s.emit('error', res);
         }
     }
 };
