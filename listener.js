@@ -159,8 +159,7 @@ class HTTPListener extends Listener {
     }
 
     finalize(res, e){
-        // dump(e);
-
+        // dump(e, 3);
         if(typeof e === 'string' && e)
             e = { status: 400,
                   content: { message: 'Bad request',

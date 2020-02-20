@@ -238,6 +238,7 @@ class L7mpOpenAPI {
         });
 
         this.api.register('postResponseHandler', (ctx, req, res) => {
+            log.silly('l7mp.openapi: postResponseHandler');
             // dump(res,3);
             if(l7mp.admin.strict) {
                 let valid = ctx.api.validateResponse(res.content, ctx.operation, res.status);
@@ -285,10 +286,18 @@ class L7mpOpenAPI {
                     try {
                         req.body = JSON.parse(body);
                     } catch(e){
-                        if (e instanceof SyntaxError)
-                            throw e.message;
-                        else
-                            throw e;
+                        log.info('l7mp.openapi: handleRequest:',
+                                 'Invalid JSON request: ', e);
+                        res.status = 400;
+                        res.content = { message: 'Bad request'};
+                        if (e instanceof SyntaxError){
+                            res.content.error =
+                                'Invalid JSON format in request: ' + e.message;
+                        } else {
+                            res.content.error =
+                                'Invalid JSON format in request: ' + e;
+                        }
+                        throw res;
                     }
                 req.content_type = 'JSON';
                 break;
@@ -301,18 +310,23 @@ class L7mpOpenAPI {
                 try {
                     req.body = YAML.parse(body);
                 } catch(e) {
-                    throw e;  // ugly
+                    log.info('l7mp.openapi: handleRequest: Invalid YAML request: ', e);
+                    res.status = 400;
+                    res.content = { message: 'Bad request',
+                                    error: 'Invalid YAML format in request: ' + e};
+                    throw res;
                 }
                 req.content_type = 'YAML';
                 break;
             default:
                 if(req.method === 'POST' || req.method === 'PUT'){
                     // we request a known payload
-                    e = 'Unknown content type: ' +
-                        (req.headers['content-type'] || 'N/A');
-                    log.silly('l7mp.openapi: handleRequest', e);
-                    // Unsupported Media Type: 415
-                    s.emit('error', e);
+                    log.info('l7mp.openapi: handleRequest: Unknown content type');
+                    res.status = 415;
+                    res.content = { message: 'Unsupported Media Type',
+                                    error: 'Unknown content type: ' +
+                                    (req.headers['content-type'] || 'N/A') };
+                    throw res;
                 }
             }
 
@@ -336,7 +350,7 @@ class L7mpOpenAPI {
             }
             // make sure we never retry this, even if policy requires
             setImmediate(() => s.emit('end'));
-        } catch(e) {
+        } catch(res) {
             // should receive a status/msg pair
             if(!res) res = { status: 500, content: { message: 'Internal server error' }};
             s.emit('error', res);
