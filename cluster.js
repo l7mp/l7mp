@@ -316,10 +316,10 @@ class Cluster {
         return {
             name:         this.name,
             spec:         this.spec,
-            type:         this.type,
+            // type:         this.type,
             endpoints:    this.endpoints,
             loadbalancer: this.loadbalancer || 'none',
-            timeout:      this.timeout
+            // timeout:      this.timeout
         };
     }
 
@@ -430,14 +430,6 @@ class L7mpControllerCluster extends Cluster {
         this.openapi = new L7mpOpenAPI();
     }
 
-    toJSON(){
-        log.silly('L7mpControllerCluster.toJSON:', `"${this.name}"`);
-        return {
-            name:      this.name,
-            protocol:  this.protocol
-        };
-    }
-
     connect(s){
         log.silly('L7mpControllerCluster.connect', `Session: "${s.name}"`);
         return Promise.resolve();
@@ -464,18 +456,9 @@ class StdioCluster extends Cluster {
         super( {
             name:         c.name || 'StdioCluster',
             spec:         {protocol: 'Stdio' },
-            endpoints:    [],
             loadbalancer: 'none',
             type:         'stream'
         });
-    }
-
-    toJSON(){
-        log.silly('StdioCluster.toJSON:', `"${this.name}"`);
-        return {
-            name:      this.name,
-            protocol:  this.protocol
-        };
     }
 
     connect(s){
@@ -493,18 +476,9 @@ class EchoCluster extends Cluster {
         super( {
             name:         c.name || 'EchoCluster',
             spec:         {protocol: 'Echo' },
-            endpoints:    [],
             loadbalancer: 'none',
             type:         'datagram'
         });
-    }
-
-    toJSON(){
-        log.silly('EchoCluster.toJSON:', `"${this.name}"`);
-        return {
-            name:      this.name,
-            protocol:  this.protocol
-        };
     }
 
     connect(s){
@@ -521,23 +495,13 @@ class LoggerCluster extends Cluster {
     constructor(c) {
         super( {
             name:         c.name || 'LoggerCluster',
-            spec:         {protocol: 'Logger' },
-            endpoints:    [],
+            spec:         { protocol: 'Logger',
+                            log_file: c.spec.log_file || '-',
+                            log_prefix: c.spec.log_prefix || '',
+                          },
             loadbalancer: 'none',
             type:         'datagram'
         } );
-        this.log_file = c.spec.log_file || '-';
-        this.log_prefix = c.spec.log_prefix || '';
-    }
-
-    toJSON(){
-        log.silly('LoggerCluster.toJSON:', `"${this.name}"`);
-        return {
-            name:       this.name,
-            protocol:   this.protocol,
-            log_file:   this.log_file,
-            log_prefix: this.log_prefix,
-        };
     }
 
     connect(s){
@@ -546,16 +510,17 @@ class LoggerCluster extends Cluster {
 
     stream(s){
         log.silly('LoggerCluster.stream',
-                  `Session: ${s.name}, File: ${this.log_file}`);
+                  `Session: ${s.name}, File: ${this.spec.log_file}`);
 
         let log_stream = process.stdout;
-        if(this.log_file !== '-'){
-            log_stream = fs.createWriteStream(this.log_file, { flags: 'w' });
+        if(this.spec.log_file !== '-'){
+            log_stream = fs.createWriteStream(this.spec.log_file,
+                                              { flags: 'w' });
         }
 
         return Promise.resolve( streamops.map( (arg) => {
-            let log_msg = (this.log_prefix) ?
-                `${this.log_prefix}: ${arg}` : arg;
+            let log_msg = (this.spec.log_prefix) ?
+                `${this.spec.log_prefix}: ${arg}` : arg;
             log_stream.write(log_msg); return arg;
         }));
     }

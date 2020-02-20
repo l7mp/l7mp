@@ -241,6 +241,7 @@ class L7mpOpenAPI {
             log.silly('l7mp.openapi: postResponseHandler');
             // dump(res,3);
             if(l7mp.admin.strict) {
+                log.silly('l7mp.openapi: Postresponsehandler');
                 let valid = ctx.api.validateResponse(res.content, ctx.operation, res.status);
                 if (valid.errors) {
                     res.status = 500;
