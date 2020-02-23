@@ -89,20 +89,20 @@ class L7mp {
         s.on('error', (e) => {
             log.silly('Session.error:', `Session "${s.name}":`, dumper(e,1));
             listener.origin.end(s, e);
-            s.status = 'FINALIZING';
+            s.metadata.status = 'FINALIZING';
         });
 
         // normal end
         s.on('end', () => {
             log.silly('Session.end:', `Session "${s.name}":`,
                       `Ending normally`);
-            s.status = 'FINALIZING';
+            s.metadata.status = 'FINALIZING';
         });
 
         s.on('destroy', () => {
             log.silly('Session.end:',
                       `Session "${s.name}" destroyed`);
-            s.status = 'DESTROYED';
+            s.metadata.status = 'DESTROYED';
             // let I/O still happen
             setImmediate(() =>
                          this.deleteSessionIfExists(s.name));
@@ -139,13 +139,13 @@ class L7mp {
         s.on('connect', () => {
             log.silly('Session.connect:',
                       `Session "${s.name}" successully connected`);
-            s.status = 'CONNECTED';
+            s.metadata.status = 'CONNECTED';
         });
 
         s.on('disconnect', () => {
             log.silly('Session.disconnect:',
                       `Session "${s.name}" temporarily disconnected`);
-            s.status = 'DISCONNECTED';
+            s.metadata.status = 'DISCONNECTED';
         });
 
         s.route.pipeline(s).then(
