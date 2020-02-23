@@ -1,15 +1,19 @@
 * Importance: superhigh
 
-** TODO UDP server
 ** TODO RTP support: listener in server mode + cluster (modules later)
 ** TODO Felician: bug reportok
 ** DONE API validation: switch on
 ** TODO ConsistentHash loadbalancer (https://www.npmjs.com/package/hashring)
-** TODO Weighted loadbalancer
-** TODO access_log
+** TODO Rule REST API
+
+* Bence
+
+** TODO UDP server
+** TODO Loadbalancer: Weighted/RoundRobin
 
 * Importance: high
 
+** TODO access_log
 ** TODO Add timestamps to log messages
 ** TODO Make sure binary mode works well (iperf should work through L7mp just fine)
 ** TODO UDP: return into "connect" mode (waiting for packet) after stream is destroyed
