@@ -52,6 +52,7 @@ class Route {
         return {
             name:     this.name,
             type:     this.type,
+            session:  this.session.name || 'NULL',
             listener: this.source.origin.name,
             cluster:  this.destination.origin.name,
             ingress:  this.chain.ingress.map( (e) => e.origin.name ),
