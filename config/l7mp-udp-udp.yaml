@@ -1,4 +1,3 @@
-# js-yaml l7mp-simple.yaml  >l7mp-simple.json
 admin:
   log_level: silly
   log_file: stdout
