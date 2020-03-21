@@ -296,10 +296,6 @@ components:
           description: Prefix log messages. Default is no prefix.
           type: string
 
-    io.l7mp.api.v1.Session:
-      description: A socket that originates connections to external services, an abstraction for an "egress port".
-      type: object
-
     io.l7mp.api.v1.EndPoint:
       description: A particular upstream backend that accepts connects through a Cluster.
       type: object
@@ -350,6 +346,9 @@ components:
       required:
         - cluster
       properties:
+        listener:
+          description: The "source" of the route (optional). If specified, must be a string.
+          type: string
         cluster:
           description: The "destination" cluster of the route (required). Can be a string in which case it is the name of an existing cluster with the name given, or it can be an inline cluster definition in which case a new cluster will be added.
           oneOf:
@@ -371,6 +370,9 @@ components:
             oneOf:
               - type: string
               - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
+        retry:
+          description: Retry/timeout policy (not implemented).
+          type: object
 
     # io.l7mp.api.v1.Match:
     #   description: The "filter" part of a math-action rule that filters on session metadata.
@@ -428,6 +430,30 @@ components:
           $ref: '#/components/schemas/io.l7mp.api.v1.JSONPredicate'
         action:
           $ref: '#/components/schemas/io.l7mp.api.v1.Action'
+
+    io.l7mp.api.v1.Metadata:
+      description: "Metadata that describes a session's all known parameters, like ports and IP addresses, status, HTTP headers (if relevant), etc. In general, metadata are created by the listener and they can be modified/queried/matched in rules/actions."
+      type: object
+
+    io.l7mp.api.v1.Session:
+      description: "An ongoing connection that is known by the proxy. A session is created by a listener receiving a new connection request and it is processed according to the match-action rules associated by the creating listener ."
+      type: object
+      # required:
+      #   - name
+      #   - metadata
+      #   - route
+      properties:
+        name:
+          description: Name.
+          type: string
+        metadata:
+          description: Metadata describing the state of the session.
+          type: object
+        #   $ref: '#/components/schemas/io.l7mp.api.v1.Metadata'
+        route:
+          description: "The route of the session. Note that this is independent from the route that was assigned by the match-action rules to this session: on creation the route is copied into the session and it can be changed through the session API, which is immediately reflected in the data-plane by rerouting the session (not implemented), without any effect on the original match-action rule (so further sessions spawned by the listener will not see the change)."
+          type: object
+          # $ref: '#/components/schemas/io.l7mp.api.v1.Route'
 
     io.l7mp.api.v1.Status:
       description: General status info.
