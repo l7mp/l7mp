@@ -562,7 +562,7 @@ class SyncCluster extends Cluster {
         log.silly('SyncCluster.stream', `Session: "${s.name}"`);
 
         let label = jsonPredicate.dataAtPath(s.metadata, this.query);
-        if(label){
+        if (typeof label !== 'undefined'){
             if(!(label in this.streams)){
                 // unknown label: create stream
                 this.streams[label] = new utils.BroadcastStream();
@@ -573,7 +573,7 @@ class SyncCluster extends Cluster {
         } else {
             return Promise.reject('SyncCluster.stream: reject: ' +
                                   `Session: "${s.name}", ` +
-                                  `query "${this.query} empty label`);
+                                  `query "${this.query}" empty label`);
         }
     }
 };

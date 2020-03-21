@@ -133,7 +133,8 @@ Rule.create = (r) => {
 // value can be object, in this case it will be deepcopied
 Rule.setAtPath = (data, path, value) => {
     var loc, locs = path.split('/');
-    if(locs.length && locs[0] === '/')
+    // starts with /
+    if(locs.length && locs[0] === '')
         locs.shift();
     while((loc = locs.shift())) {
         if(locs.length === 0) {
