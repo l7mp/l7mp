@@ -150,7 +150,7 @@ class HTTPListener extends Listener {
         };
 
         var priv = { req: req, res: res };
-        this.emit('init', metadata, listener, priv);
+        this.emit('emit', metadata, listener, priv);
     }
 
     end(s, e){
@@ -262,7 +262,7 @@ class WebSocketListener extends Listener {
         };
 
         var priv = { socket: socket, req: req };
-        this.emit('init', metadata, listener, priv);
+        this.emit('emit', metadata, listener, priv);
     }
 
     end(s, e){
@@ -405,7 +405,7 @@ class UDPSingletonListener extends Listener {
             stream: this.stream,
         };
 
-        this.emit('init', metadata, listener);
+        this.emit('emit', metadata, listener);
     }
 
     end(s, e){ this.socket.close(); }

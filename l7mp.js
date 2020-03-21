@@ -232,7 +232,7 @@ class L7mp {
         }
 
         var li = Listener.create(l);
-        li.on('init', (m, l, p) => this.route(m, l, p));
+        li.on('emit', (m, l, p) => this.route(m, l, p));
         this.listeners.push(li);
 
         l.rules.forEach( (r) => {
