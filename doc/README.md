@@ -11,6 +11,15 @@ Full L7mp static and runtime configuration
 | clusters | Y | array[] of io.l7mp.api.v1.Cluster | A list of Cluster objects. | &nbsp; | &nbsp; |
 | sessions | &nbsp; | array[] of io.l7mp.api.v1.Session | A list of Session objects. | &nbsp; | &nbsp; |
 
+# io.l7mp.api.v1.AdminRequest
+Wrapper for addAdmin calls: contains only a single Admin object.
+
+
+## Properties
+| property | required | type | description | details | example |
+| :--- | :---: | :---: | :--- | :--- | :--- |
+| admin | Y | io.l7mp.api.v1.Admin | &nbsp; | &nbsp; | &nbsp; |
+
 # io.l7mp.api.v1.Admin
 Static configuration
 
@@ -21,6 +30,16 @@ Static configuration
 | log_level | &nbsp; | string | Log verbosity, one of, from the most talkative, "silly", "verbose", "info", "notice", "warn", "error", and "silent" (not recommended). Default is "info". | &nbsp; | &nbsp; |
 | log_file | &nbsp; | string | File to write log messages to. Default is "stderr". | &nbsp; | &nbsp; |
 | access_log_path | &nbsp; | string | Access log (currently unimplemented). | &nbsp; | &nbsp; |
+| strict | &nbsp; | boolean | Enable strict mode: validates all REST API calls against OpenAPI schema (default: false). | &nbsp; | &nbsp; |
+
+# io.l7mp.api.v1.ListenerRequest
+Wrapper for addListener calls: contains only a single Listener object
+
+
+## Properties
+| property | required | type | description | details | example |
+| :--- | :---: | :---: | :--- | :--- | :--- |
+| listener | Y | io.l7mp.api.v1.Listener | &nbsp; | &nbsp; | &nbsp; |
 
 # io.l7mp.api.v1.Listener
 A socket that listens for incoming connection requests, an abstraction for an "ingress port".
@@ -81,6 +100,15 @@ A connected UDP listener that accepts UDP datagrams from a specified remote addr
 | port | Y | io.l7mp.api.v1.Parameter.Port | &nbsp; | &nbsp; | &nbsp; |
 | connect | &nbsp; | io.l7mp.api.v1.Parameter.AddressPortPair | &nbsp; | &nbsp; | &nbsp; |
 
+# io.l7mp.api.v1.ClusterRequest
+Wrapper for addCluster calls: contains only a single Cluster object.
+
+
+## Properties
+| property | required | type | description | details | example |
+| :--- | :---: | :---: | :--- | :--- | :--- |
+| cluster | Y | io.l7mp.api.v1.Cluster | &nbsp; | &nbsp; | &nbsp; |
+
 # io.l7mp.api.v1.Cluster
 A socket that originates connections to external services, an abstraction for an "egress port".
 
@@ -88,7 +116,7 @@ A socket that originates connections to external services, an abstraction for an
 ## Properties
 | property | required | type | description | details | example |
 | :--- | :---: | :---: | :--- | :--- | :--- |
-| name | Y | string | &nbsp; | &nbsp; | &nbsp; |
+| name | &nbsp; | string | &nbsp; | &nbsp; | &nbsp; |
 | spec | Y | object | &nbsp; | &nbsp; | &nbsp; |
 | endpoints | &nbsp; | array[] of io.l7mp.api.v1.EndPoint | A list of EndPoint objects. | &nbsp; | &nbsp; |
 
@@ -129,7 +157,7 @@ A virtual cluster that writes the stream routed to it to the proxy standard outp
 ## Properties
 | property | required | type | description | details | example |
 | :--- | :---: | :---: | :--- | :--- | :--- |
-| protocol | Y | enum | The protocol, must be "stdio". | <ul><li>stdio</li></ul> | &nbsp; |
+| protocol | Y | enum | The protocol, must be "Stdio". | <ul><li>Stdio</li></ul> | &nbsp; |
 
 # io.l7mp.api.v1.EchoClusterSpec
 A virtual cluster that echoes back everything it receives.
@@ -138,7 +166,7 @@ A virtual cluster that echoes back everything it receives.
 ## Properties
 | property | required | type | description | details | example |
 | :--- | :---: | :---: | :--- | :--- | :--- |
-| protocol | Y | enum | The protocol, must be "echo". | <ul><li>echo</li></ul> | &nbsp; |
+| protocol | Y | enum | The protocol, must be "Echo". | <ul><li>Echo</li></ul> | &nbsp; |
 
 # io.l7mp.api.v1.LoggerClusterSpec
 A virtual cluster that logs everything that passes through it to a log file.
@@ -147,14 +175,9 @@ A virtual cluster that logs everything that passes through it to a log file.
 ## Properties
 | property | required | type | description | details | example |
 | :--- | :---: | :---: | :--- | :--- | :--- |
-| protocol | Y | enum | The protocol, must be "logger". | <ul><li>logger</li></ul> | &nbsp; |
+| protocol | Y | enum | The protocol, must be "Logger". | <ul><li>Logger</li></ul> | &nbsp; |
 | log_file | &nbsp; | string | The file to log to. Opened it mode "w" (create or truncate if exists). Default is '-' (stdout). | &nbsp; | &nbsp; |
 | log_prefix | &nbsp; | string | Prefix log messages. Default is no prefix. | &nbsp; | &nbsp; |
-
-# io.l7mp.api.v1.Session
-A socket that originates connections to external services, an abstraction for an "egress port".
-
-
 
 # io.l7mp.api.v1.EndPoint
 A particular upstream backend that accepts connects through a Cluster.
@@ -164,25 +187,21 @@ A particular upstream backend that accepts connects through a Cluster.
 | property | required | type | description | details | example |
 | :--- | :---: | :---: | :--- | :--- | :--- |
 | name | &nbsp; | string | Name (optional, a unique endpoint name will be assigned automatically if not specified.) | &nbsp; | &nbsp; |
-| spec | Y | object | &nbsp; | &nbsp; | &nbsp; |
+| spec | Y | io.l7mp.api.v1.EndPointSpec | &nbsp; | &nbsp; | &nbsp; |
 
-# io.l7mp.api.v1.WebSocketEndPointSpec
-A WebSocket endpoint specification.
-
-
-## Properties
-| property | required | type | description | details | example |
-| :--- | :---: | :---: | :--- | :--- | :--- |
-| address | Y | io.l7mp.api.v1.Parameter.Address | &nbsp; | &nbsp; | &nbsp; |
-
-# io.l7mp.api.v1.UDPSingletonEndPointSpec
-A UDP endpoint specification.
+# io.l7mp.api.v1.EndPointSpec
+A generic endpoint specification.
 
 
 ## Properties
 | property | required | type | description | details | example |
 | :--- | :---: | :---: | :--- | :--- | :--- |
 | address | Y | io.l7mp.api.v1.Parameter.Address | &nbsp; | &nbsp; | &nbsp; |
+
+# io.l7mp.api.v1.RetryPolicy
+Retry-timeout rules (not implemented).
+
+
 
 # io.l7mp.api.v1.Route
 The route to be assigned to a session in a math-action rule.
@@ -191,14 +210,10 @@ The route to be assigned to a session in a math-action rule.
 ## Properties
 | property | required | type | description | details | example |
 | :--- | :---: | :---: | :--- | :--- | :--- |
-| cluster | Y | string | The "destination" cluster of the route (required). | &nbsp; | &nbsp; |
-| ingress | &nbsp; | array[] of strings | The set of transforms to be applied in the "ingress" (upstream, from the listener to the cluster) direction (optional). | &nbsp; | &nbsp; |
-| egress | &nbsp; | array[] of strings | The set of transforms to be applied in the "eress" (downstream, from the cluster to the listener) direction (optional). | &nbsp; | &nbsp; |
-
-# io.l7mp.api.v1.Match
-The "filter" part of a math-action rule that filters on session metadata.
-
-
+| listener | &nbsp; | string | The "source" of the route (optional). If specified, must be a string. | &nbsp; | &nbsp; |
+| cluster | Y | undefined | The "destination" cluster of the route (required). Can be a string in which case it is the name of an existing cluster with the name given, or it can be an inline cluster definition in which case a new cluster will be added. | &nbsp; | &nbsp; |
+| ingress | &nbsp; | array[] of  | The set of transforms to be applied in the "ingress" (upstream, from the listener to the cluster) direction (optional). | &nbsp; | &nbsp; |
+| egress | &nbsp; | array[] of  | The set of transforms to be applied in the "eress" (downstream, from the cluster to the listener) direction (optional). | &nbsp; | &nbsp; |
 
 # io.l7mp.api.v1.JSONPredicate
 A complex filter specified as a JSON predicate, see https://tools.ietf.org/html/draft-snell-json-test-07
@@ -222,7 +237,7 @@ The "action" part of a math-action rule that assigns a route to the matched sess
 ## Properties
 | property | required | type | description | details | example |
 | :--- | :---: | :---: | :--- | :--- | :--- |
-| rewrite | &nbsp; | io.l7mp.api.v1.Rewrite | &nbsp; | &nbsp; | &nbsp; |
+| rewrite | &nbsp; | array[] of io.l7mp.api.v1.Rewrite | A list of rewrite rules. | &nbsp; | &nbsp; |
 | route | Y | io.l7mp.api.v1.Route | &nbsp; | &nbsp; | &nbsp; |
 
 # io.l7mp.api.v1.Rule
@@ -232,8 +247,23 @@ A math-action rule that defines the route of a connection through the L7mp pipel
 ## Properties
 | property | required | type | description | details | example |
 | :--- | :---: | :---: | :--- | :--- | :--- |
-| match | &nbsp; | io.l7mp.api.v1.Match | &nbsp; | &nbsp; | &nbsp; |
+| name | &nbsp; | string | Name (optional). | &nbsp; | &nbsp; |
+| match | &nbsp; | io.l7mp.api.v1.JSONPredicate | &nbsp; | &nbsp; | &nbsp; |
 | action | Y | io.l7mp.api.v1.Action | &nbsp; | &nbsp; | &nbsp; |
+
+# io.l7mp.api.v1.Metadata
+Metadata that describes a session's all known parameters, like ports and IP addresses, status, HTTP headers (if relevant), etc. In general, metadata are created by the listener and they can be modified/queried/matched in rules/actions.
+
+
+
+# io.l7mp.api.v1.Session
+An ongoing connection that is known by the proxy. A session is created by a listener receiving a new connection request and it is processed according to the match-action rules associated by the creating listener .
+
+
+## Properties
+| property | required | type | description | details | example |
+| :--- | :---: | :---: | :--- | :--- | :--- |
+| name | &nbsp; | string | Name. | &nbsp; | &nbsp; |
 
 # io.l7mp.api.v1.Status
 General status info.
@@ -242,18 +272,8 @@ General status info.
 ## Properties
 | property | required | type | description | details | example |
 | :--- | :---: | :---: | :--- | :--- | :--- |
-| status | &nbsp; | integer | Status code. | &nbsp; | &nbsp; |
-| error | &nbsp; | string | Error. | &nbsp; | &nbsp; |
-
-# io.l7mp.api.v1.Error
-Error info.
-
-
-## Properties
-| property | required | type | description | details | example |
-| :--- | :---: | :---: | :--- | :--- | :--- |
-| status | &nbsp; | integer | &nbsp; | &nbsp; | &nbsp; |
-| err | &nbsp; | string | &nbsp; | &nbsp; | &nbsp; |
+| message | Y | string | Message. | &nbsp; | &nbsp; |
+| error | &nbsp; | undefined | Error (optional). | &nbsp; | &nbsp; |
 
 # io.l7mp.api.v1.Parameter.AddressPortPair
 A pair of a network layer (IP/IPv6) address/domain name and a transport layer port.
