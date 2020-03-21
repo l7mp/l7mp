@@ -51,7 +51,7 @@ class Route {
         log.silly('Route.toJSON:', `"${this.name}"`);
         return {
             // name:     this.name,
-            type:     this.type,
+            // type:     this.type,
             // session:  this.session.name || 'NULL',
             listener: this.source.origin.name,
             cluster:  this.destination.origin.name,
