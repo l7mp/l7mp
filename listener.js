@@ -172,7 +172,6 @@ class HTTPListener extends Listener {
                       message: 'Internal Server Error' } };
         // dump(e);
         let msg = JSON.stringify(e.content, null, 4);
-
         // dump(msg);
 
         res.writeHead(e.status, {

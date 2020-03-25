@@ -228,7 +228,8 @@ class L7mpOpenAPI {
         this.api.register('notFound', (ctx, req, res) => {
             log.info("L7mp.api.notFound");
             res.status = 404;
-            res.content = { message: 'Not found', error: 'Unknown API operation' };
+            res.content = { message: 'Not found',
+                            error: 'Unknown API operation' };
         });
 
         this.api.register('notImplemented', (ctx, req, res) => {
@@ -239,9 +240,12 @@ class L7mpOpenAPI {
 
         this.api.register('postResponseHandler', (ctx, req, res) => {
             log.silly('l7mp.openapi: postResponseHandler');
-            // dump(res,3);
-            if(l7mp.admin.strict) {
-            log.silly('l7mp.openapi: postResponseHandler: Validating response');
+            dump(res,3);
+            // do not validate 'NotFound' (404) errors: ctx.operation
+            // is unknown and this makes validator to croak
+            if(l7mp.admin.strict && res.status && res.status !== 404) {
+                log.silly('l7mp.openapi:',
+                          'postResponseHandler: Validating response');
                 let valid = ctx.api.validateResponse(res.content,
                                                      ctx.operation, res.status);
                 if (valid.errors) {
