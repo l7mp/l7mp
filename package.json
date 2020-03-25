@@ -3,7 +3,18 @@
     "description": "A programmable L7 meta-proxy",
     "version": "1.0.0",
     "main": "l7mp.js",
-    "files": [ "cluster.js", "l7mp.js", "l7mp-openapi.js", "listener.js", "route.js", "rule.js", "session.js", "stream-counter.js", "stream.js", "openapi/l7mp-openapi.yaml" ],
+    "files": [
+        "cluster.js",
+        "l7mp.js",
+        "l7mp-openapi.js",
+        "listener.js",
+        "route.js",
+        "rule.js",
+        "session.js",
+        "stream-counter.js",
+        "stream.js",
+        "openapi/l7mp-openapi.yaml"
+    ],
     "scripts": {
         "start": "node l7mp.js",
         "test": "echo \"Error: no test specified\" && exit 1"
@@ -19,18 +30,18 @@
     "dependencies": {
         "duplexer2": "^0.1.4",
         "event-debug": "^2.1.0",
-        "jq-web": "^0.5.0",
+        "jq-web": "^0.5.1",
         "json-predicate": "^0.9.5",
         "merge-stream": "^2.0.0",
-        "minimist": "^1.2.0",
+        "minimist": "^1.2.5",
         "mississippi": "^4.0.0",
         "npmlog": "^4.1.2",
-        "openapi-backend": "^2.3.4",
+        "openapi-backend": "^2.3.8",
         "openapi-transformer": "^0.5.4",
         "p-event": "^4.1.0",
         "stream-operators": "^1.0.3",
-        "underscore": "^1.9.1",
-        "ws": "^7.1.2",
+        "underscore": "^1.9.2",
+        "ws": "^7.2.3",
         "yamljs": "^0.3.0"
     }
 }
