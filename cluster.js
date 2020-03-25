@@ -420,9 +420,9 @@ class UDPCluster extends Cluster {
             // var remote_address = args[1];
             // var remote_port    = args[2];
 
-            this.stream = new utils.DatagramStream(socket);
+            this._stream = new utils.DatagramStream(socket);
             log.silly('UDPCluster.stream:', `Created`);
-            return this.stream;
+            return this._stream;
         });
     }
 };

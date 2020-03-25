@@ -283,7 +283,7 @@ class UDPSingletonListener extends Listener {
     // create a stream
     constructor(l){
         super(l);
-        if(this.stream)
+        if(this._stream)
             log.error('UDPSingletonListener', 'Listener already connected');
         this.type = 'datagram';
         this.mode = 'singleton';

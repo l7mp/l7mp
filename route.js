@@ -36,11 +36,9 @@ const eventDebug   = require('event-debug')
 //------------------------------------
 
 const retry_default_policy = {
-    // never, connect-failure, error, always (connect-failure & error)
-    // retry_on: 'connect-failure',
     retry_on: 'never',
-    num_retries: 1,   // meaningless when retry_on is 'never'
-    timeout: 2000,    // msec!
+    num_retries: 1,
+    timeout: 2000,
 };
 
 class Route {
@@ -231,13 +229,13 @@ class Route {
             log.silly("Route.pipeline:", `${dir} pipe:`,
                       `${from.origin.name} ->`,
                       `${to.origin.name}`);
-            this.pipe(from.stream, to.stream);
+            this.pipe(from, to);
             from = to;
         });
         log.silly("Route.pipeline:", `${dir} pipe:`,
                   `${from.origin.name} ->`,
                   `${dest.origin.name}`);
-        this.pipe(from.stream, dest.stream);
+        this.pipe(from, dest);
     }
 
     pipeline_event_handlers(){
@@ -275,8 +273,11 @@ class Route {
     // local override to allow experimenting with mississippi.pipe or
     // other pipe implementations
     pipe(from, to){
+        if(!from) console.trace('from');
+        if(!to)   console.trace('to');
+
         // default: source remains alive is destination closes/errs
-        return from.pipe(to);
+        return from.stream.pipe(to.stream);
         // this will kill the source if the destination fails
         // miss.pipe(from, to, (error) => {
         //     error = error || '';
@@ -319,6 +320,69 @@ class Route {
         return streams;
     }
 
+    repipe(ref, newref){
+        let s      = this.session;
+        let origin = ref.origin;
+        let source = this.source;
+        let dest   = this.destination;
+
+        log.silly('Route.repipe:', `session ${s.name}:`,
+                  `origin: ${origin.name}`);
+
+        // was error on source?
+        if(ref === source)
+            log.error('Route.disconnect: Internal error:',
+                      'onDisconnect called on listener');
+
+        // was error on destination?
+        if(ref === this.destination){
+            let from = this.chain.ingress.length > 0 ?
+                this.chain.ingress[this.chain.ingress.length - 1] :
+                source;
+            this.pipe(from, newref);
+            let to = this.chain.egress.length > 0 ?
+                this.chain.egress[0] : source;
+            this.pipe(newref, to);
+
+            log.silly('Route.repipe:', `session ${s.name}:`,
+                      `destination cluster "${origin.name}" repiped`);
+
+            return;
+        }
+
+        // was error on ingress?
+        let i = this.chain.ingress.findIndex(r => r === ref);
+        if(i >= 0){
+            let from = i === 0 ? source : this.chain.ingress[i-1];
+            this.pipe(from, newref);
+            let to = i === this.chain.ingress.length - 1 ?
+                dest : this.chain.ingress[i+1];
+            this.pipe(newref, to);
+
+            log.silly('Route.repipe:', `session ${s.name}:`,
+                      `ingress chain repiped on cluster "${origin.name}"`);
+
+            return;
+        }
+
+        i = this.chain.egress.findIndex(r => r === ref);
+        if(i<0)
+            log.error('Route.repipe: Internal error:',
+                      'Could not find disconnected cluster',
+                      `${ref.origin}`);
+
+        let from = i === 0 ? dest : this.chain.egress[i-1];
+        this.pipe(from, newref);
+        let to = i === this.chain.egress - 1 ?
+            source : this.chain.egress[i+1];
+        this.pipe(newref, to);
+
+        log.silly('Route.repipe:', `session ${s.name}:`,
+                  `egress chain repiped on  cluster "${origin.name}"`);
+
+        return;
+    }
+
     // called when one of the streams fail
     async disconnect(ref, error){
         let origin = ref.origin;
@@ -339,7 +403,7 @@ class Route {
         let retry = this.retry;
         switch(retry.retry_on){
         case 'always':
-        case 'error':
+        case 'on-disconnect':
             // handle retry
             ref.retry_num = 0;
             while(1){
@@ -358,7 +422,7 @@ class Route {
                 }
 
                 try {
-                    ref = await this.connect_cluster(ref, 0);
+                    let newref = await this.connect_cluster(ref, 0);
                     this.active_streams++;
                     this.session.emit('connect');
 
@@ -366,8 +430,10 @@ class Route {
                              `session ${s.name}:`,
                              `origin "${origin.name}"`,
                              `successfully reconnected after`,
-                             `${this.retry_on_disconnect_num-1} attempts`);
+                             `${this.retry_on_disconnect_num} attempts`);
 
+                    this.repipe(ref, newref);
+                    ref = newref;
                     break;
                 } catch(e){
                     log.info('Route.disconnect:',
