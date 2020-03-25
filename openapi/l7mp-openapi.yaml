@@ -371,8 +371,23 @@ components:
               - type: string
               - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
         retry:
-          description: Retry/timeout policy (not implemented).
+          description: Connection retry/timeout policy.
           type: object
+          required:
+            - retry_on
+          properties:
+            retry_on:
+              description: |
+                One of "never" (never retry, default), "connect-failure" (retry only on a failure in the connection setup phase), "on-disconnect" (retry only disconnects on already connected streams), or "always" ("connect-failure" & "on-disconnect").
+              type: string
+            num_retries:
+              description: |
+                If "retry_on" is "never" then this is meaningless.  If "retry_on" is "connect-failure" or "error" then "num_retries" means the number of times to attempt a reconnect each cluster separately, so if there are two clusters in the route and "num_retries" is 3, then retry connecting both clusters 3 times. If a stream is reconnected after a disconnect event, try again this many times from zero.  If "retry_on" is "on-disconnect" or "always", "num_retries" also means the number of times to try to reconnect the route all together, in this case retries on each cluster add up.
+              type: integer
+            timeout:
+              description: |
+                On "connect-failure", wait "timeout" msecs and then reconnect, otherwise wait "timeout" msecs between each re-connect attempts.
+              type: integer
 
     # io.l7mp.api.v1.Match:
     #   description: The "filter" part of a math-action rule that filters on session metadata.
