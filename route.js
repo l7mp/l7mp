@@ -53,6 +53,7 @@ class Route {
         this.type        = this.source.origin.type;  // init
         this.retry       = r.retry || retry_default_policy;
         this.active_streams = 1;   // the listener stream is already active
+        this.retry_on_disconnect_num = 0;
     }
 
     toJSON(){
@@ -69,7 +70,8 @@ class Route {
         };
     }
 
-    async pipeline(s){
+    async pipeline(){
+        let s = this.session;
         log.silly("Route.pipeline:", `Session: ${s.name}:`,
                   `${this.source.origin.name} ->`,
                   `${this.destination.origin.name}`);
@@ -77,7 +79,7 @@ class Route {
         //eventDebug(this.source.stream);
 
         // prepare wait_list
-        let wait_list = this.pipeline_init(s);
+        let wait_list = this.pipeline_init();
 
         // resolve
         let success = 0;
@@ -97,7 +99,7 @@ class Route {
                               'unknown ref/index on connect error');
                 }
 
-                log.warn("Route.pipeline:", `Session: ${s.name}:`,
+                log.info("Route.pipeline:", `Session: ${s.name}:`,
                          `Error on cluster "${ref.origin.name}"/index:${index}:`,
                          (e.errno) ? `${e.errno}: ${e.address}:${e.port}` :
                          dumper(e, 1));
@@ -106,7 +108,8 @@ class Route {
 
                 // returns 1 if failing cluster is retried, 0 if it
                 // cannot be retried any more
-                if(!this.pipeline_reconnect(wait_list, ref, s, index))
+                let p = this.pipeline_reconnect(ref, index)
+                if(!p)
                     throw new Error(`Pipeline initialization failed for `+
                                     `session: ${s.name}: `+
                                     `could not connect "${ref.origin.name}: ` +
@@ -115,7 +118,7 @@ class Route {
                                     `timeout: ${this.retry.timeout}}: `+
                                     `retry_num: ${ref.retry_num}: last error: `+
                                     e.errno);
-
+                wait_list[index] = p;
             }
         }
 
@@ -136,8 +139,8 @@ class Route {
             this.active_streams++;
         });
 
-        log.verbose("Route.pipeline:",
-                    `${this.active_streams} stream(s) initiated`);
+        log.info("Route.pipeline:",
+                 `${this.active_streams} stream(s) initiated`);
 
         // pipe: ingress dir
         this.pipeline_finish(this.source, this.destination,
@@ -154,7 +157,9 @@ class Route {
         return this;
     }
 
-    pipeline_init(s){
+    pipeline_init(){
+        let s = this.session;
+
         // init retry counts
         for(let dir of ['ingress', 'egress']){
             this.chain[dir].forEach( (e) => { e.retry_num = 0 });
@@ -165,15 +170,16 @@ class Route {
         let i = 0;
         for(let dir of ['ingress', 'egress']){
             this.chain[dir].forEach( (e) => {
-                wait_list.push(this.connect_cluster(e, s, i++));
+                wait_list.push(this.connect_cluster(e, i++));
             });
         }
-        wait_list.push(this.connect_cluster(this.destination, s, i++));
+        wait_list.push(this.connect_cluster(this.destination, i++));
 
         return wait_list;
     }
 
-    connect_cluster(ref, s, i){
+    connect_cluster(ref, i){
+        let s = this.session;
         return ref.origin.stream(s).then(
             (stream) => {
                 return {ref: ref,
@@ -185,9 +191,11 @@ class Route {
             });
     }
 
-    pipeline_reconnect(wait_list, ref, s, index){
+    pipeline_reconnect(ref, index){
         let cluster = ref.origin;
         let retry = this.retry;
+        let s = this.session;
+
         log.silly('Route.pipeline_reconnect:',
                   `session ${s.name}:`,
                   `cluster "${cluster.name}"/index:${index}:`,
@@ -209,12 +217,10 @@ class Route {
             // rewrite failed stream promise on the wait_list to a
             // promise that waits for timeout msecs and try to
             // reconnect
-            wait_list[index] = new Promise(
+            return new Promise(
                 resolve => setTimeout(resolve,
                                       retry.timeout)).
-                then( () => this.connect_cluster(ref, s, index));
-
-            return 1;
+                then( () => this.connect_cluster(ref, index));
         }
         return 0;
     }
@@ -245,7 +251,7 @@ class Route {
                 log.silly(`Route.event:`, `"${event}" event received:`,
                           `${e.origin.name}`,
                           (err) ? ` Error: ${err}` : '');
-                onDisc(e.origin, e.stream, err);
+                onDisc(e, err);
             });
         };
 
@@ -314,33 +320,83 @@ class Route {
     }
 
     // called when one of the streams fail
-    disconnect(origin, stream, error){
-        log.silly('Route.disconnect:', `origin: ${origin.name}`,
-                  (error) ? `Error: ${dumper(error, 2)}` : '');
+    async disconnect(ref, error){
+        let origin = ref.origin;
+        let stream = ref.stream;
+        let s = this.session;
+
+        log.silly('Route.disconnect:', `session ${s.name}:`,
+                  `origin: ${origin.name}:`,
+                  error ? `Error: ${error.message}` :
+                  'Reason: unknown');
         this.active_streams--;
 
-        if(this.session.status === 'CONNECTED')
-            this.session.emit('disconnect', origin, error);
+        if(s.metadata.status === 'CONNECTED')
+            s.emit('disconnect', origin, error);
         if(this.active_streams === 0)
-            // let streams so I/O
-            this.session.emit('destroy');
+            s.emit('destroy');
 
-        switch(this.retry.policy){
-        case 'autoreconnect':
-            // should implement autoreconnect policy (retry forever)
-        case 'retry':
-            // should implement retry policy (retry 'n' times)
+        let retry = this.retry;
+        switch(retry.retry_on){
+        case 'always':
+        case 'error':
+            // handle retry
+            ref.retry_num = 0;
+            while(1){
+                if(this.retry_on_disconnect_num++ ==
+                   retry.num_retries){
+                    let msg = `session ${s.name}: ` +
+                        `could not be re-connected after ` +
+                        `${this.retry_on_disconnect_num-1} attempts: ` +
+                        `retry={retry_on: ${this.retry.retry_on}, `+
+                        `num_retries: ${this.retry.num_retries}, `+
+                        `timeout: ${this.retry.timeout}}`;
+
+                    log.info('Route.disconnect:', msg);
+                    s.emit('error', new Error(`Reconnect failed: ${msg}`));
+                    break;
+                }
+
+                try {
+                    ref = await this.connect_cluster(ref, 0);
+                    this.active_streams++;
+                    this.session.emit('connect');
+
+                    log.info('Route.disconnect:',
+                             `session ${s.name}:`,
+                             `origin "${origin.name}"`,
+                             `successfully reconnected after`,
+                             `${this.retry_on_disconnect_num-1} attempts`);
+
+                    break;
+                } catch(e){
+                    log.info('Route.disconnect:',
+                             `session ${s.name}:`,
+                             `origin "${origin.name}"`,
+                             `could not be reconnected: error:`,
+                             e.message || dumper(e,1),
+                             `retry_on_disconnect_num:`,
+                             this.retry_on_disconnect_num,
+                             `timeout: ${retry.timeout}:`);
+
+                    // wait
+                    await new Promise(r =>
+                                      setTimeout(r, retry.timeout));
+                }
+            }
+            break;
+        case 'connect-failure': // does not involve re-connect
         case 'never': // never retry, fail immediately
         case undefined:
         default:
             // do not delete the route, deleteSession will do this
             // suppress event for sessions that are already being
             // destroyed
-            if(this.session.status !== 'FINALIZING'){
+            if(s.metadata.status !== 'FINALIZING'){
                 if(error)
-                    this.session.emit('error', error);
+                    s.emit('error', error);
                 else
-                    this.session.emit('end');
+                    s.emit('end');
             }
         }
     }

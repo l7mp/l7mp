@@ -87,7 +87,7 @@ class L7mp {
 
         // error
         s.on('error', (e) => {
-            log.info('Session.error:', `Session "${s.name}":`,
+            log.warn('Session.error:', `Session "${s.name}":`,
                      e.message || dumper(e,1));
             listener.origin.end(s, e);
             s.metadata.status = 'FINALIZING';
@@ -149,7 +149,7 @@ class L7mp {
             s.metadata.status = 'DISCONNECTED';
         });
 
-        s.route.pipeline(s).then(
+        s.route.pipeline().then(
             (route) => s.emit('connect'),
             (e)     => s.emit('error', e)
         );
