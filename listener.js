@@ -222,7 +222,7 @@ class WebSocketListener extends Listener {
             var query = url.parse(req.url);
         } catch(e){
             let error = `Could not parse URL: "${req.url}":` + e;
-            this.reject(req, error);
+            this.end(req, error);
         }
 
         const duplex =

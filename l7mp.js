@@ -131,7 +131,7 @@ class L7mp {
         } catch(e) {
             log.warn('L7mp.route', `Session "${s.name}" rejected:`, e);
             s.emit('end', )
-            listener.origin.reject(s, e);
+            listener.origin.end(s, e);
             this.deleteSession(s.name);
             return;
         }
@@ -458,7 +458,7 @@ class L7mp {
                     throw `Unknown transform cluster "${c}" in ` +
                     `"${dir}" route`;
                 ro.chain[dir].push({ origin: c });
-                this.checkRoute(ro, c);
+                this.checkRoute(ro, c, s);
             });
             this.checkRoute(ro, cluster, s);
         }
