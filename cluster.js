@@ -298,7 +298,6 @@ class Cluster {
         this.protocol     = c.spec.protocol;
         this.loadbalancer = LoadBalancer.create(
             c.loadbalancer || 'trivial' );
-        this.timeout      = c.spec.timeout || 2000; // ms
         this.type         = c.type || '';
         this.stats        = {
             active_sessions: 0,
@@ -319,7 +318,6 @@ class Cluster {
             // type:         this.type,
             endpoints:    this.endpoints,
             loadbalancer: this.loadbalancer || 'none',
-            // timeout:      this.timeout
         };
     }
 
@@ -367,7 +365,7 @@ class WebSocketCluster extends Cluster {
         // cancels the event listeners on reject!
         return pEvent(e.connect(s), 'open', {
             rejectionEvents: ['close', 'error', 'unexpected-response'],
-            multiArgs: true, timeout: this.timeout
+            multiArgs: true, timeout: s.route.retry.timeout
         });
     }
 
@@ -398,7 +396,7 @@ class UDPCluster extends Cluster {
 
         return pEvent(e.connect(s), 'open', {
             rejectionEvents: ['close', 'error'],
-            multiArgs: true, timeout: this.timeout
+            multiArgs: true, timeout:  s.route.retry.timeout
         });
     }
 

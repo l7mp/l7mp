@@ -35,6 +35,14 @@ const eventDebug   = require('event-debug')
 //
 //------------------------------------
 
+const retry_default_policy = {
+    // never, connect-failure, error, always (connect-failure & error)
+    // retry_on: 'connect-failure',
+    retry_on: 'never',
+    num_retries: 1,   // meaningless when retry_on is 'never'
+    timeout: 2000,
+};
+
 class Route {
     constructor(r){
         this.name        = r.name || `Route_${Route.index++}`;  // id
@@ -43,7 +51,7 @@ class Route {
         this.destination = r.cluster;     // cluster:  {origin/stream}
         this.chain       = { ingress: [], egress: [] };
         this.type        = this.source.origin.type;  // init
-        this.retry       = r.retry || { policy: 'never' };
+        this.retry       = r.retry || retry_default_policy;
         this.active_streams = 1;   // the listener stream is already active
     }
 
