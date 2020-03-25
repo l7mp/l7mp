@@ -87,15 +87,16 @@ class L7mp {
 
         // error
         s.on('error', (e) => {
-            log.silly('Session.error:', `Session "${s.name}":`, dumper(e,1));
+            log.info('Session.error:', `Session "${s.name}":`,
+                     e.message || dumper(e,1));
             listener.origin.end(s, e);
             s.metadata.status = 'FINALIZING';
         });
 
         // normal end
         s.on('end', () => {
-            log.silly('Session.end:', `Session "${s.name}":`,
-                      `Ending normally`);
+            log.info('Session.end:', `Session "${s.name}":`,
+                     `Ending normally`);
             s.metadata.status = 'FINALIZING';
         });
 

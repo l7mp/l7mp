@@ -40,7 +40,7 @@ const retry_default_policy = {
     // retry_on: 'connect-failure',
     retry_on: 'never',
     num_retries: 1,   // meaningless when retry_on is 'never'
-    timeout: 2000,
+    timeout: 2000,    // msec!
 };
 
 class Route {
@@ -80,22 +80,51 @@ class Route {
         let wait_list = this.pipeline_init(s);
 
         // resolve
-        var resolved_list = await Promise.all(wait_list).catch(
-            (e) => {
+        let success = 0;
+        var resolved_list = [];
+        while(1){
+            try {
+                resolved_list = await Promise.all(wait_list);
+                break;
+            } catch(e){
+                // at this point we SHOULD get the reference to the
+                // cluster that could not connect
+                let ref = e.ref;
+                let index = e.index;  // index on the wait_list
+                if (typeof ref !== 'object' ||
+                    typeof index === 'undefined' || index < 0){
+                    log.error('Route.pipeline: Internal error:',
+                              'unknown ref/index on connect error');
+                }
+
                 log.warn("Route.pipeline:", `Session: ${s.name}:`,
-                         (e.message) ? `Error: ${e.message}:` : '',
-                         dumper(e, 3));
+                         `Error on cluster "${ref.origin.name}"/index:${index}:`,
+                         (e.errno) ? `${e.errno}: ${e.address}:${e.port}` :
+                         dumper(e, 1));
                 if(log.level === 'silly')
                     console.trace();
-                throw e;
-            });
+
+                // returns 1 if failing cluster is retried, 0 if it
+                // cannot be retried any more
+                if(!this.pipeline_reconnect(wait_list, ref, s, index))
+                    throw new Error(`Pipeline initialization failed for `+
+                                    `session: ${s.name}: `+
+                                    `could not connect "${ref.origin.name}: ` +
+                                    `retry={retry_on: ${this.retry.retry_on}, `+
+                                    `num_retries: ${this.retry.num_retries}, `+
+                                    `timeout: ${this.retry.timeout}}: `+
+                                    `retry_num: ${ref.retry_num}: last error: `+
+                                    e.errno);
+
+            }
+        }
 
         for(let i = 0; i < resolved_list.length; i++)
             if(typeof resolved_list[i] === 'undefined'){
-                log.warn("Route.pipeline:", `Internal error:`,
-                         `Empty stream for cluster`,
-                         `${resolved_list[i].ref.origin.name}`);
-                return new Error('Empty stream');
+                log.error("Route.pipeline:", `Internal error:`,
+                          `Empty stream for cluster`,
+                          `${resolved_list[i].ref.origin.name}`);
+                // return new Error('Empty stream');
            }
 
         // set streams for each route elem
@@ -126,24 +155,68 @@ class Route {
     }
 
     pipeline_init(s){
+        // init retry counts
+        for(let dir of ['ingress', 'egress']){
+            this.chain[dir].forEach( (e) => { e.retry_num = 0 });
+        }
+        this.destination.retry_num = 0;
+
         var wait_list = [];
+        let i = 0;
         for(let dir of ['ingress', 'egress']){
             this.chain[dir].forEach( (e) => {
-                wait_list.push( e.origin.stream(s).then(
-                    (stream) => { //eventDebug(stream);
-                                  return {ref: e,
-                                          stream: stream};
-                                }));
+                wait_list.push(this.connect_cluster(e, s, i++));
             });
         }
-
-        wait_list.push(
-            this.destination.origin.stream(s).then(
-                (stream) => { return {ref: this.destination,
-                                      stream: stream};
-                            }));
+        wait_list.push(this.connect_cluster(this.destination, s, i++));
 
         return wait_list;
+    }
+
+    connect_cluster(ref, s, i){
+        return ref.origin.stream(s).then(
+            (stream) => {
+                return {ref: ref,
+                        stream: stream};
+            },
+            (error) => {
+                // return the problematic endpoint
+                error.ref = ref; error.index = i; throw error;
+            });
+    }
+
+    pipeline_reconnect(wait_list, ref, s, index){
+        let cluster = ref.origin;
+        let retry = this.retry;
+        log.silly('Route.pipeline_reconnect:',
+                  `session ${s.name}:`,
+                  `cluster "${cluster.name}"/index:${index}:`,
+                  `retry_on: ${retry.retry_on},`,
+                  `num_retries: ${retry.num_retries},`,
+                  `timeout: ${retry.timeout}:`
+                 );
+
+        if((retry.retry_on === 'connect-failure' ||
+            retry.retry_on === 'always') &&
+           ref.retry_num++ < retry.num_retries){
+            log.info('Route.pipeline_reconnect:',
+                      `session ${s.name}:`,
+                      `reconnecting cluster`,
+                      `"${cluster.name}"/index:${index}:`,
+                      `retry_num: ${ref.retry_num}`
+                     );
+
+            // rewrite failed stream promise on the wait_list to a
+            // promise that waits for timeout msecs and try to
+            // reconnect
+            wait_list[index] = new Promise(
+                resolve => setTimeout(resolve,
+                                      retry.timeout)).
+                then( () => this.connect_cluster(ref, s, index));
+
+            return 1;
+        }
+        return 0;
     }
 
     pipeline_finish(source, dest, chain, dir){

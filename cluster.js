@@ -187,10 +187,14 @@ class WebSocketEndPoint extends EndPoint {
 
         var ws = new WebSocket(url, options);
 
-        // re-emit 'open', otherwise we lose the socket in pEvent
+        // re-emit 'open', otherwise we lose the socket in pEvent:
+        // ws.open does not return ws itself so we must re-emit here
+        // with ws as an argument!
         ws.once('open', () => ws.emit('open', ws));
-        ws.once('error', (e) => { log.info('WebSocketEndPoint:connect:error', dumper(e, 1));
-                                  log.silly('WebSocketEndPoint:connect:error', e); });
+        ws.once('error',
+                (e) => { log.warn('WebSocketEndPoint:connect:error',
+                                  `${e.errno}: ${e.address}:${e.port}`);
+                         ws.emit('error', e); });
         ws.once('end', () => { log.info('WebSocketEndPoint:end'); });
 
         return ws;
@@ -249,23 +253,31 @@ class UDPEndPoint extends EndPoint {
             address: this.local_address,
             exclusive: false
         }, () => {
+            const address = socket.address();
+            this.local_address = address.address;
+            this.local_port    = address.port;
+
             log.silly('UDPCluster:',
                       `"${this.name}" bound to ${this.local_address}:` +
                       `${this.local_port}`)
 
-            socket.connect(this.remote_port, this.remote_addesss,
-                           () => {
-                               log.info('UDPEndPoint:',
-                                        `"${this.name}" connected`,
-                                        `for ${this.remote_address}:`+
-                                        `${this.remote_port} on`,
-                                        `${this.local_address}:`+
-                                        `${this.local_port}`);
+            socket.on('connect', () => {
+                log.info('UDPEndPoint:',
+                         `"${this.name}" connected`,
+                         `for ${this.remote_address}:`+
+                         `${this.remote_port} on`,
+                         `${this.local_address}:`+
+                         `${this.local_port}`);
 
-                               // re-emit as 'open', otherwise we lose
-                               // the socket in pEvent
-                               socket.emit('open', socket);
-                           });
+
+                // re-emit as 'open', otherwise we lose
+                // the socket in pEvent
+                socket.emit('open', socket);
+            });
+
+            // we do not set a callback, so in case of failure an
+            // 'error' event will be emitted
+            socket.connect(this.remote_port, this.remote_addesss);
         });
 
         return socket;
@@ -409,9 +421,7 @@ class UDPCluster extends Cluster {
             // var remote_port    = args[2];
 
             this.stream = new utils.DatagramStream(socket);
-
             log.silly('UDPCluster.stream:', `Created`);
-
             return this.stream;
         });
     }
