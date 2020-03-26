@@ -97,15 +97,13 @@ class Route {
                               'unknown ref/index on connect error');
                 }
 
-                log.info("Route.pipeline:", `Session: ${s.name}:`,
-                         `Error on cluster "${ref.origin.name}"/index:${index}:`,
+                log.info("Route.pipeline:", `Session: ${s.name}: Error on`,
+                         `cluster "${ref.origin.name}"/index:${index}:`,
                          (e.errno) ? `${e.errno}: ${e.address}:${e.port}` :
                          dumper(e, 1));
                 if(log.level === 'silly')
                     console.trace();
 
-                // returns 1 if failing cluster is retried, 0 if it
-                // cannot be retried any more
                 let p = this.pipeline_reconnect(ref, index)
                 if(!p)
                     throw new Error(`Pipeline initialization failed for `+
@@ -239,12 +237,21 @@ class Route {
     }
 
     pipeline_event_handlers(){
+        this.set_event_handlers(this.source);
+        for(let dir of ['ingress', 'egress']){
+            this.chain[dir].forEach( (e) => {
+                this.set_event_handlers(e);
+            });
+        }
+        this.set_event_handlers(this.destination);
+    }
+
+    set_event_handlers(ref){
         // Writable has 'close', readable has 'end', duplex has
         // who-knows...
-
         // need this for being able to remove listeners
-        let onDisc = this.onDisc = this.disconnect.bind(this);
-        let eh = function(event, e){
+        var onDisc = this.onDisc = this.disconnect.bind(this);
+        var eh = (event, e) => {
             e.stream.on(event, (err) => {
                 log.silly(`Route.event:`, `"${event}" event received:`,
                           `${e.origin.name}`,
@@ -253,21 +260,9 @@ class Route {
             });
         };
 
-        eh('end', this.source);
-        eh('close', this.source);
-        eh('error', this.source);
-
-        for(let dir of ['ingress', 'egress']){
-            this.chain[dir].forEach( (e) => {
-                eh('end', e);
-                eh('close', e);
-                eh('error', e);
-            });
-        }
-
-        eh('end', this.destination);
-        eh('close', this.destination);
-        eh('error', this.destination);
+        eh('end', ref);
+        eh('close', ref);
+        eh('error', ref);
     }
 
     // local override to allow experimenting with mississippi.pipe or
@@ -320,7 +315,8 @@ class Route {
         return streams;
     }
 
-    repipe(ref, newref){
+    // ref.stream contains the new stream
+    repipe(ref){
         let s      = this.session;
         let origin = ref.origin;
         let source = this.source;
@@ -339,10 +335,10 @@ class Route {
             let from = this.chain.ingress.length > 0 ?
                 this.chain.ingress[this.chain.ingress.length - 1] :
                 source;
-            this.pipe(from, newref);
+            this.pipe(from, ref);
             let to = this.chain.egress.length > 0 ?
                 this.chain.egress[0] : source;
-            this.pipe(newref, to);
+            this.pipe(ref, to);
 
             log.silly('Route.repipe:', `session ${s.name}:`,
                       `destination cluster "${origin.name}" repiped`);
@@ -354,10 +350,10 @@ class Route {
         let i = this.chain.ingress.findIndex(r => r === ref);
         if(i >= 0){
             let from = i === 0 ? source : this.chain.ingress[i-1];
-            this.pipe(from, newref);
+            this.pipe(from, ref);
             let to = i === this.chain.ingress.length - 1 ?
                 dest : this.chain.ingress[i+1];
-            this.pipe(newref, to);
+            this.pipe(ref, to);
 
             log.silly('Route.repipe:', `session ${s.name}:`,
                       `ingress chain repiped on cluster "${origin.name}"`);
@@ -372,13 +368,13 @@ class Route {
                       `${ref.origin}`);
 
         let from = i === 0 ? dest : this.chain.egress[i-1];
-        this.pipe(from, newref);
+        this.pipe(from, ref);
         let to = i === this.chain.egress - 1 ?
             source : this.chain.egress[i+1];
-        this.pipe(newref, to);
+        this.pipe(ref, to);
 
         log.silly('Route.repipe:', `session ${s.name}:`,
-                  `egress chain repiped on  cluster "${origin.name}"`);
+                  `egress chain repiped on cluster "${origin.name}"`);
 
         return;
     }
@@ -422,7 +418,9 @@ class Route {
                 }
 
                 try {
-                    let newref = await this.connect_cluster(ref, 0);
+                    let e = await this.connect_cluster(ref, 0);
+                    // store new stream
+                    ref.stream = e.stream;
                     this.active_streams++;
                     this.session.emit('connect');
 
@@ -432,8 +430,9 @@ class Route {
                              `successfully reconnected after`,
                              `${this.retry_on_disconnect_num} attempts`);
 
-                    this.repipe(ref, newref);
-                    ref = newref;
+                    this.repipe(ref);
+                    this.set_event_handlers(ref);
+
                     break;
                 } catch(e){
                     log.info('Route.disconnect:',

@@ -38,7 +38,8 @@ class DatagramStream extends Duplex {
             ...options,
             autoDestroy: false,
             emitClose: false,
-            objectMode: false,
+            // objectMode: false,
+            objectMode: true,
             readableObjectMode: false,
             writableObjectMode: false
         });
@@ -74,7 +75,8 @@ class DatagramStream extends Duplex {
         // connected
 
         socket.on('error', (e) => {
-            log.silly('DatagramStream.onerror:', dumper(e));
+            log.silly('DatagramStream.onerror:',
+                      e.message || dumper(e));
             this.destroy(e);
         });
 

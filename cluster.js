@@ -422,6 +422,9 @@ class UDPCluster extends Cluster {
 
             this._stream = new utils.DatagramStream(socket);
             log.silly('UDPCluster.stream:', `Created`);
+
+            eventDebug(this._stream);
+
             return this._stream;
         });
     }
