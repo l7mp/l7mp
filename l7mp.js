@@ -27,7 +27,7 @@ const fs         = require('fs');
 
 const parseArgs  = require('minimist');
 const util       = require('util');
-const log        = require('npmlog');
+var   log        = require('npmlog');
 const path       = require('path');
 const YAML       = require('yamljs');
 
@@ -50,6 +50,10 @@ global.dumper = function dumper(o, depth=1){
 global.dump = function dump(o, depth=5){
     console.log(dumper(o, depth));
 }
+
+Object.defineProperty(log, 'heading',
+                      { get: () => { return new Date().toISOString() } });
+log.headingStyle = { bg: '', fg: 'white' }
 
 class L7mp {
     constructor() {
