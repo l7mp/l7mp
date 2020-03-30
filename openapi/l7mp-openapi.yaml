@@ -100,6 +100,13 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+        options:
+          description: Listener optional features.
+          type: object
+          properties:
+            removeOrphanSessions:
+              description: On removing the listener also remove all sessions emitted by this listener.
+              type: boolean
 
     io.l7mp.api.v1.HTTPListenerSpec:
       description: |

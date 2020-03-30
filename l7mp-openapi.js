@@ -240,7 +240,7 @@ class L7mpOpenAPI {
 
         this.api.register('postResponseHandler', (ctx, req, res) => {
             log.silly('l7mp.openapi: postResponseHandler');
-            dump(res,3);
+            // dump(res,3);
             // do not validate 'NotFound' (404) errors: ctx.operation
             // is unknown and this makes validator to croak
             if(l7mp.admin.strict && res.status && res.status !== 404) {

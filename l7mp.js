@@ -271,9 +271,14 @@ class L7mp {
     }
 
     deleteListener(n){
-        log.info('L7mp.deleteListener: TODO: actually delete the listener!');
+        log.info('L7mp.deleteListener');
         let i = this.listeners.findIndex( ({name}) => name === n);
         if(i >= 0){
+            let l = this.listeners[i];
+            if(l.options.removeOrphanSessions)
+                for(let s of this.sessions)
+                    if(s.listener && s.listener.name === l.name)
+                        this.deleteSession(s.name);
             this.listeners.splice(i, 1);
         } else {
             let e = `Unknown listener "${n}"`;
@@ -326,7 +331,7 @@ class L7mp {
     }
 
     deleteCluster(n){
-        log.info('L7mp.deleteCluster: TODO: actually delete the cluster!');
+        log.info('L7mp.deleteCluster');
         let i = this.clusters.findIndex( ({name}) => name === n);
         if(i >= 0){
             this.clusters.splice(i, 1);
@@ -411,12 +416,6 @@ class L7mp {
         }
 
         let s = this.sessions[i];
-        // try{
-        //     if(s.route)
-        //         this.deleteRoute(s.route.name);
-        // } catch(e){
-        //     log.error('Trying to delete a nonexistent route', e);
-        // }
 
         // returns 1 if no retrying stage exists
         if(this.deleteRoute(s.route.name))
@@ -493,8 +492,12 @@ class L7mp {
         let i = this.routes.findIndex(({name}) => name === n);
         if(i >= 0){
             // returns 1 if no retrying stage exists
-            if(this.routes[i].end())
+            if(this.routes[i].end()){
                 this.routes.splice(i, 1);
+                return 1;
+            }
+        } else {
+            return 0;
         }
     }
 

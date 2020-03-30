@@ -49,6 +49,8 @@ class Listener {
             accepted_sessions: 0,
             counter: new StreamCounter()
         };
+        this.options = l.options ||
+            {removeOrphanSessions: true};
     }
 
     getNewSessionId() { return this.sessionId++; }
@@ -56,9 +58,10 @@ class Listener {
     toJSON(){
         log.silly('Listener.toJSON', `"${this.name}"`);
         return {
-            name:     this.name,
-            spec:     this.spec,
-            rules:    this.rules
+            name:    this.name,
+            spec:    this.spec,
+            rules:   this.rules,
+            options: this.options,
         };
     }
 }
