@@ -320,6 +320,8 @@ class Cluster {
         if(c.endpoints)
             c.endpoints.forEach( (e) => this.addEndPoint(e) );
         this.retriable = true;
+        this.options = c.options ||
+            {removeOrphanSessions: true};
     }
 
     toJSON(){
@@ -331,6 +333,7 @@ class Cluster {
             endpoints:    this.endpoints,
             loadbalancer: this.loadbalancer || 'none',
             // retriable:    this.retriable
+            options:      this.options,
         };
     }
 

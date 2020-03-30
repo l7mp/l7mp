@@ -101,7 +101,7 @@ components:
           items:
             $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
         options:
-          description: Listener optional features.
+          description: Optional features.
           type: object
           properties:
             removeOrphanSessions:
@@ -216,6 +216,13 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/io.l7mp.api.v1.EndPoint'
+        options:
+          description: Optional features.
+          type: object
+          properties:
+            removeOrphanSessions:
+              description: On removing the cluster also remove all sessions router through the cluster.
+              type: boolean
 
     io.l7mp.api.v1.WebSocketClusterSpec:
       description: A WebSocket cluster specification that forwards HTTP/WebSocket connections to an upstream cluster.

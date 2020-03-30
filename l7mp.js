@@ -276,9 +276,11 @@ class L7mp {
         if(i >= 0){
             let l = this.listeners[i];
             if(l.options.removeOrphanSessions)
-                for(let s of this.sessions)
-                    if(s.listener && s.listener.name === l.name)
+                for(let s of this.sessions){
+                    let r = s.route;
+                    if(r && r.source.origin.name === l.name)
                         this.deleteSession(s.name);
+                }
             this.listeners.splice(i, 1);
         } else {
             let e = `Unknown listener "${n}"`;
@@ -334,6 +336,17 @@ class L7mp {
         log.info('L7mp.deleteCluster');
         let i = this.clusters.findIndex( ({name}) => name === n);
         if(i >= 0){
+            let c = this.clusters[i];
+            if(c.options.removeOrphanSessions)
+                for(let s of this.sessions){
+                    let r = s.route;
+                    if(r.destination.origin.name === c.name ||
+                       r.chain.ingress.some(stage =>
+                                            stage.origin.name === c.name) ||
+                       r.chain.egress.some(stage =>
+                                           stage.origin.name === c.name))
+                        this.deleteSession(s.name);
+                }
             this.clusters.splice(i, 1);
         } else {
             let e = `Unknown cluster "${n}"`;
