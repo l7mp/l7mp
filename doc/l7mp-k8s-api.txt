@@ -1,0 +1,191 @@
+#+LaTeX_HEADER:\usepackage[margin=2cm]{geometry}
+#+LaTeX_HEADER:\usepackage{enumitem}
+#+LaTeX_HEADER:\renewcommand{\ttdefault}{pcr}
+#+LaTeX_HEADER:\lstdefinelanguage{yaml}{basicstyle=\ttfamily\scriptsize,frame=lrtb,framerule=1pt,framexleftmargin=1pt,showstringspaces=false}
+#+LaTeX_HEADER:\usepackage{etoolbox}
+#+LaTeX_HEADER:\makeatletter\patchcmd{\@verbatim}{\verbatim@font}{\verbatim@font\scriptsize}{}{}\makeatother
+#+LATEX:\setitemize{noitemsep,topsep=0pt,parsep=0pt,partopsep=0pt}
+#+OPTIONS: toc:nil author:nil ^:nil
+
+#+TITLE: L7mp Kubernetes API: A Simple UDP API Gateway
+
+* Setup
+
+Functionality:
+- set up a UDP listener
+- accept from a specified  source IP/UDP port
+- translate to WebSocket
+- set some HTTP headers
+- call out to a Transcoder middlepoint service
+- then route to a worker service
+- there are no middlepoints (transformers) in the downlink direction
+  (we could easily add one)
+
+:                 +------------+
+:                 | transcoder |
+:                 |  WS: 8888  |
+:                 +------------+
+:                       A |
+:      +--------+ id:1  | |      +---------+
+:  --> |gateway |-------+ +----->|worker   |
+:  <-- |UDP:9001|<---------------|WS:9999  |
+:      +--------+                +---------+
+
+* Environment
+
+A set of deployments/services must to be configured manually beforehand:
+- "gateway" deployment/service: a set of =l7mp= pods
+- "transcoder" deployment/service: a custom pod/svc that does payload
+  transformation in the uplink direction (can be a HTTP/WS echo server
+  for testing)
+- "worker" deployment/service: some worker service that processes the
+  UDP payloads (can be a HTTP/WS echo server for testing)
+
+* Inline config
+
+In this config, all service definitions go inline into a single
+VirtualService; this means that if there are more UDP endpoints (i.e.,
+more VirtualService objects) then each one needs to repeat the inline
+service definitions
+
+#+BEGIN_SRC yaml
+apiVersion: l7mp.io/v1
+kind: VirtualService
+metadata:
+  name: my-udp-service
+  namespace: default
+  selector:
+    serviceName: gateway
+    namespace: default
+spec:
+  virtualHost:
+  - name: my-udp-endpoint
+    spec: { protocol: UDP, port: 9001 }
+    rules:
+    - match:
+        # match the source IP/port
+        op: and
+        apply:
+          # primitive way to check if user connects from 10.0.0.1
+          - { op: test, path: '/IP/src_addr', value: '10.0.0.1' }
+          # exact match for source port
+          - { op: test, path: '/UDP/src_port', value: 9001 }
+      action:
+        # set some HTTP header field
+        rewrite:
+          - path: "HTTP/headers"
+            value: { id: 1 }
+        route:
+          # route to the worker service
+          cluster:
+            spec: { protocol: WebSocket, port: 9999 }
+            endpoints:
+              - spec: { address: "worker.default.svc.cluster.local" }
+            options:
+              removeOrphanSessions: true
+          # ingress direction: insert the transcoder as a waypoint
+          ingress:
+            - spec: { protocol: WebSocket, port: 8888 }
+              endpoints:
+                - spec: { address: "transcoder.default.svc.cluster.local" }
+              options:
+                removeOrphanSessions: true
+        retry:
+          retry_on: 'failure'        # always/failure/disconnect/never
+          num_retries: 3
+          timeout: 2000              # msec
+      options:
+        removeOrphanSessions: true
+#+END_SRC
+
+* Config with explicit upstream definitions
+
+In this config, the worker and the transcoder services are wrapped
+with a named Upstream definition so we can reuse them for multiple
+VirtualService objects. The =static= type used below is the simplest
+upstream, where all aspects of connection management (load-balancing,
+retry/timeout, canary) are outsourced to a service mesh like Istio (if
+available) or default Kubernetes (i.e., will be missing except default
+equal-weight load-balancing).
+
+#+BEGIN_SRC yaml
+apiVersion: l7mp.io/v1
+kind: Upstream
+metadata:
+  name: transcoder
+  namespace: default
+spec:
+  static:
+    spec:
+      protocol: WebSocket
+      port: 8888
+    endpoints:
+    - spec: { address: "transcoder.default.svc.cluster.local" }
+    options:
+      removeOrphanSessions: true
+
+---
+
+apiVersion: l7mp.io/v1
+kind: Upstream
+metadata:
+  name: worker
+  namespace: default
+spec:
+  static:
+    spec:
+      protocol: WebSocket
+      port: 9999
+    endpoints:
+    - spec: { address: "worker.default.svc.cluster.local" }
+    options:
+      removeOrphanSessions: true
+
+---
+
+apiVersion: l7mp.io/v1
+kind: VirtualService
+metadata:
+  name: my-udp-service
+  namespace: default
+  selector:
+    serviceName: gateway
+    namespace: default
+spec:
+  virtualHost:
+  - name: my-udp-endpoint
+    spec: { protocol: UDP, port: 9001 }
+    rules:
+    - match:
+        op: and
+        apply:
+          - { op: starts, path: '/IP/src_addr', value: '10.0.0' }
+          - { op: test, path: '/UDP/src_port', value: 9001 }
+      action:
+        rewrite:
+          - path: "HTTP/headers"
+            value: { id: 1 }
+        route:
+          cluster: worker
+          ingress:
+            - transcoder
+      options:
+        removeOrphanSessions: true
+#+END_SRC
+
+* Sessions
+
+Eventually, we should be able to query/kill live streams/sessions from the
+data plane, but currently this is a TODO
+
+* How K8s API objects map to L7mp objects
+
+|----------------+---------------+------|
+| K8s API        | L7mp REST API | Note |
+|----------------+---------------+------|
+| Upstream       | Cluster       | v1   |
+| VirtualService | Listener      | v1   |
+| Session        | Session       | ???  |
+| Gateway        | Listener      | TODO |
+| Route          | Route         | TODO |
+|----------------+---------------+------|
