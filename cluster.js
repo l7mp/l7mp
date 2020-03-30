@@ -192,14 +192,13 @@ class WebSocketEndPoint extends EndPoint {
         // with ws as an argument!
         ws.once('open', () => ws.emit('open', ws));
         ws.once('error',
-                (e) => { log.warn('WebSocketEndPoint:connect:error',
+                (e) => { log.warn('WebSocketEndPoint:connect: Error:',
                                   `${e.errno}: ${e.address}:${e.port}`);
                          ws.emit('error', e); });
         ws.once('end', () => { log.info('WebSocketEndPoint:end'); });
 
         return ws;
     }
-
 };
 
 class UDPEndPoint extends EndPoint {
@@ -320,6 +319,7 @@ class Cluster {
         this.endpoints = [];
         if(c.endpoints)
             c.endpoints.forEach( (e) => this.addEndPoint(e) );
+        this.retriable = true;
     }
 
     toJSON(){
@@ -330,6 +330,7 @@ class Cluster {
             // type:         this.type,
             endpoints:    this.endpoints,
             loadbalancer: this.loadbalancer || 'none',
+            // retriable:    this.retriable
         };
     }
 
@@ -382,13 +383,15 @@ class WebSocketCluster extends Cluster {
     }
 
     async stream(s){
-        log.silly('WebSocketCluster.stream', `Session: ${s.name}`);
+        log.silly('WebSocketCluster.stream:', `Session: ${s.name}`);
         return this.connect(s).then(
             (args) => {
                 // multiArg!
                 let ws = args[0];
-                return WebSocket.createWebSocketStream(ws,
-                                  {readableObjectMode: true})
+                let _stream = WebSocket
+                    .createWebSocketStream(ws, {readableObjectMode: true});
+                eventDebug(_stream);
+                return _stream;
             });
     }
 };
@@ -422,8 +425,7 @@ class UDPCluster extends Cluster {
 
             this._stream = new utils.DatagramStream(socket);
             log.silly('UDPCluster.stream:', `Created`);
-
-            eventDebug(this._stream);
+            // eventDebug(this._stream);
 
             return this._stream;
         });
@@ -439,6 +441,7 @@ class L7mpControllerCluster extends Cluster {
             type:         'session'
         });
         this.openapi = new L7mpOpenAPI();
+        this.retriable = false;
     }
 
     connect(s){
@@ -470,6 +473,7 @@ class StdioCluster extends Cluster {
             loadbalancer: 'none',
             type:         'stream'
         });
+        this.retriable = false;
     }
 
     connect(s){
@@ -478,6 +482,9 @@ class StdioCluster extends Cluster {
 
     stream(s){
         log.silly('StdioCluster.stream', `Session: "${s.name}"`);
+        // flush stdout
+        process.stdout.clearLine();
+        process.stdout.cursorTo(0);
         return Promise.resolve(miss.duplex(process.stdout, process.stdin));
     }
 };

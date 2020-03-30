@@ -25,9 +25,11 @@
 const log          = require('npmlog');
 const EventEmitter = require('events').EventEmitter;
 const util         = require('util');
-const miss         = require('mississippi')
+const miss         = require('mississippi');
 const _            = require('underscore');
-const eventDebug   = require('event-debug')
+const eventDebug   = require('event-debug');
+const delay        = require('delay');
+const pRetry       = require('p-retry');
 
 //------------------------------------
 //
@@ -74,67 +76,44 @@ class Route {
                   `${this.source.origin.name} ->`,
                   `${this.destination.origin.name}`);
 
+        this.source.last_conn = Date.now();
+
         //eventDebug(this.source.stream);
 
         // prepare wait_list
         let wait_list = this.pipeline_init();
 
         // resolve
-        let success = 0;
-        var resolved_list = [];
-        while(1){
-            try {
-                resolved_list = await Promise.all(wait_list);
-                break;
-            } catch(e){
-                // at this point we SHOULD get the reference to the
-                // cluster that could not connect
-                let ref = e.ref;
-                let index = e.index;  // index on the wait_list
-                if (typeof ref !== 'object' ||
-                    typeof index === 'undefined' || index < 0){
-                    log.error('Route.pipeline: Internal error:',
-                              'unknown ref/index on connect error');
-                }
-
-                log.info("Route.pipeline:", `Session: ${s.name}: Error on`,
-                         `cluster "${ref.origin.name}"/index:${index}:`,
-                         (e.errno) ? `${e.errno}: ${e.address}:${e.port}` :
-                         dumper(e, 1));
-                if(log.level === 'silly')
-                    console.trace();
-
-                let p = this.pipeline_reconnect(ref, index)
-                if(!p)
-                    throw new Error(`Pipeline initialization failed for `+
-                                    `session: ${s.name}: `+
-                                    `could not connect "${ref.origin.name}: ` +
-                                    `retry={retry_on: ${this.retry.retry_on}, `+
-                                    `num_retries: ${this.retry.num_retries}, `+
-                                    `timeout: ${this.retry.timeout}}: `+
-                                    `retry_num: ${ref.retry_num}: last error: `+
-                                    e.errno);
-                wait_list[index] = p;
-            }
+        try {
+            var resolved_list = await Promise.all(wait_list);
+        } catch(error){
+            // dump(error, 2);
+            throw new Error(`Pipeline initialization failed for `+
+                            `session: ${s.name}: `+
+                            `could not connect "${error.stage.origin.name}": ` +
+                            `retry=${dumper(this.retry, 1)}: last error: `+
+                            (error.errno ?
+                             `${error.errno}: ${error.address}:${error.port}` :
+                             dumper(error, 1)));
         }
 
         for(let i = 0; i < resolved_list.length; i++)
             if(typeof resolved_list[i] === 'undefined'){
                 log.error("Route.pipeline:", `Internal error:`,
-                          `Empty stream for cluster`,
-                          `${resolved_list[i].ref.origin.name}`);
-                // return new Error('Empty stream');
-           }
+                          `Empty stream for cluster`);
+            }
 
         // set streams for each route elem
         let d = resolved_list.pop();
         this.destination.stream = d.stream;
         this.active_streams++;
+
         resolved_list.forEach( (r) => {
-            r.ref.stream = r.stream;
+            r.stage.stream = r.stream;
             this.active_streams++;
         });
 
+        this.num_streams = this.active_streams;
         log.info("Route.pipeline:",
                  `${this.active_streams} stream(s) initiated`);
 
@@ -150,119 +129,176 @@ class Route {
         // been handled by the cluster/route)
         this.pipeline_event_handlers();
 
+        // this.pipeline_dump();
+
         return this;
     }
 
     pipeline_init(){
         let s = this.session;
-
-        // init retry counts
-        for(let dir of ['ingress', 'egress']){
-            this.chain[dir].forEach( (e) => { e.retry_num = 0 });
-        }
-        this.destination.retry_num = 0;
+        let retry_policy = this.retry;
+        let num_retries = retry_policy.retry_on === 'connect-failure' ||
+            retry_policy.retry_on === 'always' ? retry_policy.num_retries : 0;
 
         var wait_list = [];
-        let i = 0;
         for(let dir of ['ingress', 'egress']){
             this.chain[dir].forEach( (e) => {
-                wait_list.push(this.connect_cluster(e, i++));
+                wait_list.push(this.connect_stage(e, num_retries));
             });
         }
-        wait_list.push(this.connect_cluster(this.destination, i++));
+        wait_list.push(this.connect_stage(this.destination, num_retries));
 
         return wait_list;
     }
 
-    connect_cluster(ref, i){
-        let s = this.session;
-        return ref.origin.stream(s).then(
-            (stream) => {
-                return {ref: ref,
-                        stream: stream};
-            },
-            (error) => {
-                // return the problematic endpoint
-                error.ref = ref; error.index = i; throw error;
-            });
-    }
-
-    pipeline_reconnect(ref, index){
-        let cluster = ref.origin;
-        let retry = this.retry;
-        let s = this.session;
-
-        log.silly('Route.pipeline_reconnect:',
-                  `session ${s.name}:`,
-                  `cluster "${cluster.name}"/index:${index}:`,
-                  `retry_on: ${retry.retry_on},`,
-                  `num_retries: ${retry.num_retries},`,
-                  `timeout: ${retry.timeout}:`
-                 );
-
-        if((retry.retry_on === 'connect-failure' ||
-            retry.retry_on === 'always') &&
-           ref.retry_num++ < retry.num_retries){
-            log.info('Route.pipeline_reconnect:',
-                      `session ${s.name}:`,
-                      `reconnecting cluster`,
-                      `"${cluster.name}"/index:${index}:`,
-                      `retry_num: ${ref.retry_num}`
-                     );
-
-            // rewrite failed stream promise on the wait_list to a
-            // promise that waits for timeout msecs and try to
-            // reconnect
-            return new Promise(
-                resolve => setTimeout(resolve,
-                                      retry.timeout)).
-                then( () => this.connect_cluster(ref, index));
-        }
-        return 0;
-    }
-
     pipeline_finish(source, dest, chain, dir){
         var from = source;
+        from.status = 'READY';
         chain.forEach( (to) => {
             log.silly("Route.pipeline:", `${dir} pipe:`,
                       `${from.origin.name} ->`,
                       `${to.origin.name}`);
             this.pipe(from, to);
+            // may re-apply status setting on source
+            from.status = 'READY';
             from = to;
         });
         log.silly("Route.pipeline:", `${dir} pipe:`,
-                  `${from.origin.name} ->`,
-                  `${dest.origin.name}`);
+                  `${from.origin.name} ->`, `${dest.origin.name}`);
         this.pipe(from, dest);
+        from.status = 'READY';
     }
 
     pipeline_event_handlers(){
-        this.set_event_handlers(this.source);
+        this.set_stage_event_handlers(this.source);
         for(let dir of ['ingress', 'egress']){
-            this.chain[dir].forEach( (e) => {
-                this.set_event_handlers(e);
+            this.chain[dir].forEach( (stage) => {
+                this.set_stage_event_handlers(stage);
             });
         }
-        this.set_event_handlers(this.destination);
+        this.set_stage_event_handlers(this.destination);
     }
 
-    set_event_handlers(ref){
+    pipeline_dump(){
+        this.get_stages()
+        this.stage_dump(this.source, 'source/listener');
+        for(let dir of ['ingress', 'egress']){
+            let i = 0;
+            this.chain[dir].forEach( (stage) => {
+                this.stage_dump(stage, `${dir}/stage:${i++}`);
+            });
+        }
+        this.stage_dump(this.destination, 'destination/cluster');
+    }
+
+    // STAGE: stage = cluster + stream + status
+    // STATUS: CONNECTED -> READY -> DISCONNECTED -> RETRYING -> END
+    connect_stage(stage, num_retries){
+        let s = this.session;
+        let cluster = stage.origin;
+
+        return pRetry(async () => {
+            if(typeof s === 'undefined'){
+                pRetry.AbortError(
+                    new Error("Route.connect_stage:", `Session: ${s.name}:`,
+                              `cluster "${cluster.name}": Internal error:`,
+                              `Session removed while retrying`));
+            }
+
+            if(stage.status === 'FINALIZING')
+                pRetry.AbortError(
+                    new Error("Route.connect_stage:", `Session: ${s.name}:`,
+                              `cluster "${cluster.name}":`,
+                              `Session in FINALIZE, giving up on retry`));
+
+            switch(stage.status){
+            case 'CONNECTED': pRetry.AbortError(
+                new Error("Route.connect_stage:", `Session: ${s.name}:`,
+                          `cluster "${cluster.name}":`,
+                          `Retrying a CONNECTED stage`));
+                break;
+            case 'END': pRetry.AbortError(
+                new Error("Route.connect_stage:", `Session: ${s.name}:`,
+                          `cluster "${cluster.name}":`,
+                          `Stage ended, not retrying`));
+                break;
+            default: { /* ingoring */ };
+            };
+            let stream = await stage.origin.stream(s);
+
+            log.info("Route.connect_stage:", `Session: ${s.name}:`,
+                     `cluster "${cluster.name}": connected`);
+
+            stage.last_conn = Date.now();
+            stage.status = 'CONNECTED';
+            return {stage: stage, stream: stream};
+        }, {
+            onFailedAttempt: error => {
+                log.info("Route.connect_stage:", `Session: ${s.name}:`,
+                         `cluster "${cluster.name}"/${stage.status}`,
+                         `Attempt ${error.attemptNumber} failed`,
+                         `(${error.retriesLeft} retries left):`,
+                         (error.errno) ?
+                         `${error.errno}: ${error.address}:${error.port}` :
+                         dumper(error, 1));
+
+                // DISCONNECTED BUT UNDER RETRY
+                stage.status = 'RETRYING';
+
+                // if(log.level === 'silly')
+                //     console.trace();
+
+                // will return the problematic endpoint eventually
+                error.stage = stage;
+            },
+            retries: num_retries,
+            factor: 1,
+            minTimeout: this.retry.timeout,
+            randomize: false
+        });
+    }
+
+    set_stage_event_handlers(stage){
         // Writable has 'close', readable has 'end', duplex has
         // who-knows...
         // need this for being able to remove listeners
-        var onDisc = this.onDisc = this.disconnect.bind(this);
-        var eh = (event, e) => {
-            e.stream.on(event, (err) => {
+        // var onDisc = this.disconnect.bind(this);
+        stage.on_disc = {};
+        var eh = (event) => {
+            // to be able to remove the event handler in this.end()
+            stage.on_disc[event] = (err) => {
                 log.silly(`Route.event:`, `"${event}" event received:`,
-                          `${e.origin.name}`,
+                          `${stage.origin.name}`,
                           (err) ? ` Error: ${err}` : '');
-                onDisc(e, err);
-            });
+                this.disconnect.bind(this)(stage, err);
+            };
+            stage.stream.on(event, stage.on_disc[event]);
         };
 
-        eh('end', ref);
-        eh('close', ref);
-        eh('error', ref);
+        eh('end', stage);
+        eh('close', stage);
+        eh('error', stage);
+    }
+
+    stage_dump(stage, role){
+        log.silly(`Route.stage_dump: ${stage.origin.name}: ${role}: Status: ${stage.status}`);
+        let s = stage.stream;
+        if(s){
+            log.silly(`Route.stage_dump:`,
+                      s.writable ? 'writable,' : 'not-writable,',
+                      `destroyed:`, s.writableDestroyed ? 'true,':'false,',
+                      `writableEnded:`, s.writableEnded ? 'true,':'false,',
+                      `writableFinished:`, s.writableFinished ? 'true,':'false,',
+                      `writableLength: ${s.writableLength},`,
+                      `writableObjectMode:`, s.writableObjectMode ? 'true':'false');
+            log.silly(`Route.stage_dump:`,
+                      s.readable ? 'readable,' : 'not-readable,',
+                      `destroyed:`, s.destroyed ? 'true,':'false,',
+                      `readableEnded:`, s.readableEnded ? 'true,':'false,',
+                      `isPaused:`, s.isPaused()  ? 'true,':'false,',
+                      `readableObjectMode:`, s.readableObjectMode ? 'true':'false'
+                     );
+        }
     }
 
     // local override to allow experimenting with mississippi.pipe or
@@ -281,44 +317,10 @@ class Route {
         // });
     }
 
-    getIngressStreams(){
-        let streams = [];
-        if(this.source.stream)
-            streams.push(this.source.stream);
-        if(this.chain && this.chain['ingress'])
-            this.chain['ingress'].forEach( (e) => {
-                if(e.stream)
-                    streams.push(e.stream);
-            });
-
-        return streams;
-    }
-
-    getEgressStreams(){
-        let streams = [];
-        if(this.chain && this.chain['egress'])
-            this.chain['egress'].forEach( (e) => {
-                if(e.stream)
-                    streams.push(e.stream);
-            });
-        if(this.destination && this.destination.stream)
-            streams.push(this.destination.stream);
-
-        return streams;
-    }
-
-    getStreams(){
-        let streams = this.getIngressStreams().concat(this.getEgressStreams());
-
-        // remove duplicates as per https://stackoverflow.com/questions/1960473/get-all-unique-values-in-a-javascript-array-remove-duplicates
-        streams = [...new Set(streams)]
-        return streams;
-    }
-
-    // ref.stream contains the new stream
-    repipe(ref){
+    // stage.stream contains the new stream
+    repipe(stage){
         let s      = this.session;
-        let origin = ref.origin;
+        let origin = stage.origin;
         let source = this.source;
         let dest   = this.destination;
 
@@ -326,52 +328,53 @@ class Route {
                   `origin: ${origin.name}`);
 
         // was error on source?
-        if(ref === source)
+        if(stage === source)
             log.error('Route.disconnect: Internal error:',
                       'onDisconnect called on listener');
 
         // was error on destination?
-        if(ref === this.destination){
+        if(stage === this.destination){
             let from = this.chain.ingress.length > 0 ?
                 this.chain.ingress[this.chain.ingress.length - 1] :
                 source;
-            this.pipe(from, ref);
+            this.pipe(from, stage);
             let to = this.chain.egress.length > 0 ?
                 this.chain.egress[0] : source;
-            this.pipe(ref, to);
+            this.pipe(stage, to);
+            stage.status = 'READY';
 
             log.silly('Route.repipe:', `session ${s.name}:`,
                       `destination cluster "${origin.name}" repiped`);
-
             return;
         }
 
         // was error on ingress?
-        let i = this.chain.ingress.findIndex(r => r === ref);
+        let i = this.chain.ingress.findIndex(r => r === stage);
         if(i >= 0){
             let from = i === 0 ? source : this.chain.ingress[i-1];
-            this.pipe(from, ref);
+            this.pipe(from, stage);
             let to = i === this.chain.ingress.length - 1 ?
                 dest : this.chain.ingress[i+1];
-            this.pipe(ref, to);
+            this.pipe(stage, to);
+            stage.status = 'READY';
 
             log.silly('Route.repipe:', `session ${s.name}:`,
                       `ingress chain repiped on cluster "${origin.name}"`);
-
             return;
         }
 
-        i = this.chain.egress.findIndex(r => r === ref);
+        i = this.chain.egress.findIndex(r => r === stage);
         if(i<0)
             log.error('Route.repipe: Internal error:',
                       'Could not find disconnected cluster',
-                      `${ref.origin}`);
+                      `${stage.origin}`);
 
         let from = i === 0 ? dest : this.chain.egress[i-1];
-        this.pipe(from, ref);
+        this.pipe(from, stage);
         let to = i === this.chain.egress - 1 ?
             source : this.chain.egress[i+1];
-        this.pipe(ref, to);
+        this.pipe(stage, to);
+        stage.status = 'READY';
 
         log.silly('Route.repipe:', `session ${s.name}:`,
                   `egress chain repiped on cluster "${origin.name}"`);
@@ -380,75 +383,91 @@ class Route {
     }
 
     // called when one of the streams fail
-    async disconnect(ref, error){
-        let origin = ref.origin;
-        let stream = ref.stream;
+    async disconnect(stage, error){
+        let cluster = stage.origin;
+        let stream = stage.stream;
         let s = this.session;
 
         log.silly('Route.disconnect:', `session ${s.name}:`,
-                  `origin: ${origin.name}:`,
+                  `cluster: ${cluster.name}:`,
                   error ? `Error: ${error.message}` :
                   'Reason: unknown');
+
+        // this.stage_dump(stage, stage === this.destination ?
+        //                 'destination/cluster' : 'stage');
+
+        if(stage.status !== 'READY'){
+            // we received mutliple events for the same stage (e.g.,
+            // error followed by a close), ignore all but the first
+            log.silly('Route.disconnect:', `session ${s.name}:`,
+                      `cluster: ${cluster.name}:`,
+                      `Stage status: ${stage.status}: Ignoring`);
+            return;
+        }
+
+        stage.status = 'DISCONNECTED';
         this.active_streams--;
 
         if(s.metadata.status === 'CONNECTED')
-            s.emit('disconnect', origin, error);
+            s.emit('disconnect', cluster, error);
         if(this.active_streams === 0)
             s.emit('destroy');
 
-        let retry = this.retry;
-        switch(retry.retry_on){
+        let retry_policy = this.retry;
+        switch(retry_policy.retry_on){
         case 'always':
         case 'on-disconnect':
-            // handle retry
-            ref.retry_num = 0;
-            while(1){
-                if(this.retry_on_disconnect_num++ ==
-                   retry.num_retries){
-                    let msg = `session ${s.name}: ` +
-                        `could not be re-connected after ` +
-                        `${this.retry_on_disconnect_num-1} attempts: ` +
-                        `retry={retry_on: ${this.retry.retry_on}, `+
-                        `num_retries: ${this.retry.num_retries}, `+
-                        `timeout: ${this.retry.timeout}}`;
 
-                    log.info('Route.disconnect:', msg);
-                    s.emit('error', new Error(`Reconnect failed: ${msg}`));
-                    break;
-                }
-
-                try {
-                    let e = await this.connect_cluster(ref, 0);
-                    // store new stream
-                    ref.stream = e.stream;
-                    this.active_streams++;
-                    this.session.emit('connect');
-
-                    log.info('Route.disconnect:',
-                             `session ${s.name}:`,
-                             `origin "${origin.name}"`,
-                             `successfully reconnected after`,
-                             `${this.retry_on_disconnect_num} attempts`);
-
-                    this.repipe(ref);
-                    this.set_event_handlers(ref);
-
-                    break;
-                } catch(e){
-                    log.info('Route.disconnect:',
-                             `session ${s.name}:`,
-                             `origin "${origin.name}"`,
-                             `could not be reconnected: error:`,
-                             e.message || dumper(e,1),
-                             `retry_on_disconnect_num:`,
-                             this.retry_on_disconnect_num,
-                             `timeout: ${retry.timeout}:`);
-
-                    // wait
-                    await new Promise(r =>
-                                      setTimeout(r, retry.timeout));
-                }
+            if(!stage.origin.retriable){
+                let msg = `session ${s.name}: Cluster "${stage.origin.name}" ` +
+                    `is not retriable, terminating session`;
+                log.info('Route.disconnect:', msg);
+                s.emit('error', new Error(`Reconnect failed: ${msg}`));
+                return;
             }
+
+            // dampen retries: never attempt to reconnect a
+            // cluster within timeout msecs of the last
+            // successfull connection (handle clusters that
+            // reconnect but then immediately drop connection like
+            // 'websocat -E...')
+            let time_wait = Math.max(retry_policy.timeout -
+                                     (Date.now() - stage.last_conn), 0);
+
+            // dump(time_wait,3);
+            // dump(retry_policy,3);
+
+            await delay(time_wait);
+
+            try {
+                var elem =
+                    await this.connect_stage(stage, retry_policy.num_retries);
+            } catch(error){
+                let msg = `session ${s.name}: could not be re-connected ` +
+                    `after ${retry_policy.num_retries} attempts`;
+
+                log.info('Route.disconnect:', msg);
+                stage.status = 'END';
+                s.emit('error', new Error(`Reconnect failed: ${msg}`));
+                return;
+            }
+
+            log.info('Route.disconnect:', `session ${s.name}:`,
+                     `cluster "${cluster.name}"`,
+                     `successfully reconnected`);
+
+            // store new stream
+            stage.stream = elem.stream;
+            this.active_streams++;
+
+            if(this.active_streams === this.num_streams)
+                this.session.emit('connect');
+
+            this.repipe(stage);
+            this.set_stage_event_handlers(stage);
+            stage.status = 'READY';
+            // this.pipeline_dump();
+
             break;
         case 'connect-failure': // does not involve re-connect
         case 'never': // never retry, fail immediately
@@ -466,22 +485,68 @@ class Route {
         }
     }
 
-    // if error is defined, emit an error event
-    end(error){
-        let queue = this.getStreams();
-        log.silly('Route.end:', `${this.name}:`, `error:`,
-                  error || 'NONE', `deleting ${queue.length} streams`);
-        queue.forEach( (s) => {
-            // remove event handlers to prevent event storms and
-            // recursively re-call us from each event handler
-            s.removeListener("end", this.onDisc);
-            s.removeListener("close", this.onDisc);
-            s.removeListener("error", this.onDisc);
-
-            if(!s.destroyed) s.end();
-        });
+    get_stages(){
+        let stages = [this.source];
+        stages = stages.concat(this.chain.ingress);
+        stages = stages.concat(this.chain.egress);
+        stages.push(this.destination);
+        return stages;
     }
 
+    // return 1 of route/session can be deleted (i.e., no retry is
+    // ongoing), otherwise keep route/session around until all retries
+    // have been aborted
+    end(error){
+        log.silly('Route.end:', `${this.name}`);
+        let deleted = 0;
+        let ret = 1;
+
+        for(let stage of this.get_stages()){
+            // let retry to first terminate
+            if(stage.status === 'RETRYING'){
+                log.silly('Route.end:', `${this.name}:`,
+                          `Cluster: ${stage.origin.name}:`,
+                          `Stage retrying, not removing`);
+                ret = 0;
+                continue;
+            }
+
+            // status is CONNECTED, DISCONNECTED, or END
+            log.silly('Route.end:', `${this.name}:`,
+                      `Cluster: "${stage.origin.name}"/${stage.status}:`,
+                      `Ending stage`);
+            let stream = stage.stream;
+            try{
+                // log.info('end:', stream.listenerCount("end"));
+                stream.removeListener("end", stage.on_disc["end"]);
+                // log.info('end:', stream.listenerCount("end"));
+
+                // log.info('close:', stream.listenerCount("close"));
+                stream.removeListener("close", stage.on_disc["close"]);
+                // log.info('close:', stream.listenerCount("close"));
+
+                // log.info('error:', stream.listenerCount("error"));
+                stream.removeListener("error", stage.on_disc["error"]);
+                // log.info('error:', stream.listenerCount("error"));
+
+                stream.end();
+                deleted++;
+            } catch(e){
+                log.info('Route.end:', `${this.name}:`,
+                         `Could not terminate stage:`,
+                         `Cluster: "${stage.origin.name}"/${stage.status}:`,
+                         dumper(e,3));
+            }
+
+            stage.status = 'END';
+        }
+
+        log.info('Route.end:', `${this.name}:`, `error:`,
+                 error || 'NONE', `delete ${deleted} stages`);
+
+        // return OK if no stage is retrying
+        return ret;
+    }
 };
 Route.index = 0;
 

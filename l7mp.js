@@ -92,9 +92,12 @@ class L7mp {
         // error
         s.on('error', (e) => {
             log.warn('Session.error:', `Session "${s.name}":`,
-                     e.message || dumper(e,1));
-            listener.origin.end(s, e);
+                     dumper(e,3));
+                     // e.message || dumper(e,1));
             s.metadata.status = 'FINALIZING';
+            listener.origin.end(s, e);
+            setImmediate(() =>
+                         this.deleteSessionIfExists(s.name));
         });
 
         // normal end
@@ -102,6 +105,9 @@ class L7mp {
             log.info('Session.end:', `Session "${s.name}":`,
                      `Ending normally`);
             s.metadata.status = 'FINALIZING';
+            setImmediate(() =>
+                         this.deleteSessionIfExists(s.name));
+            s.metadata.status = 'DESTROYED';
         });
 
         s.on('destroy', () => {
@@ -405,14 +411,16 @@ class L7mp {
         }
 
         let s = this.sessions[i];
-        try{
-            if(s.route)
-                this.deleteRoute(s.route.name);
-        } catch(e){
-            log.error('catch', e);
-        }
+        // try{
+        //     if(s.route)
+        //         this.deleteRoute(s.route.name);
+        // } catch(e){
+        //     log.error('Trying to delete a nonexistent route', e);
+        // }
 
-        this.sessions.splice(i, 1);
+        // returns 1 if no retrying stage exists
+        if(this.deleteRoute(s.route.name))
+            this.sessions.splice(i, 1);
     }
 
     deleteSessionIfExists(n){
@@ -484,8 +492,9 @@ class L7mp {
         log.silly('L7mp.deleteRoute:', n);
         let i = this.routes.findIndex(({name}) => name === n);
         if(i >= 0){
-            this.routes.splice(i, 1);
-            return;
+            // returns 1 if no retrying stage exists
+            if(this.routes[i].end())
+                this.routes.splice(i, 1);
         }
     }
 

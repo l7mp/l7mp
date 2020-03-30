@@ -407,7 +407,7 @@ class UDPSingletonListener extends Listener {
         this.emit('emit', metadata, listener);
     }
 
-    end(s, e){ this.socket.close(); }
+    end(s, e){ try { this.socket.close(); } catch(e) {/*ignore*/} }
 };
 
 Listener.create = (l) => {
