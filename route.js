@@ -416,8 +416,7 @@ class Route {
         let retry_policy = this.retry;
         switch(retry_policy.retry_on){
         case 'always':
-        case 'on-disconnect':
-
+        case 'disconnect':
             if(!stage.origin.retriable){
                 let msg = `session ${s.name}: Cluster "${stage.origin.name}" ` +
                     `is not retriable, terminating session`;
