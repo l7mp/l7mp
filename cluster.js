@@ -34,7 +34,7 @@ const pTimeout      = require('p-timeout');
 const pEvent        = require('p-event');
 
 const stream        = require('stream');
-const streamops     = require("stream-operators");
+// const streamops     = require("stream-operators");
 const miss          = require('mississippi');
 const jsonPredicate = require("json-predicate")
 const eventDebug    = require('event-debug');
@@ -539,11 +539,87 @@ class LoggerCluster extends Cluster {
                                               { flags: 'w' });
         }
 
-        return Promise.resolve( streamops.map( (arg) => {
-            let log_msg = (this.spec.log_prefix) ?
-                `${this.spec.log_prefix}: ${arg}` : arg;
-            log_stream.write(log_msg); return arg;
-        }));
+        return Promise.resolve( miss.through(
+            (arg, enc, cb) => {
+                let log_msg = (this.spec.log_prefix) ?
+                    `${this.spec.log_prefix}: ${arg}` : arg;
+                log_stream.write(log_msg);
+                cb(null, arg);
+            },
+            (cb) => { cb(null, '') }
+        ));
+
+        // return Promise.resolve( streamops.map( (arg) => {
+        //     let log_msg = (this.spec.log_prefix) ?
+        //         `${this.spec.log_prefix}: ${arg}` : arg;
+        //     log_stream.write(log_msg); return arg;
+        // }));
+    }
+};
+
+class JSONEncapCluster extends Cluster {
+    constructor(c) {
+        super( {
+            name:         c.name || 'JSONEncapCluster',
+            spec:         { protocol: 'JSONEncap'},
+            loadbalancer: 'none',
+            type:         'datagram'
+        } );
+    }
+
+    connect(s){
+        return Promise.reject('JSONEncapCluster.connect: Not implemented');
+    }
+
+    stream(s){
+        log.silly('JSONEncapCluster.stream', `Session: ${s.name}`);
+        return Promise.resolve( miss.through.obj(  // objectMode=true
+            (arg, enc, cb) => {
+                let buffer = arg instanceof Buffer;
+                if(buffer) arg = arg.toString(enc);
+                let json = {
+                    metadata: s.metadata,
+                    payload: arg
+                };
+                arg = JSON.stringify(json);
+                cb(null, buffer ? Buffer.from(arg, enc) : arg);
+            },
+            (cb) => { cb(null, '') }
+        ));
+    }
+};
+
+class JSONDecapCluster extends Cluster {
+    constructor(c) {
+        super( {
+            name:         c.name || 'JSONDecapCluster',
+            spec:         { protocol: 'JSONDecap'},
+            loadbalancer: 'none',
+            type:         'datagram'
+        } );
+    }
+
+    connect(s){
+        return Promise.reject('JSONDecapCluster.connect: Not implemented');
+    }
+
+    stream(s){
+        log.silly('JSONDecapCluster.stream', `Session: ${s.name}`);
+        return Promise.resolve( miss.through.obj(  // objectMode=true
+            (arg, enc, cb) => {
+                let buffer = arg instanceof Buffer;
+                if(buffer) arg = arg.toString(enc);
+                try {
+                    let json = JSON.parse(arg);
+                    arg = json.payload ? json.payload : arg;
+                } catch(e){
+                    log.info('JSONDecapCluster.stream.transform:',
+                             'Invalid JSON payload: ', e);
+                }
+                cb(null, buffer ? Buffer.from(arg, enc) : arg);
+            },
+            (cb) => { cb(null, '') }
+        ));
     }
 };
 
@@ -608,6 +684,8 @@ Cluster.create = (c) => {
     case 'Stdio':          return new StdioCluster(c);
     case 'Echo':           return new EchoCluster(c);
     case 'Logger':         return new LoggerCluster(c);
+    case 'JSONEncap':      return new JSONEncapCluster(c);
+    case 'JSONDecap':      return new JSONDecapCluster(c);
     case 'Sync':           return new SyncCluster(c);
     case 'L7mpController': return new L7mpControllerCluster(c);
     default:

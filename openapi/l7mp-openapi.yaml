@@ -202,6 +202,8 @@ components:
             - $ref: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.LoggerClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.JSONEncapClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.JSONDecapClusterSpec'
           discriminator:
             propertyName: protocol
             mapping:
@@ -211,6 +213,8 @@ components:
               Stdio: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
               Echo: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
               Logger: '#/components/schemas/io.l7mp.api.v1.LoggerClusterSpec'
+              JSONEncap: '#/components/schemas/io.l7mp.api.v1.JSONEncapClusterSpec'
+              JSONDecap: '#/components/schemas/io.l7mp.api.v1.JSONDecapClusterSpec'
         endpoints:
           description: A list of EndPoint objects.
           type: array
@@ -309,6 +313,30 @@ components:
         log_prefix:
           description: Prefix log messages. Default is no prefix.
           type: string
+
+    io.l7mp.api.v1.JSONEncapClusterSpec:
+      description: A virtual cluster to encapsulate data in JSON. Session metadata is copied under the "/metadata" JSON path and content is copied under "/payload".
+      type: object
+      required:
+        - protocol
+      properties:
+        protocol:
+          description: The protocol, must be "JSONEncap".
+          type: string
+          enum:  # fixed value
+            - JSONEncap
+
+    io.l7mp.api.v1.JSONDecapClusterSpec:
+      description: A virtual cluster to decapsulates data from JSON. In particular, content from under "/payload" JSON path is decapsulated and returned and everything else is dropped.
+      type: object
+      required:
+        - protocol
+      properties:
+        protocol:
+          description: The protocol, must be "JSONDecap".
+          type: string
+          enum:  # fixed value
+            - JSONDecap
 
     io.l7mp.api.v1.EndPoint:
       description: A particular upstream backend that accepts connects through a Cluster.
