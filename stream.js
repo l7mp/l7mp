@@ -93,10 +93,13 @@ class DatagramStream extends Duplex {
     };
 
     _write(message, encoding, callback) {
-        if (typeof message === "string")
-            message = new Buffer(message, "utf8");
-        if(!Buffer.isBuffer(message))
-            message = new Buffer(message);
+        // if (typeof message === "string")
+        //     message = Buffer.from(message, encoding);
+        // if(!Buffer.isBuffer(message))
+        //     message = new Buffer(message);
+
+        if (! (message instanceof Buffer) )
+            message = Buffer.from(message, encoding);
 
         log.silly('DatagramStream._write:', `${this.remote.address}:`+
                   `${this.remote.port}:`,`${message}`);
