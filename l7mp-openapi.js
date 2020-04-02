@@ -249,6 +249,8 @@ class L7mpOpenAPI {
                 let valid = ctx.api.validateResponse(res.content,
                                                      ctx.operation, res.status);
                 if (valid.errors) {
+                    log.silly('l7mp.openapi: postResponseHandler failed:',
+                             `Response: ${dumper(res.content,2)}`);
                     res.status = 500;
                     res.content = {
                         message: 'Internal server error: Response validation failed',
