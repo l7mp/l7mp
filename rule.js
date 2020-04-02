@@ -22,10 +22,11 @@
 
 'use strict';
 
-const log           = require('npmlog');
-const _             = require('underscore');
-
+const log = require('npmlog');
+//const _   = require('underscore');
+const _   = require('lodash');
 const jsonPredicate = require("json-predicate")
+
 // use json-predicate.dataAtPath to query metadata
 // see doc at https://tools.ietf.org/html/draft-snell-json-test-07
 
@@ -151,6 +152,17 @@ Rule.setAtPath = (data, path, value) => {
             }
         }
     }
+}
+
+// make leading '/' optional
+Rule.getAtPath = (data, path) => {
+    var result, loc, locs = path.split('/');
+    if(locs.length && locs[0] === '')
+        locs.shift();
+    while(data && (loc = locs.shift())) {
+        result = data = data[loc];
+    }
+    return result;
 }
 
 module.exports.Rule = Rule;

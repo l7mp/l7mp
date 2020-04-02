@@ -32,17 +32,19 @@ const util          = require('util');
 const EventEmitter  = require('events');
 const pTimeout      = require('p-timeout');
 const pEvent        = require('p-event');
-
+const HashRing      = require('hashring');
 const stream        = require('stream');
-// const streamops     = require("stream-operators");
 const miss          = require('mississippi');
 const jsonPredicate = require("json-predicate")
 const eventDebug    = require('event-debug');
+const _             = require('lodash');
 
 const StreamCounter = require('./stream-counter.js').StreamCounter;
 const L7mpOpenAPI   = require('./l7mp-openapi.js').L7mpOpenAPI;
 const utils         = require('./stream.js');
 
+// for getAtPath()
+const Rule          = require('./rule.js').Rule;
 
 //------------------------------------
 //
@@ -52,42 +54,106 @@ const utils         = require('./stream.js');
 //
 //------------------------------------
 class LoadBalancer {
-    constructor(l){}
+    constructor(l){ this.policy = l.policy || 'None'; }
 
+    update(es){ this.es = es }
     apply(es){ log.error('LoadBalancer.apply', 'Base class called');
                console.trace(); }
 };
 
-class EmptyLoadBalancer extends LoadBalancer {
-    constructor(l){ super(l) }
-};
-
 // always chooses the first endpoint
 class TrivialLoadBalancer extends LoadBalancer {
-    constructor(){ super(); }
+    constructor(l){ super(l); }
 
     toJSON(){
         log.silly('TrivialLoadBalancer.toJSON');
-        return { name: 'TrivialLoadBalancer' };
+        return { policy: this.policy };
     }
 
-    apply(es, s) {
-        if(es.length === 0){
+    apply(s) {
+        if(this.es.length === 0){
             log.error('TrivialLoadBalancer.apply: No endpoint in cluster');
             process.exit();
         }
-        return es[0];
+        return this.es[0];
     }
 };
 
-LoadBalancer.create = (policy) => {
-    log.silly('LoadBalancer.create:', `policy: ${policy}`);
-    switch(policy){
-    case 'none':     return new EmptyLoadBalancer;
-    case 'trivial':  return new TrivialLoadBalancer();
+// always chooses the first endpoint
+class HashRingLoadBalancer extends LoadBalancer {
+    constructor(l){
+        super(l);
+        this.key = l.key || null;
+        this.es = [];
+    }
+
+
+    toJSON(){
+        log.silly('HashRingLoadBalancer.toJSON');
+        return { policy: 'HashRing',
+                 key:    this.key || '<RANDOM>'};
+    }
+
+    //TODO: this is static (recreate on update), make this dynamic
+    // (add/remove difference)
+    update(es){
+        log.silly('HashRingLoadBalancer.update');
+        this.keys = {};
+        es.forEach( (e) => {
+            this.keys[e.name] = { weight: e.weight, endpoint: e };
+        });
+        // dump(this.keys, 2);
+
+        this.hashring = new HashRing(this.keys, 'md5',
+                                     { replicas: 1, 'max cache size': 100 });
+
+    }
+
+    apply(s) {
+        log.silly('HashRingLoadBalancer.apply:', `Session: ${s.name}`);
+
+        if(Object.keys(this.keys).length === 0){
+            log.error('HashRingLoadBalancer.apply: No endpoint in cluster');
+            process.exit();
+        }
+
+        let key;
+        if(this.key){
+            key = Rule.getAtPath(s.metadata, this.key);
+            if (typeof key === 'undefined')
+                log.warn('HashRingLoadBalancer.apply:',
+                         `No key found for query "${this.key}",`,
+                         `falling back to random load-balancing`);
+        }
+        if((typeof this.key === 'undefined') || (typeof key === 'undefined'))
+            // TODO: this is NOT secure!
+            key = Math.floor(Math.random() * 1000).toString();
+
+        // log.silly('HashRingLoadBalancer.apply:', `Key: "${key}"`);
+        let n = this.hashring.get(key.toString());
+        let e = this.keys[n].endpoint;
+
+        log.silly('HashRingLoadBalancer.apply:',
+                  `Choosing endpoint "${e.name}" for key "${key}"`);
+
+        return e;
+    }
+};
+
+LoadBalancer.create = (l) => {
+    log.silly('LoadBalancer.create:', dumper(l,3));
+    switch(l.policy){
+    case 'None':            return new LoadBalancer(l);
+    case 'Trivial':         return new TrivialLoadBalancer(l);
+    case 'HashRing':        return new HashRingLoadBalancer(l);
+    case 'ConsistentHash':  return new HashRingLoadBalancer(l);
     default:
-        log.error('LoadBalancer.create',
-                  `TODO: Policy "${policy}" unimplemented`);
+        if(l.policy)
+            log.error('LoadBalancer.create',
+                      `TODO: Policy "${l.policy}" unimplemented`);
+        else
+            log.error('LoadBalancer.create',
+                      `TODO: Policy undefined`);
     }
 };
 
@@ -261,13 +327,10 @@ class UDPEndPoint extends EndPoint {
                       `${this.local_port}`)
 
             socket.on('connect', () => {
-                log.info('UDPEndPoint:',
-                         `"${this.name}" connected`,
-                         `for ${this.remote_address}:`+
-                         `${this.remote_port} on`,
-                         `${this.local_address}:`+
-                         `${this.local_port}`);
-
+                const remote = socket.remoteAddress();
+                log.info('UDPEndPoint:', `"${this.name}" connected`,
+                         `to ${remote.address}:${remote.port} on`,
+                         `${this.local_address}:${this.local_port}`);
 
                 // re-emit as 'open', otherwise we lose
                 // the socket in pEvent
@@ -276,7 +339,7 @@ class UDPEndPoint extends EndPoint {
 
             // we do not set a callback, so in case of failure an
             // 'error' event will be emitted
-            socket.connect(this.remote_port, this.remote_addesss);
+            socket.connect(this.remote_port, this.remote_address);
         });
 
         return socket;
@@ -308,7 +371,7 @@ class Cluster {
         this.spec         = c.spec;
         this.protocol     = c.spec.protocol;
         this.loadbalancer = LoadBalancer.create(
-            c.loadbalancer || 'trivial' );
+            c.loadbalancer || { policy: 'Trivial' } );
         this.type         = c.type || '';
         this.stats        = {
             active_sessions: 0,
@@ -331,7 +394,7 @@ class Cluster {
             spec:         this.spec,
             // type:         this.type,
             endpoints:    this.endpoints,
-            loadbalancer: this.loadbalancer || 'none',
+            loadbalancer: this.loadbalancer,
             // retriable:    this.retriable
             options:      this.options,
         };
@@ -340,6 +403,7 @@ class Cluster {
     addEndPoint(e){
         log.silly('Cluster.addEndPoint:', dumper(e));
         this.endpoints.push(EndPoint.create(this, e));
+        this.loadbalancer.update(this.endpoints);
     }
 
     getEndPoint(n){
@@ -356,6 +420,7 @@ class Cluster {
         }
 
         this.endpoints.splice(i, 1);
+        this.loadbalancer.update(this.endpoints);
     }
 
 };
@@ -376,7 +441,7 @@ class WebSocketCluster extends Cluster {
 
     async connect(s){
         log.silly('WebSocketCluster.connect:', `Session: ${s.name}`);
-        var e = this.loadbalancer.apply(this.endpoints, s);
+        var e = this.loadbalancer.apply(s);
         // Promisifies endpoints events
         // cancels the event listeners on reject!
         return pEvent(e.connect(s), 'open', {
@@ -408,7 +473,7 @@ class UDPCluster extends Cluster {
 
     async connect(s){
         log.silly('UDPCluster.connect:', `Session: ${s.name}`);
-        var e = this.loadbalancer.apply(this.endpoints, s);
+        var e = this.loadbalancer.apply(s);
         log.silly('UDPCluster.connect:', `Connecting to ${e.name}:`,
                   `${e.remote_address}:${e.remote_port}`);
 
@@ -440,11 +505,18 @@ class L7mpControllerCluster extends Cluster {
         super( {
             name:         c.name || 'L7mpControllerCluster',
             spec:         { protocol: 'L7mpController' },
-            loadbalancer: 'none',
             type:         'session'
         });
         this.openapi = new L7mpOpenAPI();
         this.retriable = false;
+    }
+
+    toJSON(){
+        log.silly('L7mpControllerCluster.toJSON:', `"${this.name}"`);
+        return {
+            name:         this.name,
+            spec:         this.spec,
+        };
     }
 
     connect(s){
@@ -473,10 +545,18 @@ class StdioCluster extends Cluster {
         super( {
             name:         c.name || 'StdioCluster',
             spec:         {protocol: 'Stdio' },
-            loadbalancer: 'none',
+            loadbalancer: { policy: 'None' },
             type:         'stream'
         });
         this.retriable = false;
+    }
+
+    toJSON(){
+        log.silly('StdioCluster.toJSON:', `"${this.name}"`);
+        return {
+            name:         this.name,
+            spec:         this.spec,
+        };
     }
 
     connect(s){
@@ -497,9 +577,16 @@ class EchoCluster extends Cluster {
         super( {
             name:         c.name || 'EchoCluster',
             spec:         {protocol: 'Echo' },
-            loadbalancer: 'none',
             type:         'datagram'
         });
+    }
+
+    toJSON(){
+        log.silly('EchoCluster.toJSON:', `"${this.name}"`);
+        return {
+            name:         this.name,
+            spec:         this.spec,
+        };
     }
 
     connect(s){
@@ -520,9 +607,17 @@ class LoggerCluster extends Cluster {
                             log_file: c.spec.log_file || '-',
                             log_prefix: c.spec.log_prefix || '',
                           },
-            loadbalancer: 'none',
+            loadbalancer: { policy: 'None' },
             type:         'datagram'
         } );
+    }
+
+    toJSON(){
+        log.silly('LoggerCluster.toJSON:', `"${this.name}"`);
+        return {
+            name:         this.name,
+            spec:         this.spec,
+        };
     }
 
     connect(s){
@@ -562,9 +657,16 @@ class JSONEncapCluster extends Cluster {
         super( {
             name:         c.name || 'JSONEncapCluster',
             spec:         { protocol: 'JSONEncap'},
-            loadbalancer: 'none',
             type:         'datagram'
         } );
+    }
+
+    toJSON(){
+        log.silly('JSONEncapCluster.toJSON:', `"${this.name}"`);
+        return {
+            name:         this.name,
+            spec:         this.spec,
+        };
     }
 
     connect(s){
@@ -594,9 +696,16 @@ class JSONDecapCluster extends Cluster {
         super( {
             name:         c.name || 'JSONDecapCluster',
             spec:         { protocol: 'JSONDecap'},
-            loadbalancer: 'none',
             type:         'datagram'
         } );
+    }
+
+    toJSON(){
+        log.silly('JSONDecapCluster.toJSON:', `"${this.name}"`);
+        return {
+            name:         this.name,
+            spec:         this.spec,
+        };
     }
 
     connect(s){
@@ -633,7 +742,7 @@ class SyncCluster extends Cluster {
             name:         c.name || 'SyncCluster',
             spec:         {protocol: 'Sync' },
             endpoints:    [],
-            loadbalancer: 'none',
+            loadbalancer: { policy: 'None' },
             type:         'datagram',
         });
         this.query    = c.spec.query; // JSON query to get key from medatata
@@ -645,7 +754,7 @@ class SyncCluster extends Cluster {
         return {
             name:       this.name,
             protocol:   this.protocol,
-            type:       'datagram',
+            // type:       'datagram',
             query:      this.query,
             streams:    this.streams.length,
         };
@@ -658,7 +767,7 @@ class SyncCluster extends Cluster {
     stream(s){
         log.silly('SyncCluster.stream', `Session: "${s.name}"`);
 
-        let label = jsonPredicate.dataAtPath(s.metadata, this.query);
+        let label = Rule.getAtPath(s.metadata, this.query);
         if (typeof label !== 'undefined'){
             if(!(label in this.streams)){
                 // unknown label: create stream

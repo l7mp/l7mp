@@ -220,6 +220,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/io.l7mp.api.v1.EndPoint'
+        loadbalancer:
+            $ref: '#/components/schemas/io.l7mp.api.v1.LoadBalancer'
         options:
           description: Optional features.
           type: object
@@ -363,6 +365,23 @@ components:
       properties:
         address:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
+        weight:
+          description: Weight of the endpoint used in load-balancing.
+          type: integer
+
+    io.l7mp.api.v1.LoadBalancer:
+      description: Load-balancer specification.
+      type: object
+      required:
+        - policy
+      properties:
+        policy:
+          type: string
+          description: |
+            Load-balancing policy. The "Trivial" load-balancer always chooses the first endpoint. The "ConsistentHash" (alias for "HashRing") chooses an endpoint based on hashing the "LoadBalancer.key" field (or randomly if no key is specified). It provides soft session affinity (map sessions to the same endpoint with high probability even when adding/removing endpoints) and takes endpoint weights into account (so "HashRing" with no key specified will implement a somewhat expensive form of weighted random load-balancing).
+        key:
+          description: The JSON path to the metadata field to hash on (optional).
+          type: string
 
     # io.l7mp.api.v1.WebSocketEndPointSpec:
     #   description: A WebSocket endpoint specification.
