@@ -450,8 +450,8 @@ class NetServerListener extends Listener {
                  `protocol: ${this.protocol}`);
 
         var name = this.protocol === 'TCP' ?
-            `TCP:${socket.remoteAddress()}:` +
-            `${socket.remotePort()}::` +
+            `TCP:${socket.remoteAddress}:` +
+            `${socket.remotePort}::` +
             `${socket.address().address}:` +
             `${socket.address().port}` :
             `UNIX:${this.name}-` + this.getNewSessionId();
@@ -460,12 +460,12 @@ class NetServerListener extends Listener {
             {
                 name: name,
                 IP: {
-                    src_addr: socket.remoteAddress(),
-                    dst_addr: this.localAddress,
+                    src_addr: socket.remoteAddress,
+                    dst_addr: socket.address().address,
                 },
                 TCP: {
-                    src_port: socket.remotePort(),
-                    dst_port: this.spec.port,
+                    src_port: socket.remotePort,
+                    dst_port: socket.address().port,
                 },
                 status: 'INIT',
             } :

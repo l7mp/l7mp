@@ -822,7 +822,7 @@ class SyncCluster extends Cluster {
 };
 
 Cluster.create = (c) => {
-    log.silly('Cluster.create', dumper(c));
+    log.silly('Cluster.create', dumper(c, 4));
     switch(c.spec.protocol){
     case 'HTTP':             return new HTTPCluster(c);
     case 'WebSocket':        return new WebSocketCluster(c);
