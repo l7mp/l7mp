@@ -23,6 +23,7 @@
 'use strict';
 
 const log          = require('npmlog');
+const net          = require('net');
 const WebSocket    = require('ws');
 const http         = require('http');
 const udp          = require('dgram');
@@ -234,12 +235,12 @@ class WebSocketListener extends Listener {
         let metadata = {
             name: name,
             IP: {
-                src_addr: req.connection.localAddress,
-                dst_addr: req.connection.remoteAddress,
+                src_addr: req.connection.remoteAddress,
+                dst_addr: req.connection.localAddress,
             },
             TCP: {
-                src_port: req.connection.localPort,
-                dst_port: req.connection.remotePort,
+                src_port: req.connection.remotePort,
+                dst_port: req.connection.localPort,
             },
             HTTP: {
                 version: req.httpVersion,
@@ -413,15 +414,94 @@ class UDPSingletonListener extends Listener {
     end(s, e){ try { this.socket.close(); } catch(e) {/*ignore*/} }
 };
 
+class NetServerListener extends Listener {
+    constructor(l){
+        super(l);
+        this.type = 'byte-stream';
+        this.mode = 'server';
+        this.server = net.createServer();
+
+        this.server.on('error', (e) => {
+            log.warn('NetServerListener.new: Error:', e);
+            return;
+        });
+
+        this.server.on('connection', (socket) => this.onReq(socket));
+        this.server.listen(this.protocol === 'TCP' ?
+                           { port: this.spec.port} :
+                           { path: this.spec.filename}, () => {
+                               log.silly('NetServerListener:',
+                                         `Listener: ${this.name}:`,
+                                         `protocol: ${this.protocol}:`,
+                                         `Listening on`,
+                                         this.protocol === 'TCP' ?
+                                         `${this.server.address().address}:`+
+                                         `${this.server.address().port}` :
+                                         this.server.address());
+                           });
+
+        // cleanup on exit
+        if(this.protocol === 'UnixDomainSocket')
+            l7mp.cleanup.push(this.spec.filename);
+    }
+
+    onReq(socket){
+        log.silly('NetServerListener.onRequest:', `Listener: ${this.name}:`,
+                 `protocol: ${this.protocol}`);
+
+        var name = this.protocol === 'TCP' ?
+            `TCP:${socket.remoteAddress()}:` +
+            `${socket.remotePort()}::` +
+            `${socket.address().address}:` +
+            `${socket.address().port}` :
+            `UNIX:${this.name}-` + this.getNewSessionId();
+
+        let metadata = this.protocol === 'TCP' ?
+            {
+                name: name,
+                IP: {
+                    src_addr: socket.remoteAddress(),
+                    dst_addr: this.localAddress,
+                },
+                TCP: {
+                    src_port: socket.remotePort(),
+                    dst_port: this.spec.port,
+                },
+                status: 'INIT',
+            } :
+            {
+                name: name,
+                UNIX: {
+                    filename: this.localAddress
+                },
+                status: 'INIT',
+            };
+
+        let listener = {
+            origin: this,
+            stream: socket,
+        };
+
+        this.emit('emit', metadata, listener, {});
+    }
+
+    end(s, e){
+        log.info('NetServerListener: end:', e ? e.message : 'No error');
+        s.listener.stream && s.listener.stream.end();
+    }
+};
+
 Listener.create = (l) => {
     log.silly('Listener.create', dumper(l, 8));
     let protocol = l.spec.protocol;
     switch(protocol){
-    case 'HTTP':          return new HTTPListener(l);
-    case 'WebSocket':     return new WebSocketListener(l);
-    case 'UDP':           log.warn('Listener.create:', 'UDP listener:',
-                                   'falling back to UDPSingleton');
-    case 'UDPSingleton':  return new UDPSingletonListener(l);
+    case 'HTTP':             return new HTTPListener(l);
+    case 'WebSocket':        return new WebSocketListener(l);
+    case 'UDP':              log.warn('Listener.create:', 'UDP listener:',
+                                      'falling back to UDPSingleton');
+    case 'UDPSingleton':     return new UDPSingletonListener(l);
+    case 'TCP':              return new NetServerListener(l);
+    case 'UnixDomainSocket': return new NetServerListener(l);
     default:  log.error('Listener.create',
                         `Unknown protocol: "${protocol}"`);
     }

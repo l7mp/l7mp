@@ -25,6 +25,7 @@
 const log           = require('npmlog');
 const fs            = require('fs');
 const http          = require('http');
+const net           = require('net');
 const WebSocket     = require('ws');
 const udp           = require('dgram');
 const url           = require('url');
@@ -54,7 +55,8 @@ const Rule          = require('./rule.js').Rule;
 //
 //------------------------------------
 class LoadBalancer {
-    constructor(l){ this.policy = l.policy || 'None'; }
+    constructor(l){ this.policy = l.policy || 'None';
+                    this.es = [];}
 
     update(es){ this.es = es }
     apply(es){ log.error('LoadBalancer.apply', 'Base class called');
@@ -168,6 +170,7 @@ class EndPoint {
     constructor(c, e){
         this.name      = e.name || `EndPoint_${EndPoint.index++}`;
         this.cluster   = c;
+        this.protocol  = c.protocol;
         this.full_name = `Cluster:${c.name}-${this.name}`;
         this.spec      = e.spec;
         this.weight    = e.weight || 1;
@@ -181,13 +184,12 @@ class EndPoint {
     toJSON(){
         log.silly('EndPoint.toJSON:', `"${this.name}"`);
         return {
-            name:   this.name,
-            spec:   this.spec,
-            weight: this.weight,
+            name: this.name,
+            spec: { address:  this.remote_address },
+            weight:   this.weight,
         };
     }
 
-    // for session-type connections
     connect(s) {
         Promise.reject(log.error('EndPoint.connect', 'Base class called'));
     }
@@ -206,19 +208,6 @@ class WebSocketEndPoint extends EndPoint {
         this.bind           = c.spec.bind;
         this.local_address  = c.spec.bind ? c.spec.bind.address : '';
         this.local_port     = c.spec.bind ? c.spec.bind.port : 0;
-    }
-
-    toJSON(){
-        log.silly('WebSocketEndPoint.toJSON:', `"${this.name}"`);
-        return {
-            name: this.name,
-            spec: {
-                protocol: this.protocol,
-                address:  this.remote_address,
-                port:     this.remote_port,
-            },
-            weight:   this.weight,
-        };
     }
 
     connect(s){
@@ -282,19 +271,6 @@ class UDPEndPoint extends EndPoint {
             log.error('UDPEndPoint', 'Cluster already connected');
     }
 
-    toJSON(){
-        log.silly('UDPSocketEndPoint.toJSON:', `"${this.name}"`);
-        return {
-            name: this.name,
-            spec: {
-                protocol: this.protocol,
-                address:  this.remote_address,
-                port:     this.remote_port,
-            },
-            weight:   this.weight,
-        };
-    }
-
     connect(s){
         log.silly(`UDPEndPoint.connect:`,
                   (this.bind ?
@@ -346,12 +322,46 @@ class UDPEndPoint extends EndPoint {
     }
 };
 
+class NetSocketEndPoint extends EndPoint {
+    constructor(c, e) {
+        super(c, e);
+        this.options = this.protocol === 'TCP' ?
+            { port: c.spec.port, host: e.spec.address } :
+        {path: e.spec.address}; // endpoint address is filename for UDS
+
+        if(this.protocol === 'TCP' && c.spec.bind){
+            this.options.localAddress = c.spec.bind.address;
+            this.options.localPort = c.spec.bind.port;
+        }
+    }
+
+    connect(s){
+        let options = this.options;
+        var sock = net.createConnection(this.options);
+
+        // re-emit 'connect', otherwise we lose the socket in
+        // pEvent: socket.connect does not return socket so we
+        // must re-emit here with it as an argument!
+        sock.once('connect', () => sock.emit('open', sock));
+        sock.setNoDelay();  // disable Nagle's
+        sock.once('error',
+                  (e) => { log.warn('NetSocketEndPoint:connect: Error:',
+                                    `${e.errno}: ${e.address}:${e.port}`);
+                         sock.emit('error', e); });
+        // sock.on('end', () => { log.info('NetSocketEndPoint:end'); });
+
+        return sock;
+    }
+};
+
 EndPoint.create = (c, e) => {
     log.silly('EndPoint.create:', `Protocol: ${c.protocol}` );
     switch(c.protocol){
     case 'WS':
-    case 'WebSocket': return new WebSocketEndPoint(c, e);
-    case 'UDP':       return new UDPEndPoint(c, e);
+    case 'WebSocket':        return new WebSocketEndPoint(c, e);
+    case 'UDP':              return new UDPEndPoint(c, e);
+    case 'TCP':              return new NetSocketEndPoint(c, e);
+    case 'UnixDomainSocket': return new NetSocketEndPoint(c, e);
     default:
         log.error('EndPoint.create',
                   `TODO: Protocol "${c.protocol}" unimplemented`);
@@ -436,11 +446,12 @@ class WebSocketCluster extends Cluster {
     constructor(c) {
         super(c);
         this.objectMode = true;
-        this.type = 'datagram';
+        this.type = 'datagram-stream';
     }
 
     async connect(s){
-        log.silly('WebSocketCluster.connect:', `Session: ${s.name}`);
+        log.silly('WebSocketCluster.connect:', `Protocol: ${this.protocol}`,
+                  `Session: ${s.name}`);
         var e = this.loadbalancer.apply(s);
         // Promisifies endpoints events
         // cancels the event listeners on reject!
@@ -451,7 +462,8 @@ class WebSocketCluster extends Cluster {
     }
 
     async stream(s){
-        log.silly('WebSocketCluster.stream:', `Session: ${s.name}`);
+        log.silly('WebSocketCluster.stream:',  `Protocol: ${this.protocol}`,
+                  `Session: ${s.name}`);
         return this.connect(s).then(
             (args) => {
                 // multiArg!
@@ -464,11 +476,36 @@ class WebSocketCluster extends Cluster {
     }
 };
 
+class NetSocketCluster extends Cluster {
+    constructor(c) {
+        super(c);
+        this.type = 'byte-stream';
+    }
+
+    async connect(s){
+        log.silly('NetSocketCluster.connect:', `Session: ${s.name}`);
+        var e = this.loadbalancer.apply(s);
+        return pEvent(e.connect(s), 'open', {
+            rejectionEvents: ['close', 'end', 'error', 'timeout'],
+            multiArgs: true, timeout: s.route.retry.timeout
+        });
+    }
+
+    async stream(s){
+        log.silly('NetSocketCluster.stream:', `Session: ${s.name}`);
+        return this.connect(s).then(
+            (args) => {
+                // multiArg!
+                return args[0];
+            });
+    }
+};
+
 class UDPCluster extends Cluster {
     constructor(c) {
         super(c);
         this.objectMode = true;
-        this.type = 'datagram';
+        this.type = 'datagram-stream';
     }
 
     async connect(s){
@@ -505,7 +542,7 @@ class L7mpControllerCluster extends Cluster {
         super( {
             name:         c.name || 'L7mpControllerCluster',
             spec:         { protocol: 'L7mpController' },
-            type:         'session'
+            type:         'byte-stream'
         });
         this.openapi = new L7mpOpenAPI();
         this.retriable = false;
@@ -546,7 +583,7 @@ class StdioCluster extends Cluster {
             name:         c.name || 'StdioCluster',
             spec:         {protocol: 'Stdio' },
             loadbalancer: { policy: 'None' },
-            type:         'stream'
+            type:         'byte-stream'
         });
         this.retriable = false;
     }
@@ -577,7 +614,7 @@ class EchoCluster extends Cluster {
         super( {
             name:         c.name || 'EchoCluster',
             spec:         {protocol: 'Echo' },
-            type:         'datagram'
+            type:         'byte-stream'
         });
     }
 
@@ -608,7 +645,7 @@ class LoggerCluster extends Cluster {
                             log_prefix: c.spec.log_prefix || '',
                           },
             loadbalancer: { policy: 'None' },
-            type:         'datagram'
+            type:         'byte-stream'
         } );
     }
 
@@ -657,7 +694,7 @@ class JSONEncapCluster extends Cluster {
         super( {
             name:         c.name || 'JSONEncapCluster',
             spec:         { protocol: 'JSONEncap'},
-            type:         'datagram'
+            type:         'byte-stream'
         } );
     }
 
@@ -696,7 +733,7 @@ class JSONDecapCluster extends Cluster {
         super( {
             name:         c.name || 'JSONDecapCluster',
             spec:         { protocol: 'JSONDecap'},
-            type:         'datagram'
+            type:         'byte-stream'
         } );
     }
 
@@ -743,7 +780,7 @@ class SyncCluster extends Cluster {
             spec:         {protocol: 'Sync' },
             endpoints:    [],
             loadbalancer: { policy: 'None' },
-            type:         'datagram',
+            type:         'byte-stream',
         });
         this.query    = c.spec.query; // JSON query to get key from medatata
         this.streams  = {};           // keyed by 'label'
@@ -787,16 +824,18 @@ class SyncCluster extends Cluster {
 Cluster.create = (c) => {
     log.silly('Cluster.create', dumper(c));
     switch(c.spec.protocol){
-    case 'HTTP':           return new HTTPCluster(c);
-    case 'WebSocket':      return new WebSocketCluster(c);
-    case 'UDP':            return new UDPCluster(c);
-    case 'Stdio':          return new StdioCluster(c);
-    case 'Echo':           return new EchoCluster(c);
-    case 'Logger':         return new LoggerCluster(c);
-    case 'JSONEncap':      return new JSONEncapCluster(c);
-    case 'JSONDecap':      return new JSONDecapCluster(c);
-    case 'Sync':           return new SyncCluster(c);
-    case 'L7mpController': return new L7mpControllerCluster(c);
+    case 'HTTP':             return new HTTPCluster(c);
+    case 'WebSocket':        return new WebSocketCluster(c);
+    case 'UDP':              return new UDPCluster(c);
+    case 'TCP':              return new NetSocketCluster(c);
+    case 'UnixDomainSocket': return new NetSocketCluster(c);
+    case 'Stdio':            return new StdioCluster(c);
+    case 'Echo':             return new EchoCluster(c);
+    case 'Logger':           return new LoggerCluster(c);
+    case 'JSONEncap':        return new JSONEncapCluster(c);
+    case 'JSONDecap':        return new JSONDecapCluster(c);
+    case 'Sync':             return new SyncCluster(c);
+    case 'L7mpController':   return new L7mpControllerCluster(c);
     default:
         log.error('Cluster.create',
                   `TODO: Protocol "${c.spec.protocol}" unimplemented`);

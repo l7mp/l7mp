@@ -55,6 +55,31 @@ Object.defineProperty(log, 'heading',
                       { get: () => { return new Date().toISOString() } });
 log.headingStyle = { bg: '', fg: 'white' }
 
+// cleanup handlers
+for(let event of ['exit', 'SIGINT', 'SIGTERM']){
+    process.on(event, () => {
+        log.info(`Normal exit: event: ${event}`);
+        if(l7mp && l7mp.cleanup)
+            l7mp.cleanup.forEach(file => {
+                try {
+                    fs.accessSync(file);
+                    log.silly(`Cleanup: removing "${file}"`);
+                    fs.unlinkSync(file);
+                } catch(e) { /* NOP */ }
+            })
+        process.exit();
+    });
+}
+
+process.on('uncaughtException', (err) => {
+    log.error(`Uncaught exception:`, err);
+});
+
+process.on('unhandledRejection', (reason, p) => {
+    log.error(`Unhandled Rejection at Promise ${dumper(p, 3)}: Reason:`,
+              reason);
+});
+
 class L7mp {
     constructor() {
         this.static_config;
@@ -66,6 +91,7 @@ class L7mp {
         this.sessions   = [];
         this.routes     = [];
         // this.transforms = [];
+        this.cleanup    = [];
     }
 
     toJSON(){

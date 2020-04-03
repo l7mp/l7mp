@@ -89,6 +89,8 @@ components:
             - $ref: '#/components/schemas/io.l7mp.api.v1.HTTPListenerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.UDPSingletonListenerSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.TCPListenerSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
           discriminator:
             propertyName: protocol
             mapping:
@@ -152,7 +154,7 @@ components:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
         path:
           type: string
-          description: HTTP URL for to serve.
+          description: HTTP URL to serve.
 
     io.l7mp.api.v1.UDPSingletonListenerSpec:
       description: |
@@ -176,6 +178,47 @@ components:
         connect:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.AddressPortPair'
 
+    io.l7mp.api.v1.TCPListenerSpec:
+      description: |
+        A TCP server specification that accepts TCP requests at a specified port.
+        - protocol: TCP
+        - session ID: IP 5-tuple
+        - type: datagram-stream
+        - mode: server
+      type: object
+      required:
+        - protocol
+        - port
+      properties:
+        protocol:
+          type: string
+          enum:  # fixed value
+            - TCP
+          description: The protocol, must be "TCP".
+        port:
+          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
+
+    io.l7mp.api.v1.UnixDomainSocketListenerSpec:
+      description: |
+        A Unix Domain Socket (UDS) server specification that accepts IPC connection requests at a specified filename.
+        - protocol: UnixDomainSocket
+        - session ID: Listener name + ID
+        - type: datagram
+        - mode: server
+      type: object
+      required:
+        - protocol
+        - filename
+      properties:
+        protocol:
+          type: string
+          enum:  # fixed value
+            - UnixDomainSocket
+          description: The protocol, must be "UnixDomainSocket".
+        filename:
+          type: string
+          description: File system path to bind to..
+
     io.l7mp.api.v1.ClusterRequest:
       description: 'Wrapper for addCluster calls: contains only a single Cluster object.'
       type: object
@@ -198,6 +241,8 @@ components:
           oneOf:
             - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.UDPSingletonClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.TCPClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.L7mpControllerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
@@ -261,6 +306,35 @@ components:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
         bind:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.AddressPortPair'
+
+    io.l7mp.api.v1.TCPClusterSpec:
+      description: A TCP cluster specification that forwards TCP connections to an upstream cluster.
+      type: object
+      required:
+        - protocol
+        - port
+      properties:
+        protocol:
+          type: string
+          enum:  # fixed value
+            - TCP
+          description: The protocol, must be "TCP".
+        port:
+          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
+        bind:
+          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.AddressPortPair'
+
+    io.l7mp.api.v1.UnixDomainSocketClusterSpec:
+      description: A Unix Domain Socket (UDS) cluster specification that forwards IPC connections to an upstream cluster.
+      type: object
+      required:
+        - protocol
+      properties:
+        protocol:
+          type: string
+          enum:  # fixed value
+            - UnixDomainSocket
+          description: The protocol, must be "UnixDomainSocket".
 
     io.l7mp.api.v1.L7mpControllerSpec:
       description: A virtual cluster that accepts L7mp controller REST API calls.
@@ -364,7 +438,9 @@ components:
         - address
       properties:
         address:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
+          oneOf:
+            - type: string  # Unix Domain Socket filename
+            - $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
         weight:
           description: Weight of the endpoint used in load-balancing.
           type: integer
