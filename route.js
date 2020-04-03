@@ -72,6 +72,8 @@ class Route {
 
     async pipeline(){
         let s = this.session;
+        this.source.status = 'CONNECTED';
+
         log.silly("Route.pipeline:", `Session: ${s.name}:`,
                   `${this.source.origin.name} ->`,
                   `${this.destination.origin.name}`);
@@ -243,7 +245,8 @@ class Route {
                          dumper(error, 1));
 
                 // DISCONNECTED BUT UNDER RETRY
-                stage.status = 'RETRYING';
+                stage.status = error.retriesLeft == 0 ?
+                    'END' : 'RETRYING';
 
                 // if(log.level === 'silly')
                 //     console.trace();
@@ -263,6 +266,9 @@ class Route {
         // who-knows...
         // need this for being able to remove listeners
         // var onDisc = this.disconnect.bind(this);
+        log.silly("Route.set_stage_event_handlers:",
+                  "Setting up event handlers for",
+                  `stage "${stage.origin.name}"/${stage.status}`);
         stage.on_disc = {};
         var eh = (event) => {
             // to be able to remove the event handler in this.end()
@@ -417,8 +423,16 @@ class Route {
         switch(retry_policy.retry_on){
         case 'always':
         case 'disconnect':
+            if(stage.origin.name === this.source.origin.name){
+                let msg = `session ${s.name}: Listener "${stage.origin.name}" ` +
+                    `is not retriable, terminating session`;
+                log.info('Route.disconnect:', msg);
+                s.emit('error', new Error(`Reconnect failed: ${msg}`));
+                return;
+            }
+
             if(!stage.origin.retriable){
-                let msg = `session ${s.name}: Cluster "${stage.origin.name}" ` +
+                let msg = `session ${s.name}: Stage "${stage.origin.name}" ` +
                     `is not retriable, terminating session`;
                 log.info('Route.disconnect:', msg);
                 s.emit('error', new Error(`Reconnect failed: ${msg}`));
@@ -443,8 +457,7 @@ class Route {
                     await this.connect_stage(stage, retry_policy.num_retries);
             } catch(error){
                 let msg = `session ${s.name}: could not be re-connected ` +
-                    `after ${retry_policy.num_retries} attempts`;
-
+                    `after ${error.attemptNumber} attempts`;
                 log.info('Route.disconnect:', msg);
                 stage.status = 'END';
                 s.emit('error', new Error(`Reconnect failed: ${msg}`));
@@ -512,28 +525,30 @@ class Route {
 
             // status is CONNECTED, DISCONNECTED, or END
             log.silly('Route.end:', `${this.name}:`,
-                      `Cluster: "${stage.origin.name}"/${stage.status}:`,
+                      `Stage: "${stage.origin.name}"/${stage.status}:`,
                       `Ending stage`);
             let stream = stage.stream;
             try{
-                // log.info('end:', stream.listenerCount("end"));
-                stream.removeListener("end", stage.on_disc["end"]);
-                // log.info('end:', stream.listenerCount("end"));
+                if(stage.on_disc){
+                    // log.info('end:', stream.listenerCount("end"));
+                    stream.removeListener("end", stage.on_disc["end"]);
+                    // log.info('end:', stream.listenerCount("end"));
 
-                // log.info('close:', stream.listenerCount("close"));
-                stream.removeListener("close", stage.on_disc["close"]);
-                // log.info('close:', stream.listenerCount("close"));
+                    // log.info('close:', stream.listenerCount("close"));
+                    stream.removeListener("close", stage.on_disc["close"]);
+                    // log.info('close:', stream.listenerCount("close"));
 
-                // log.info('error:', stream.listenerCount("error"));
-                stream.removeListener("error", stage.on_disc["error"]);
-                // log.info('error:', stream.listenerCount("error"));
-
-                stream.end();
+                    // log.info('error:', stream.listenerCount("error"));
+                    stream.removeListener("error", stage.on_disc["error"]);
+                    // log.info('error:', stream.listenerCount("error"));
+                }
+                if(stage.status !== 'END')
+                    stream.end();
                 deleted++;
             } catch(e){
                 log.info('Route.end:', `${this.name}:`,
                          `Could not terminate stage:`,
-                         `Cluster: "${stage.origin.name}"/${stage.status}:`,
+                         `"${stage.origin.name}"/${stage.status}:`,
                          dumper(e,3));
             }
 
