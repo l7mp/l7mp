@@ -203,25 +203,25 @@ class Route {
             if(typeof s === 'undefined'){
                 pRetry.AbortError(
                     new Error("Route.connect_stage:", `Session: ${s.name}:`,
-                              `cluster "${cluster.name}": Internal error:`,
+                              `stage "${cluster.name}": Internal error:`,
                               `Session removed while retrying`));
             }
 
             if(stage.status === 'FINALIZING')
                 pRetry.AbortError(
                     new Error("Route.connect_stage:", `Session: ${s.name}:`,
-                              `cluster "${cluster.name}":`,
+                              `stage "${cluster.name}":`,
                               `Session in FINALIZE, giving up on retry`));
 
             switch(stage.status){
             case 'CONNECTED': pRetry.AbortError(
                 new Error("Route.connect_stage:", `Session: ${s.name}:`,
-                          `cluster "${cluster.name}":`,
+                          `stage "${cluster.name}":`,
                           `Retrying a CONNECTED stage`));
                 break;
             case 'END': pRetry.AbortError(
                 new Error("Route.connect_stage:", `Session: ${s.name}:`,
-                          `cluster "${cluster.name}":`,
+                          `stage "${cluster.name}":`,
                           `Stage ended, not retrying`));
                 break;
             default: { /* ingoring */ };
@@ -229,7 +229,7 @@ class Route {
             let stream = await stage.origin.stream(s);
 
             log.info("Route.connect_stage:", `Session: ${s.name}:`,
-                     `cluster "${cluster.name}": connected`);
+                     `stage "${cluster.name}": connected`);
 
             stage.last_conn = Date.now();
             stage.status = 'CONNECTED';
@@ -237,7 +237,7 @@ class Route {
         }, {
             onFailedAttempt: error => {
                 log.info("Route.connect_stage:", `Session: ${s.name}:`,
-                         `cluster "${cluster.name}"/${stage.status}`,
+                         `stage "${cluster.name}"/${stage.status}`,
                          `Attempt ${error.attemptNumber} failed`,
                          `(${error.retriesLeft} retries left):`,
                          (error.errno) ?
@@ -350,7 +350,7 @@ class Route {
             stage.status = 'READY';
 
             log.silly('Route.repipe:', `session ${s.name}:`,
-                      `destination cluster "${origin.name}" repiped`);
+                      `destination stage "${origin.name}" repiped`);
             return;
         }
 
@@ -372,7 +372,7 @@ class Route {
         i = this.chain.egress.findIndex(r => r === stage);
         if(i<0)
             log.error('Route.repipe: Internal error:',
-                      'Could not find disconnected cluster',
+                      'Could not find disconnected stage',
                       `${stage.origin}`);
 
         let from = i === 0 ? dest : this.chain.egress[i-1];
@@ -395,7 +395,7 @@ class Route {
         let s = this.session;
 
         log.silly('Route.disconnect:', `session ${s.name}:`,
-                  `cluster: ${cluster.name}:`,
+                  `stage: ${cluster.name}:`,
                   error ? `Error: ${error.message}` :
                   'Reason: unknown');
 
@@ -406,7 +406,7 @@ class Route {
             // we received mutliple events for the same stage (e.g.,
             // error followed by a close), ignore all but the first
             log.silly('Route.disconnect:', `session ${s.name}:`,
-                      `cluster: ${cluster.name}:`,
+                      `stage: ${cluster.name}:`,
                       `Stage status: ${stage.status}: Ignoring`);
             return;
         }
@@ -465,7 +465,7 @@ class Route {
             }
 
             log.info('Route.disconnect:', `session ${s.name}:`,
-                     `cluster "${cluster.name}"`,
+                     `stage "${cluster.name}"`,
                      `successfully reconnected`);
 
             // store new stream
@@ -517,7 +517,7 @@ class Route {
             // let retry to first terminate
             if(stage.status === 'RETRYING'){
                 log.silly('Route.end:', `${this.name}:`,
-                          `Cluster: ${stage.origin.name}:`,
+                          `stage: ${stage.origin.name}:`,
                           `Stage retrying, not removing`);
                 ret = 0;
                 continue;

@@ -1,0 +1,12 @@
+# Controller listening on 1234, plus some useful debug clusters
+admin:
+  log_level: silly
+  log_file: stdout
+listeners:
+  - name: uds-listener
+    spec: { protocol: UnixDomainSocket, filename: "/tmp/uds-echo.sock"}
+    rules:
+      - action:
+          route:
+            cluster:
+              spec: { protocol: Echo }
