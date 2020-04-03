@@ -589,7 +589,7 @@ try {
     // applies config.admin
     l7mp.readConfig(config);
 } catch(e) {
-    log.error(`Could not read static configuration ${config}: Error:`,
+    log.error(`Could not read static configuration ${config}`,
               e.message);
 }
 
