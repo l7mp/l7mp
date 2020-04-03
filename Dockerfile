@@ -25,4 +25,4 @@ EXPOSE 1234
 
 # run
 #CMD exec /bin/sh -c "trap : TERM INT; (while true; do sleep 1000; done) & wait"
-CMD [ "node", "l7mp.js", "-c", "config/l7mp-minimal.yaml" ]
+CMD [ "node", "l7mp.js", "-c", "config/l7mp-minimal.yaml", "-s", "-l", "silly" ]
