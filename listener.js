@@ -282,9 +282,8 @@ class UDPSingletonListener extends Listener {
     // unconnected mode: bind socket, wait for the first packet, use
     // the source IP and source port as remote, connect back to this
     // remote, create a stream
-    // connected mode: bind socket, wait for the first packet whose
-    // remote address and port match, connect back to the remote,
-    // create a stream
+    // connected mode: bind socket, immediately connect back to the
+    // remote, create a stream
     constructor(l){
         super(l);
         if(this._stream)
@@ -327,37 +326,48 @@ class UDPSingletonListener extends Listener {
             log.silly('UDPSingletonListener:', `"${this.name}" bound to`,
                       `${this.local_address}:${this.local_port}`);
 
-            this.onConn = this.onConnect.bind(this);
-            socket.on('message', this.onConn);
+            if(this.connected){
+                this.onConnect();
+            } else {
+                this.onConn = this.onConnectMsg.bind(this);
+                socket.once('message', this.onConn);
+            }
         });
     }
 
+    onConnectMsg(msg, rinfo){
+        // if(this.connected){
+        //     if(rinfo.address !== this.remote_address ||
+        //        rinfo.port !== this.remote_port){
+        //         log.warn('UDPSingletonListener:onConnect:', `"${this.name}:"`,
+        //                  `packet received from unknown peer:`,
+        //                  `${rinfo.address}:${rinfo.port}, expecting`,
+        //                  `${this.remote_address}:${this.remote_port}`);
+        //         return;
+        //     }
+        // } else {
+        //     // use packet source IP:port are remote
+        //     this.remote_address = rinfo.address;
+        //     this.remote_port = rinfo.port;
+        // }
+
+        log.warn('UDPSingletonListener:onConnectMsg:', `"${this.name}:"`,
+                 `packet received from peer:`,
+                 `${rinfo.address}:${rinfo.port}: connecting`);
+        this.remote_address = rinfo.address;
+        this.remote_port = rinfo.port;
+        this.socket.removeListener("message", this.onConn);
+        this.onConnect(msg, rinfo);
+    }
+
     onConnect(msg, rinfo){
-        if(this.connected){
-            if(rinfo.address !== this.remote_address ||
-               rinfo.port !== this.remote_port){
-                log.warn('UDPSingletonListener:onConnect:', `"${this.name}:"`,
-                         `packet received from unknown peer:`,
-                         `${rinfo.address}:${rinfo.port}, expecting`,
-                         `${this.remote_address}:${this.remote_port}`);
-                return;
-            }
-        } else {
-            // use packet source IP:port are remote
-            this.remote_address = rinfo.address;
-            this.remote_port = rinfo.port;
-        }
-
         log.info('UDPSingletonListener:onConnect:', `"${this.name}:"`,
-                 `packet received, connecting to peer:`,
-                 `${rinfo.address}:${rinfo.port}`);
+                 `connecting to peer:`,
+                 `${this.remote_address}:${this.remote_port}`);
 
-        var self = this;
         let socket = this.socket;
 
         // stop accepting packets
-        socket.removeListener("message", this.onConn);
-
         socket.connect(this.remote_port, this.remote_address,
                        () => {
                            log.silly(`UDPSingletonListener: "${this.name}"`,
@@ -367,13 +377,14 @@ class UDPSingletonListener extends Listener {
                                      `${this.local_address}:`+
                                      `${this.local_port}`);
 
-                           self.stream =
+                           this.stream =
                                new utils.DatagramStream(socket);
 
-                           self.stream.once('listening', () => {
+                           this.socket.once('listening', () => {
                                // reemit message event
-                               socket.emit('message', msg, rinfo);
-                               self.onRequest();
+                               if(msg && rinfo)
+                                   this.socket.emit('message', msg, rinfo);
+                               this.onRequest();
                            });
 
                            setImmediate(() => {
