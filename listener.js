@@ -278,11 +278,15 @@ class WebSocketListener extends Listener {
 };
 
 class UDPSingletonListener extends Listener {
-
-    // unconnected mode: bind socket, wait for the first packet, use
-    // the source IP and source port as remote, connect back to this
+    // unconnected mode:
+    // bind socket, wait for the first packet, use the source IP and
+    // source port as remote, connect back to this remote, create a
+    // stream
+    // connected mode:
+    // reuseaddr=true: bind socket, immediately connect back to the
     // remote, create a stream
-    // connected mode: bind socket, immediately connect back to the
+    // reuseaddr=false: bind socket, wait for the first received
+    // packet and if source IP/port is OK, then connect back to the
     // remote, create a stream
     constructor(l){
         super(l);
@@ -292,6 +296,7 @@ class UDPSingletonListener extends Listener {
         this.mode = 'singleton';
 
         this.connected = false;
+        this.reuseaddr = this.spec.reuseaddr || true;
         if(l.spec.connect && l.spec.connect.address && l.spec.connect.port){
             this.connected      = true;
             this.remote_address = this.spec.connect.address;
@@ -303,7 +308,7 @@ class UDPSingletonListener extends Listener {
         this.local_address  = this.spec.address || '0.0.0.0';
         this.local_port     = this.spec.port || -1;
 
-        var socket = udp.createSocket({type: 'udp4', reuseAddr: true});
+        var socket = udp.createSocket({type: 'udp4', reuseAddr: this.reuseaddr});
 
         // eventDebug(socket);
 
@@ -326,7 +331,7 @@ class UDPSingletonListener extends Listener {
             log.silly('UDPSingletonListener:', `"${this.name}" bound to`,
                       `${this.local_address}:${this.local_port}`);
 
-            if(this.connected){
+            if(this.connected && this.reuseaddr){
                 this.onConnect();
             } else {
                 this.onConn = this.onConnectMsg.bind(this);
@@ -336,20 +341,17 @@ class UDPSingletonListener extends Listener {
     }
 
     onConnectMsg(msg, rinfo){
-        // if(this.connected){
-        //     if(rinfo.address !== this.remote_address ||
-        //        rinfo.port !== this.remote_port){
-        //         log.warn('UDPSingletonListener:onConnect:', `"${this.name}:"`,
-        //                  `packet received from unknown peer:`,
-        //                  `${rinfo.address}:${rinfo.port}, expecting`,
-        //                  `${this.remote_address}:${this.remote_port}`);
-        //         return;
-        //     }
-        // } else {
-        //     // use packet source IP:port are remote
-        //     this.remote_address = rinfo.address;
-        //     this.remote_port = rinfo.port;
-        // }
+        // if we are here, reuseaddr=false
+        if(this.connected){
+            if(rinfo.address !== this.remote_address ||
+               rinfo.port !== this.remote_port){
+                log.warn('UDPSingletonListener:onConnect:', `"${this.name}:"`,
+                         `packet received from unknown peer:`,
+                         `${rinfo.address}:${rinfo.port}, expecting`,
+                         `${this.remote_address}:${this.remote_port}`);
+                return;
+            }
+        }
 
         log.warn('UDPSingletonListener:onConnectMsg:', `"${this.name}:"`,
                  `packet received from peer:`,
