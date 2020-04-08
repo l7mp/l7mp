@@ -4,7 +4,7 @@ admin:
   log_file: stdout
 listeners:
   - name: uds-listener
-    spec: { protocol: UnixDomainSocket, filename: "/tmp/uds-echo.sock"}
+    spec: { protocol: UnixDomainSocket, filename: "/var/run/sock/uds-echo.sock"}
     rules:
       - action:
           route:
