@@ -102,7 +102,8 @@ class HashRingLoadBalancer extends LoadBalancer {
         log.silly('HashRingLoadBalancer.update');
         this.keys = {};
         es.forEach( (e) => {
-            this.keys[e.name] = { weight: e.weight, endpoint: e };
+            // this.keys[e.name] = { weight: e.weight, endpoint: e };
+            this.keys[e.address] = { weight: e.weight, endpoint: e };
         });
         // dump(this.keys, 2);
 
