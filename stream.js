@@ -109,8 +109,31 @@ class DatagramStream extends Duplex {
         callback();
     };
 
-    destroy(x){ this.socket && this.socket.destroy(x); }
-    end(c)    { this.socket && this.socket.end(); }
+    // net.socket has destroy/end, dgram.socket has close... why???
+    destroy(x){
+        if(this.socket && this.socket.destroy &&
+           typeof this.socket.destroy === 'function'){
+            this.socket.destroy(x);
+            return;
+        }
+        if(this.socket && this.socket.close &&
+           typeof this.socket.close === 'function')
+            this.socket.close();
+
+        // give up
+    }
+
+    end(x){
+        if(this.socket && this.socket.end &&
+           typeof this.socket.end === 'function'){
+            this.socket.end(x);
+            return;
+        }
+        if(this.socket && this.socket.close &&
+           typeof this.socket.close === 'function')
+            this.socket.close();
+        // give up
+    }
 };
 
 class BroadcastStream {
