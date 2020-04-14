@@ -542,8 +542,10 @@ class Route {
                     stream.removeListener("error", stage.on_disc["error"]);
                     // log.info('error:', stream.listenerCount("error"));
                 }
-                if(stage.status !== 'END')
+                if(stage.status !== 'END'){
                     stream.end();
+                    stream.destroy();
+                }
                 deleted++;
             } catch(e){
                 log.info('Route.end:', `${this.name}:`,
