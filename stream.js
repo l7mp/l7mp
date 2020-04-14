@@ -77,15 +77,16 @@ class DatagramStream extends Duplex {
         socket.on('error', (e) => {
             log.silly('DatagramStream.onerror:',
                       e.message || dumper(e));
-            this.destroy(e);
+            this.emit('error', e);
         });
 
         socket.on('close', () => {
             log.silly('DatagramStream.onclose');
-            this.end();
+            this.emit('close');
         });
 
         this.socket = socket;
+
     }
 
     _read() {
@@ -110,29 +111,13 @@ class DatagramStream extends Duplex {
     };
 
     // net.socket has destroy/end, dgram.socket has close... why???
-    destroy(x){
-        if(this.socket && this.socket.destroy &&
-           typeof this.socket.destroy === 'function'){
-            this.socket.destroy(x);
-            return;
-        }
-        if(this.socket && this.socket.close &&
-           typeof this.socket.close === 'function')
-            this.socket.close();
+    destroy(){ this.end(); }
 
-        // give up
-    }
-
-    end(x){
-        if(this.socket && this.socket.end &&
-           typeof this.socket.end === 'function'){
-            this.socket.end(x);
-            return;
-        }
-        if(this.socket && this.socket.close &&
-           typeof this.socket.close === 'function')
-            this.socket.close();
-        // give up
+    end(){
+        setImmediate( () => {
+            this.socket.emit('end');
+            try{this.socket.close()}catch(e){/*nop*/};
+        });
     }
 };
 
