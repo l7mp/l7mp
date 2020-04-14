@@ -108,6 +108,9 @@ class DatagramStream extends Duplex {
 
         callback();
     };
+
+    destroy(x){ this.socket && this.socket.destroy(x); }
+    end(c)    { this.socket && this.socket.end(); }
 };
 
 class BroadcastStream {
