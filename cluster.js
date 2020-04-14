@@ -267,9 +267,9 @@ class UDPEndPoint extends EndPoint {
         this.local_port     = c.spec.bind ? c.spec.bind.port : 0;
 
         if(!(this.remote_address && this.remote_port))
-            log.error('UDPEndPoint', 'No remote addr:port pair defined');
+            throw new Error('UDPEndPoint:', 'No remote addr:port pair defined');
         if(this.socket)
-            log.error('UDPEndPoint', 'Cluster already connected');
+            throw new Error('UDPEndPoint:', 'Cluster already connected');
     }
 
     connect(s){
