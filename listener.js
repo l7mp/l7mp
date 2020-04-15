@@ -297,7 +297,8 @@ class UDPSingletonListener extends Listener {
 
         this.connected = false;
         this.reuseaddr = this.spec.reuseaddr || true;
-        if(l.spec.connect && l.spec.connect.address && l.spec.connect.port){
+        // at least a source IP or port must be specified for connected mode
+        if(l.spec.connect && (l.spec.connect.address || l.spec.connect.port)){
             this.connected      = true;
             this.remote_address = this.spec.connect.address;
             this.remote_port    = this.spec.connect.port;
