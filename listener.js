@@ -303,7 +303,7 @@ class UDPSingletonListener extends Listener {
             this.remote_address = this.spec.connect.address;
             this.remote_port    = this.spec.connect.port;
             log.info('UDPSingletonListener:', 'Connected mode: remote:',
-                     `${this.remote_address}:${this.remote_port}`);
+                     `${this.remote_address || '<ANY>'}:${this.remote_port || '<ANY>'}`);
         }
 
         this.local_address  = this.spec.address || '0.0.0.0';
@@ -344,8 +344,8 @@ class UDPSingletonListener extends Listener {
     onConnectMsg(msg, rinfo){
         // if we are here, reuseaddr=false
         if(this.connected){
-            if(rinfo.address !== this.remote_address ||
-               rinfo.port !== this.remote_port){
+            if((this.remote_address && rinfo.address !== this.remote_address) ||
+               (this.remote_port && rinfo.port !== this.remote_port)){
                 log.warn('UDPSingletonListener:onConnect:', `"${this.name}:"`,
                          `packet received from unknown peer:`,
                          `${rinfo.address}:${rinfo.port}, expecting`,
@@ -364,15 +364,14 @@ class UDPSingletonListener extends Listener {
     }
 
     onConnect(msg, rinfo){
-        log.info('UDPSingletonListener:onConnect:', `"${this.name}:"`,
-                 `connecting to peer:`,
-                 `${this.remote_address}:${this.remote_port}`);
-
         let socket = this.socket;
 
         // stop accepting packets
         socket.connect(this.remote_port, this.remote_address,
                        () => {
+                           this.remote_address = socket.remoteAddress().address;
+                           this.remote_port    = socket.remoteAddress().port;
+
                            log.silly(`UDPSingletonListener: "${this.name}"`,
                                      `connected for remote`,
                                      `${this.remote_address}:`+
