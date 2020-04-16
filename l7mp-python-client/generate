@@ -1,0 +1,13 @@
+#!/bin/bash
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$DIR"
+
+set -x
+
+def=l7mp-openapi.yaml
+cp ../openapi/$def .
+
+docker run --rm -v ${PWD}:/local openapitools/openapi-generator-cli generate \
+    -i /local/$def \
+    -g python \
+    -o /local/out
