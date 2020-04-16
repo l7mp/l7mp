@@ -6,8 +6,11 @@ set -x
 
 def=l7mp-openapi.yaml
 cp ../openapi/$def .
+note="$(git describe --dirty --always --tags) ($(date -I))"
 
 docker run --rm -v ${PWD}:/local openapitools/openapi-generator-cli generate \
     -i /local/$def \
     -g python \
-    -o /local/out
+    -o /local/out \
+    --package-name l7mp_client \
+    --release-note "$note"
