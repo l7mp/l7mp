@@ -88,7 +88,7 @@ components:
           oneOf:
             - $ref: '#/components/schemas/io.l7mp.api.v1.HTTPListenerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.UDPSingletonListenerSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.UDPListenerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.TCPListenerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
           discriminator:
@@ -96,7 +96,7 @@ components:
             mapping:
               HTTP: '#/components/schemas/io.l7mp.api.v1.HTTPListenerSpec'
               WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
-              UDP: '#/components/schemas/io.l7mp.api.v1.UDPSingletonListenerSpec'
+              UDP: '#/components/schemas/io.l7mp.api.v1.UDPListenerSpec'
               TCP: '#/components/schemas/io.l7mp.api.v1.TCPListenerSpec'
               UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
         rules:
@@ -158,7 +158,7 @@ components:
           type: string
           description: HTTP URL to serve.
 
-    io.l7mp.api.v1.UDPSingletonListenerSpec:
+    io.l7mp.api.v1.UDPListenerSpec:
       description: |
         A UDP listener that accepts UDP datagrams from a single remote address-port pair. In unconnected mode (connect field not specified), waits for the first packet and uses the source IP/port in that packet as remote to which it connects back. In connected mode, the behavior depends on the reuseaddr setting (true by default). If reuseaddr=true, then the listener immediately connects back to the specified remote IP/port pair, otherwise it waits for the first packet from the specified remote IP/port pair and connects back only after that. In any case, subsequent packets will be accepted only from the same remote.
         - protocol: UDP
@@ -246,7 +246,7 @@ components:
           type: object
           oneOf:
             - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.UDPSingletonClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.UDPClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.TCPClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.L7mpControllerSpec'
@@ -259,7 +259,7 @@ components:
             propertyName: protocol
             mapping:
               WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
-              UDP: '#/components/schemas/io.l7mp.api.v1.UDPSingletonClusterSpec'
+              UDP: '#/components/schemas/io.l7mp.api.v1.UDPClusterSpec'
               TCP: '#/components/schemas/io.l7mp.api.v1.TCPClusterSpec'
               UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
               L7mpController: '#/components/schemas/io.l7mp.api.v1.L7mpControllerSpec'
@@ -298,7 +298,7 @@ components:
         port:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
 
-    io.l7mp.api.v1.UDPSingletonClusterSpec:
+    io.l7mp.api.v1.UDPClusterSpec:
       description: A UDP sender socket that forwards UDP connections to an upstream cluster, connecting to a well-defined remote address-port pair.
       type: object
       required:
@@ -436,7 +436,7 @@ components:
 
           # oneOf:
           #   - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketEndPointSpec'
-          #   - $ref: '#/components/schemas/io.l7mp.api.v1.UDPSingletonEndPointSpec'
+          #   - $ref: '#/components/schemas/io.l7mp.api.v1.UDPEndPointSpec'
 
     # TODO: specialize for different endpoint types
     io.l7mp.api.v1.EndPointSpec:
@@ -476,7 +476,7 @@ components:
     #     address:
     #       $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
 
-    # io.l7mp.api.v1.UDPSingletonEndPointSpec:
+    # io.l7mp.api.v1.UDPEndPointSpec:
     #   description: A UDP endpoint specification.
     #   type: object
     #   required:

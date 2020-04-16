@@ -242,25 +242,24 @@ curl -iX DELETE http://localhost:1234/api/v1/clusters/user-1-2-c
 
 * Protocol support
 
-|------------------+-------------------+-----------------+-------+-----------+---------+--------|
-| Protocol         | Session ID        | Type            | Role  | Mode      | Re/Lb   | Status |
-|------------------+-------------------+-----------------+-------+-----------+---------+--------|
-| UDP-singleton    | IP 5-tuple        | datagram-stream | l/c/t | singleton | no/yes  | Full   |
-| UDP-server       | IP 5-tuple        | datagram        | l     | server    | no/yes  | ???    |
-| TCP              | IP 5-tuple        | byte-stream     | l/c/t | server    | yes/yes | Full   |
-| HTTP             | IP 5-tuple        | byte-stream     | l/c/t | server    | yes/yes | Full   |
-| WS               | IP 5-tuple + HTTP | datagram-stream | l/c/t | server    | yes/yes | Full   |
-| STDIO-fork       | N/A               | byte-stream     | t     | singleton | no/no   | Full   |
-| UNIX/stream      | file desc/path    | byte-stream     | l/c/t | server    | yes/yes | Full   |
-| UNIX/dgram       | file desc/path    | datagram-stream | l/c/t | singleton | no/no   | ???    |
-| PIPE             | file desc/path    | byte-stream     | l/c/t | singleton | no/no   | TODO   |
-| AF_PACKET        | file desc         | datagram-stream | l/c/t | singleton | no/no   | TODO   |
-| INLINE/STDIO     | N/A               | byte-stream     | c     | singleton | yes/no  | Full   |
-| INLINE/Echo      | N/A               | byte-stream     | t/c   | singleton | yes/no  | Full   |
-| INLINE/Logger    | N/A               | byte-stream     | t/c   | singleton | yes/no  | Full   |
-| INLINE/JSONENcap | N/A               | byte-stream     | t/c   | singleton | yes/no  | Full   |
-| INLINE/JSONDecap | N/A               | byte-stream     | t/c   | singleton | yes/no  | Full   |
-|------------------+-------------------+-----------------+-------+-----------+---------+--------|
+|------------------+-------------------+-----------------+-------+------------------+---------+--------|
+| Protocol         | Session ID        | Type            | Role  | Mode             | Re/Lb   | Status |
+|------------------+-------------------+-----------------+-------+------------------+---------+--------|
+| UDP              | IP 5-tuple        | datagram-stream | l/c/t | singleton/server | no/yes  | Full   |
+| TCP              | IP 5-tuple        | byte-stream     | l/c/t | server           | yes/yes | Full   |
+| HTTP             | IP 5-tuple        | byte-stream     | l/c/t | server           | yes/yes | Full   |
+| WS               | IP 5-tuple + HTTP | datagram-stream | l/c/t | server           | yes/yes | Full   |
+| STDIO-fork       | N/A               | byte-stream     | t     | singleton        | no/no   | Full   |
+| UNIX/stream      | file desc/path    | byte-stream     | l/c/t | server           | yes/yes | Full   |
+| UNIX/dgram       | file desc/path    | datagram-stream | l/c/t | singleton        | no/no   | ???    |
+| PIPE             | file desc/path    | byte-stream     | l/c/t | singleton        | no/no   | TODO   |
+| AF_PACKET        | file desc         | datagram-stream | l/c/t | singleton        | no/no   | TODO   |
+| INLINE/STDIO     | N/A               | byte-stream     | c     | singleton        | yes/no  | Full   |
+| INLINE/Echo      | N/A               | byte-stream     | t/c   | singleton        | yes/no  | Full   |
+| INLINE/Logger    | N/A               | byte-stream     | t/c   | singleton        | yes/no  | Full   |
+| INLINE/JSONENcap | N/A               | byte-stream     | t/c   | singleton        | yes/no  | Full   |
+| INLINE/JSONDecap | N/A               | byte-stream     | t/c   | singleton        | yes/no  | Full   |
+|------------------+-------------------+-----------------+-------+------------------+---------+--------|
 
 ** Protocols
 

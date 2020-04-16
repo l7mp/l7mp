@@ -277,7 +277,7 @@ class WebSocketListener extends Listener {
     }
 };
 
-class UDPSingletonListener extends Listener {
+class UDPListener extends Listener {
     // unconnected mode:
     // bind socket, wait for the first packet, use the source IP and
     // source port as remote, connect back to this remote, create a
@@ -291,7 +291,7 @@ class UDPSingletonListener extends Listener {
     constructor(l){
         super(l);
         if(this._stream)
-            log.error('UDPSingletonListener', 'Listener already connected');
+            log.error('UDPListener', 'Listener already connected');
         this.type = 'datagram';
         this.mode = 'singleton';
 
@@ -302,7 +302,7 @@ class UDPSingletonListener extends Listener {
             this.connected      = true;
             this.remote_address = this.spec.connect.address;
             this.remote_port    = this.spec.connect.port;
-            log.info('UDPSingletonListener:', 'Connected mode: remote:',
+            log.info('UDPListener:', 'Connected mode: remote:',
                      `${this.remote_address || '<ANY>'}:${this.remote_port || '<ANY>'}`);
         }
 
@@ -319,7 +319,7 @@ class UDPSingletonListener extends Listener {
         //     })});
 
         // socket.once('listening', () => {
-        //     log.silly('UDPSingletonListener:', `"${this.name}" listening`);
+        //     log.silly('UDPListener:', `"${this.name}" listening`);
         // });
 
         this.socket = socket;
@@ -329,7 +329,7 @@ class UDPSingletonListener extends Listener {
             address: this.local_address,
             exclusive: false
         }, () => {
-            log.silly('UDPSingletonListener:', `"${this.name}" bound to`,
+            log.silly('UDPListener:', `"${this.name}" bound to`,
                       `${this.local_address}:${this.local_port}`);
 
             if(this.connected && this.reuseaddr){
@@ -346,7 +346,7 @@ class UDPSingletonListener extends Listener {
         if(this.connected){
             if((this.remote_address && rinfo.address !== this.remote_address) ||
                (this.remote_port && rinfo.port !== this.remote_port)){
-                log.warn('UDPSingletonListener:onConnect:', `"${this.name}:"`,
+                log.warn('UDPListener:onConnect:', `"${this.name}:"`,
                          `packet received from unknown peer:`,
                          `${rinfo.address}:${rinfo.port}, expecting`,
                          `${this.remote_address}:${this.remote_port}`);
@@ -354,7 +354,7 @@ class UDPSingletonListener extends Listener {
             }
         }
 
-        log.warn('UDPSingletonListener:onConnectMsg:', `"${this.name}:"`,
+        log.warn('UDPListener:onConnectMsg:', `"${this.name}:"`,
                  `packet received from peer:`,
                  `${rinfo.address}:${rinfo.port}: connecting`);
         this.remote_address = rinfo.address;
@@ -372,7 +372,7 @@ class UDPSingletonListener extends Listener {
                            this.remote_address = socket.remoteAddress().address;
                            this.remote_port    = socket.remoteAddress().port;
 
-                           log.silly(`UDPSingletonListener: "${this.name}"`,
+                           log.silly(`UDPListener: "${this.name}"`,
                                      `connected for remote`,
                                      `${this.remote_address}:`+
                                      `${this.remote_port} on`,
@@ -396,7 +396,7 @@ class UDPSingletonListener extends Listener {
     }
 
     onRequest(){
-        log.silly('UDPSingletonListener.onRequest', `Listener: ${this.name}`);
+        log.silly('UDPListener.onRequest', `Listener: ${this.name}`);
 
         var name =
             `UDPsingleton:${this.remote_address}:${this.remote_port}::` +
@@ -510,9 +510,7 @@ Listener.create = (l) => {
     switch(protocol){
     case 'HTTP':             return new HTTPListener(l);
     case 'WebSocket':        return new WebSocketListener(l);
-    case 'UDP':              log.warn('Listener.create:', 'UDP listener:',
-                                      'falling back to UDPSingleton');
-    case 'UDPSingleton':     return new UDPSingletonListener(l);
+    case 'UDP':              return new UDPListener(l);
     case 'TCP':              return new NetServerListener(l);
     case 'UnixDomainSocket': return new NetServerListener(l);
     default:  log.error('Listener.create',
