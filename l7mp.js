@@ -307,6 +307,7 @@ class L7mp {
                     if(r && r.source.origin.name === l.name)
                         this.deleteSession(s.name);
                 }
+            l.remove();
             this.listeners.splice(i, 1);
         } else {
             let e = `Unknown listener "${n}"`;

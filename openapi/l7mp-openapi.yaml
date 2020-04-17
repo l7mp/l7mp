@@ -160,11 +160,11 @@ components:
 
     io.l7mp.api.v1.UDPListenerSpec:
       description: |
-        A UDP listener that accepts UDP datagrams from a single remote address-port pair. In unconnected mode (connect field not specified), waits for the first packet and uses the source IP/port in that packet as remote to which it connects back. In connected mode, the behavior depends on the reuseaddr setting (true by default). If reuseaddr=true, then the listener immediately connects back to the specified remote IP/port pair, otherwise it waits for the first packet from the specified remote IP/port pair and connects back only after that. In any case, subsequent packets will be accepted only from the same remote.
+        A UDP listener that accepts UDP connections. The listener may work in one of 2 possible modes. In Singleton mode, the listener expects a fully qualified remote address-port pair (both connect.address or connect.port specified), connects back to the remote and stops accepting further connection requests. May work with reuseaddr=true in which case the listener connects at creation time, or with reuseaddr=false in which case it either connects immediately (connection=immediate) or waits for the first packet from the specified remote (connection=ondemand). In Server mode, the listener emits a new session for each UDP packet that belongs to a yet unseen connection (unknown IP 4-tuple). If a remote address or port is specified (one of connect.address or connect.port is specified), accept connections only from that remote address or port. Assumes reuseaddr=true and connection=ondemand.
         - protocol: UDP
         - session ID: IP 5-tuple
         - type: datagram
-        - mode: singleton
+        - mode: "singleton/server"
       type: object
       required:
         - protocol
@@ -179,9 +179,18 @@ components:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
         connect:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.AddressPortPair'
-        reuseaddr:
-          description: Whether SO_REUSEADDR is on.
-          type: boolean
+        options:
+          type: object
+          properties:
+            reuseaddr:
+              description: Whether SO_REUSEADDR is on (default). Respected only in "Singleton" mode.
+              type: boolean
+            connection:
+              description: Connect immediately as the listener is created ("immediate") or on the first packet received ("ondemand"). Respected only in "Singleton" mode.
+              type: string
+              enum:
+              - immediate
+              - ondemand
 
     io.l7mp.api.v1.TCPListenerSpec:
       description: |
