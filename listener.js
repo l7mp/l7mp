@@ -416,6 +416,9 @@ class UDPListener extends Listener {
                                         `${connection.local_address}:`+
                                         `${connection.local_port}`);
 
+                               setImmediate(() => {
+                                   socket.emit('message', msg, rinfo);
+                               });
                                this.onRequest(connection);
                            });
                 });
