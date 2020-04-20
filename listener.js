@@ -574,13 +574,21 @@ class JSONSocketListener extends Listener {
                 return;
             }
 
+            if(typeof header.metadata === 'undefined'){
+                log.warn('JSONSocketListener:', `${this.name}:`,
+                         `Empty metadata in header:`, dumper(header,5));
+                l.stream.destroy();
+                return;
+            }
+
             for(let q of this.spec.parse){
                 if(!q.path){
                     log.warn('JSONSocketListener:', `${this.name}:`,
                              `Invalid parse path`);
                     return;
                 }
-                let value = Rule.getAtPath(header, q.path);
+
+                let value = Rule.getAtPath(header.metadata, q.path);
                 if(typeof value === 'undefined'){
                     log.warn('JSONSocketListener:', `${this.name}:`,
                              `Empty field in JSON header for query`,
