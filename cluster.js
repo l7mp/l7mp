@@ -695,7 +695,7 @@ class JSONEncapCluster extends Cluster {
         super( {
             name:         c.name || 'JSONEncapCluster',
             spec:         { protocol: 'JSONEncap'},
-            type:         'byte-stream'
+            type:         'datagram',
         } );
     }
 
@@ -713,7 +713,7 @@ class JSONEncapCluster extends Cluster {
 
     stream(s){
         log.silly('JSONEncapCluster.stream', `Session: ${s.name}`);
-        return Promise.resolve( miss.through.obj(  // objectMode=true
+        return Promise.resolve( miss.through.obj( // objectMode=true
             (arg, enc, cb) => {
                 let buffer = arg instanceof Buffer;
                 if(buffer) arg = arg.toString(enc);
@@ -734,7 +734,7 @@ class JSONDecapCluster extends Cluster {
         super( {
             name:         c.name || 'JSONDecapCluster',
             spec:         { protocol: 'JSONDecap'},
-            type:         'byte-stream'
+            type:         'datagram',
         } );
     }
 
@@ -781,7 +781,7 @@ class SyncCluster extends Cluster {
             spec:         {protocol: 'Sync' },
             endpoints:    [],
             loadbalancer: { policy: 'None' },
-            type:         'byte-stream',
+            type:         'datagram',
         });
         this.query    = c.spec.query; // JSON query to get key from medatata
         this.streams  = {};           // keyed by 'label'
@@ -799,7 +799,7 @@ class SyncCluster extends Cluster {
     }
 
     connect(s){
-        return Promise.reject('SyncCluster.connect: Not implemented');
+        return Promise.reject(new Error('SyncCluster.connect: Not implemented'));
     }
 
     stream(s){

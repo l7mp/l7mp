@@ -131,7 +131,8 @@ class BroadcastStream {
     add(key) {
         let input  = new PassThrough({objectMode: true});
         let output = new merge3();
-        let port   = duplex3(input, output);
+        let port   = duplex3({readableObjectMode: true, writableObjectMode: true},
+                             input, output);
 
         this.ports.push( {port: port, input: input, output: output, key: key} );
         input.once('close', (e) => { console.log('BroadcastStream.close!'); this.remove(key) });
