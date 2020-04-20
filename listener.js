@@ -37,6 +37,9 @@ const eventDebug   = require('event-debug');
 const StreamCounter = require('./stream-counter.js').StreamCounter;
 const utils         = require('./stream.js');
 
+// for get/setAtPath()
+const Rule          = require('./rule.js').Rule;
+
 class Listener {
     constructor(l){
         this.protocol  = l.spec.protocol;
@@ -66,7 +69,6 @@ class Listener {
         };
     }
 
-    remove() { /* NOP */ };
 }
 
 // Inherit from EventEmitter: roughly equivalent to:
@@ -455,8 +457,7 @@ class UDPListener extends Listener {
         this.emit('emit', metadata, listener);
     }
 
-    end(s, e){ try { this.socket.close(); } catch(e) {/*ignore*/} }
-    remove() { try { this.socket.close(); } catch(e) {/*ignore*/} }
+    end(s, e){ try { this.socket.destroy(); } catch(e) {/*ignore*/} }
 };
 
 class NetServerListener extends Listener {
@@ -532,8 +533,76 @@ class NetServerListener extends Listener {
 
     end(s, e){
         log.info('NetServerListener: end:', e ? e.message : 'No error');
-        s.listener.stream && s.listener.stream.end();
+        // no-op
     }
+};
+
+class JSONSocketListener extends Listener {
+    constructor(l){
+        super(l);
+        this.type = 'datagram';
+        let li = {
+            name: this.name + '-embedded_listener',
+            spec: l.spec.transport_spec,
+        };
+        if(!li.spec)
+            log.error('JSONSocketListener:', 'No transport specified');
+        this.transport = Listener.create(li);
+
+        log.info('JSONSocketListener:', `${this.name} initialized`);
+
+        this.transport.on('emit', (m, l, p) => this.onSession(m, l, p));
+        // eventDebug(socket);
+    }
+
+    onSession(m, l, p){
+        log.info('JSONSocketListener:', `${this.name}:`,
+                 `New connection request: "${m.name}"`);
+        // stream should be in object mode so we should be able to
+        // read the entire "JSON header" in one shot
+        l.stream.once('data', (chunk) => {
+            if(typeof chunk !== 'object')
+                log.warn('JSONSocketListener:', `${this.name}:`,
+                         `Transport is not message based, JSON header`,
+                         `may be fragmented`);
+            try {
+                var header = JSON.parse(chunk);
+            } catch(e){
+                log.warn('JSONSocketListener:', `${this.name}:`,
+                         `Invalid JSON header, dropping connection`);
+                l.stream.destroy();
+                return;
+            }
+
+            for(let q of this.spec.parse){
+                if(!q.path){
+                    log.warn('JSONSocketListener:', `${this.name}:`,
+                             `Invalid parse path`);
+                    return;
+                }
+                let value = Rule.getAtPath(header, q.path);
+                if(typeof value === 'undefined'){
+                    log.warn('JSONSocketListener:', `${this.name}:`,
+                             `Empty field in JSON header for query`,
+                             `"${q.path}"`);
+                    continue;
+                }
+                let target = q.target || q.path;
+                Rule.setAtPath(m, target, value)
+            }
+
+            l.origin = this;
+            m.name = `JSONSocket:${this.name}-` + this.getNewSessionId();
+
+            // reemit chunk
+            setImmediate(() => { l.stream.emit("data", chunk); });
+
+            // and emit new session
+            this.emit('emit', m, l, {});
+        });
+    }
+
+    end(s, e){ /*ignore*/ };
 };
 
 Listener.create = (l) => {
@@ -545,6 +614,7 @@ Listener.create = (l) => {
     case 'UDP':              return new UDPListener(l);
     case 'TCP':              return new NetServerListener(l);
     case 'UnixDomainSocket': return new NetServerListener(l);
+    case 'JSONSocket':       return new JSONSocketListener(l);
     default:  log.error('Listener.create',
                         `Unknown protocol: "${protocol}"`);
     }

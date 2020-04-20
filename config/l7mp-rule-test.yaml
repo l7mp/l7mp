@@ -12,11 +12,7 @@ listeners:
   - name: ws-l
     spec: { protocol: WebSocket, port: 9999 }
     rules:
-      - match:
-          op: or
-          apply:
-            - { op: test, path: '/HTTP/headers/token', value: 'secret' }
-            - { op: starts, path: '/HTTP/url/path', value: '/admin' }
+      - match: { op: starts, path: '/HTTP/url/path', value: '/admin' }
         action:
           route:
             cluster: echo

@@ -66,11 +66,12 @@ class JSONPredicate extends Match {
     }
 
     apply(s){
-        log.silly("JSONPredicate.apply",
-                  `Session: ${s.name}, predicate: "${this.predicate}"`);
+        log.silly("JSONPredicate.apply", `Session: ${s.name}`,
+                  `predicate:`, dumper(this.predicate, 5),
+                  `on metadata:`, dumper(s.metadata, 5));
         let res = jsonPredicate.test(s.metadata, this.predicate);
 
-        log.silly("JSONPredicate.apply", `resuts: "${res}"`);
+        log.silly("JSONPredicate.apply", `results: "${res}"`);
         return res === true;
     }
 
@@ -110,7 +111,7 @@ class Rule {
 
     // apply rule to session
     apply(s){
-        log.silly('Rule.apply:', `${dumper(this)}`);
+        log.silly('Rule.apply:', `"${this.name}"`);
 
         if(this.match.apply(s)){
             _.extend(s.metadata, this.action.set);

@@ -91,6 +91,7 @@ components:
             - $ref: '#/components/schemas/io.l7mp.api.v1.UDPListenerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.TCPListenerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.JSONSocketListenerSpec'
           discriminator:
             propertyName: protocol
             mapping:
@@ -231,7 +232,44 @@ components:
           description: The protocol, must be "UnixDomainSocket".
         filename:
           type: string
-          description: File system path to bind to..
+          description: File system path to bind to.
+
+    io.l7mp.api.v1.JSONSocketListenerSpec:
+      description: |
+        This listener implements the server side of the the JSON stream protocol. Can be established over any datagram transport, the listener expects the first packet of the stream to be a fully specified JSON. The idea is implement the "HTTP header" semantics, but on top of a dumb unreliable datagram transport like UDP or pure IP.
+        - protocol: JSONSocket
+        - session ID: Listener name + ID
+        - type: datagram
+        - mode: "singleton/server"
+      type: object
+      required:
+        - protocol
+        - transport_spec
+      properties:
+        protocol:
+          type: string
+          enum:  # fixed value
+            - JSONSocket
+          description: The protocol, must be "JSONSocket".
+        transport_spec:
+          description: The specification of the listener that provides the transport service to JSONSocket.
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.UDPListenerSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
+        parse:
+          type: array
+          items:
+            description: A JSON field to parse out from the JSONSocket header and write into the session metadata.
+            type: object
+            properties:
+              path:
+                type: string
+                description: Field from the JSON header to parse.
+              target:
+                type: string
+                description: Target path to write parsed field.
 
     io.l7mp.api.v1.ClusterRequest:
       description: |

@@ -68,10 +68,11 @@ const StreamCounter = require('./stream-counter.js').StreamCounter;
 //   args: -
 
 class Session {
-    constructor(m, l, p){
+    constructor(m, l, s, p){
         this.metadata = m;
         this.name     = m.name;  // id
         this.listener = l;
+        this.stream   = s;  // listener stream, valid before we had a route
         this.route    = undefined;
         this.stats    = { counter: new StreamCounter() };
         this.priv     = p || {};

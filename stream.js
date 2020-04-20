@@ -40,8 +40,8 @@ class DatagramStream extends Duplex {
             emitClose: false,
             // objectMode: false,
             objectMode: true,
-            readableObjectMode: false,
-            writableObjectMode: false
+            // readableObjectMode: false,
+            // writableObjectMode: false
         });
         this.drops  = 0;
 

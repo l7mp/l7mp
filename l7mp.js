@@ -109,9 +109,10 @@ class L7mp {
 
     async route(metadata, listener, priv){
         log.info('L7mp.route:', `New session "${metadata.name}"`,
-                 `listener: ${listener.origin.name}`);
+                 `listener: ${listener.origin.name}:`, dumper(metadata, 3));
 
-        let s = this.addSession(metadata, listener.origin, priv);
+        let s = this.addSession(metadata, listener.origin,
+                                listener.stream, priv);
 
         // status is INIT
 
@@ -151,6 +152,13 @@ class L7mp {
         for(let i = 0; i < rules.length; i++){
             action = rules[i].apply(s)
             if (action) break;
+        }
+
+        if(!action){
+            log.warn('L7mp.route:', `No route for session "${s.name}"`);
+            this.deleteSession(s.name);
+            s.stream.destroy();
+            return;
         }
 
         // apply metadata rewrite rules
@@ -204,22 +212,27 @@ class L7mp {
     run(){
         log.silly('L7mp.run');
 
-        if('clusters' in this.static_config){
-            this.static_config.clusters.forEach(
-                (c) => this.addCluster(c)
-            );
-        }
+        try {
+            if('clusters' in this.static_config){
+                this.static_config.clusters.forEach(
+                    (c) => this.addCluster(c)
+                );
+            }
 
-        if('listeners' in this.static_config){
-            this.static_config.listeners.forEach(
-                (l) => this.addListener(l)
-            );
-        }
+            if('listeners' in this.static_config){
+                this.static_config.listeners.forEach(
+                    (l) => this.addListener(l)
+                );
+            }
 
-        if('rules' in this.static_config){
-            this.static_config.rules.forEach(
-                (r) => this.addRule(r)
-            );
+            if('rules' in this.static_config){
+                this.static_config.rules.forEach(
+                    (r) => this.addRule(r)
+                );
+            }
+        } catch(e) {
+            log.error(`Could not read static configuration ${config}:`,
+                      e.message);
         }
     }
 
@@ -307,7 +320,6 @@ class L7mp {
                     if(r && r.source.origin.name === l.name)
                         this.deleteSession(s.name);
                 }
-            l.remove();
             this.listeners.splice(i, 1);
         } else {
             let e = `Unknown listener "${n}"`;
@@ -427,7 +439,7 @@ class L7mp {
     }
 
     // internal, not to be called from the API
-    addSession(metadata, listener, priv){
+    addSession(metadata, listener, stream, priv){
         log.silly('L7mp.addSession:', `Session: ${metadata.name}`);
         var i = 0;
 
@@ -440,7 +452,7 @@ class L7mp {
         }
 
         metadata.name = name;
-        let se = new Session(metadata, listener, priv)
+        let se = new Session(metadata, listener, stream, priv);
         this.sessions.push(se);
         return se;
     }
@@ -458,8 +470,12 @@ class L7mp {
         let s = this.sessions[i];
 
         // returns 1 if no retrying stage exists
-        if(this.deleteRoute(s.route.name))
-            this.sessions.splice(i, 1);
+        if(!s.route)
+            // init phase, don't have a route yet
+            s.stream.destroy();
+        else
+            if(this.deleteRoute(s.route.name))
+                this.sessions.splice(i, 1);
     }
 
     deleteSessionIfExists(n){
