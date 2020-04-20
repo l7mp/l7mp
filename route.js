@@ -89,7 +89,7 @@ class Route {
         try {
             var resolved_list = await Promise.all(wait_list);
         } catch(error){
-            dump(error, 3);
+            // dump(error, 3);
             throw new Error(`Pipeline initialization failed for `+
                             `session: ${s.name}: `+
                             `could not connect "${error.stage.origin.name}": ` +

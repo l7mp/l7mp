@@ -815,9 +815,9 @@ class SyncCluster extends Cluster {
             let port = this.streams[label].add(s);
             return Promise.resolve(port);
         } else {
-            return Promise.reject('SyncCluster.stream: reject: ' +
-                                  `Session: "${s.name}", ` +
-                                  `query "${this.query}" empty label`);
+            return Promise.reject(
+                new Error(`SyncCluster.stream: reject: Session: "${s.name}":`+
+                          ` query "${this.query}": empty label`));
         }
     }
 };
