@@ -755,10 +755,11 @@ class JSONDecapCluster extends Cluster {
         return Promise.resolve( miss.through.obj(  // objectMode=true
             (arg, enc, cb) => {
                 let buffer = arg instanceof Buffer;
-                let ret = buffer ? arg : Buffer.from(arg, enc);
+                arg = buffer ? arg : arg.toString(enc);
                 try {
-                    let json = JSON.parse(ret.toString('base64'));
-                    ret = json.payload || "";
+                    let json = JSON.parse(arg);
+                    var ret = Buffer.from(json.payload,
+                                          enc).toString('base64') || "";
                 } catch(e){
                     log.info('JSONDecapCluster.stream.transform:',
                              `Invalid JSON payload`,
