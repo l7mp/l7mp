@@ -262,9 +262,6 @@ class UDPEndPoint extends EndPoint {
         super(c, e);
         this.remote_address = e.spec.address;
         this.remote_port    = c.spec.port;
-        this.bind           = c.spec.bind;
-        this.local_address  = c.spec.bind ? c.spec.bind.address : '';
-        this.local_port     = c.spec.bind ? c.spec.bind.port : 0;
 
         if(!(this.remote_address && this.remote_port))
             throw new Error('UDPEndPoint:', 'No remote addr:port pair defined');
@@ -273,9 +270,11 @@ class UDPEndPoint extends EndPoint {
     }
 
     connect(s){
+        let c = this.cluster;
         log.silly(`UDPEndPoint.connect:`,
-                  (this.bind ?
-                   `${this.local_address}:${this.local_port} ->` : ''),
+                  (c.spec.bind ?
+                   `${c.spec.bind.address || "0.0.0.0"}:`+
+                   `${c.spec.bind.port || "0"} ->` : ''),
                   `${this.remote_address}:${this.remote_port}`);
 
         // note: ws events will be caught by the cluster (pEvent)
@@ -291,23 +290,23 @@ class UDPEndPoint extends EndPoint {
         //          `using direct sendto!`);
 
         socket.bind({
-            port: this.local_port,
-            address: this.local_address,
+            port: c.spec.bind ? c.spec.bind.port : 0,
+            address: c.spec.bind ? c.spec.bind.address : '0.0.0.0',
             exclusive: false
         }, () => {
             const address = socket.address();
-            this.local_address = address.address;
-            this.local_port    = address.port;
+            let local_address = address.address;
+            let local_port    = address.port;
 
             log.silly('UDPCluster:',
-                      `"${this.name}" bound to ${this.local_address}:` +
-                      `${this.local_port}`)
+                      `"${this.name}" bound to ${local_address}:` +
+                      `${local_port}`)
 
             socket.on('connect', () => {
                 const remote = socket.remoteAddress();
                 log.info('UDPEndPoint:', `"${this.name}" connected`,
                          `to ${remote.address}:${remote.port} on`,
-                         `${this.local_address}:${this.local_port}`);
+                         `${local_address}:${local_port}`);
 
                 // re-emit as 'open', otherwise we lose
                 // the socket in pEvent
