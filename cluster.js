@@ -716,13 +716,13 @@ class JSONEncapCluster extends Cluster {
         return Promise.resolve( miss.through.obj( // objectMode=true
             (arg, enc, cb) => {
                 let buffer = arg instanceof Buffer;
-                if(buffer) arg = arg.toString(enc);
+                let ret = buffer ? arg : Buffer.from(arg, enc);
                 let json = {
                     metadata: s.metadata,
-                    payload: arg
+                    payload: ret.toString('base64'),
                 };
-                arg = JSON.stringify(json);
-                cb(null, buffer ? Buffer.from(arg, enc) : arg);
+                ret = JSON.stringify(json);
+                cb(null, ret);
             },
             (cb) => { cb(null, '') }
         ));
@@ -755,15 +755,15 @@ class JSONDecapCluster extends Cluster {
         return Promise.resolve( miss.through.obj(  // objectMode=true
             (arg, enc, cb) => {
                 let buffer = arg instanceof Buffer;
-                if(buffer) arg = arg.toString(enc);
+                let ret = buffer ? arg : Buffer.from(arg, enc);
                 try {
-                    let json = JSON.parse(arg);
-                    arg = json.payload ? json.payload : arg;
+                    let json = JSON.parse(ret.toString('base64'));
+                    ret = json.payload || "";
                 } catch(e){
                     log.info('JSONDecapCluster.stream.transform:',
                              'Invalid JSON payload: ', e);
                 }
-                cb(null, buffer ? Buffer.from(arg, enc) : arg);
+                cb(null, ret);
             },
             (cb) => { cb(null, '') }
         ));
