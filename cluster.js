@@ -761,7 +761,8 @@ class JSONDecapCluster extends Cluster {
                     ret = json.payload || "";
                 } catch(e){
                     log.info('JSONDecapCluster.stream.transform:',
-                             'Invalid JSON payload: ', e);
+                             `Invalid JSON payload`,
+                             `"${ret.toString('base64')}":`, e,);
                 }
                 cb(null, ret);
             },
