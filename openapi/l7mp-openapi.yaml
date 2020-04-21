@@ -300,6 +300,7 @@ components:
             - $ref: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.LoggerClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.SyncClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.JSONEncapClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.JSONDecapClusterSpec'
           discriminator:
@@ -313,6 +314,7 @@ components:
               Stdio: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
               Echo: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
               Logger: '#/components/schemas/io.l7mp.api.v1.LoggerClusterSpec'
+              Sync: '#/components/schemas/io.l7mp.api.v1.SyncClusterSpec'
               JSONEncap: '#/components/schemas/io.l7mp.api.v1.JSONEncapClusterSpec'
               JSONDecap: '#/components/schemas/io.l7mp.api.v1.JSONDecapClusterSpec'
         endpoints:
@@ -443,6 +445,23 @@ components:
           type: string
         log_prefix:
           description: Prefix log messages. Default is no prefix.
+          type: string
+
+    io.l7mp.api.v1.SyncClusterSpec:
+      description: |
+        A virtual cluster that allows multiple streams to synchronize and exchange data. The Sync cluster acts as a rendezvous point for streams whose metadata query evaluates to the same value (like e.g., multiple WebSocket streams with the same HTTP cookie); these streams will be connected into a single broadcast domain, whereby any data sent by any of the streams will be boradcast to all the other streams. Useful for connecting two ingress streams into a single end-to-end stream.
+      type: object
+      required:
+        - protocol
+        - query
+      properties:
+        protocol:
+          description: The protocol, must be "Sync".
+          type: string
+          enum:  # fixed value
+            - Sync
+        query:
+          description: A JSONPredicate query to the stream metadata. All streams for which the query evaluates to the same value will be connected into a single broadcast domain.
           type: string
 
     io.l7mp.api.v1.JSONEncapClusterSpec:
