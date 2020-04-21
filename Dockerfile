@@ -12,8 +12,6 @@ COPY package*.json .
 
 # add the minimal config file
 COPY config/l7mp-minimal.yaml config/
-COPY config/l7mp-uds-echo.yaml config/
-COPY config/l7mp-udp-echo.yaml config/
 
 RUN cd /app && npm install --production
 
