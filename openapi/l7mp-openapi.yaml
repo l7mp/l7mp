@@ -97,6 +97,8 @@ components:
               HTTP: '#/components/schemas/io.l7mp.api.v1.HTTPListenerSpec'
               WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
               UDP: '#/components/schemas/io.l7mp.api.v1.UDPSingletonListenerSpec'
+              TCP: '#/components/schemas/io.l7mp.api.v1.TCPListenerSpec'
+              UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
         rules:
           description: A list of Rule objects (required).
           type: array
