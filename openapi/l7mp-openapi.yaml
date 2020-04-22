@@ -260,6 +260,8 @@ components:
             mapping:
               WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
               UDP: '#/components/schemas/io.l7mp.api.v1.UDPSingletonClusterSpec'
+              TCP: '#/components/schemas/io.l7mp.api.v1.TCPClusterSpec'
+              UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
               L7mpController: '#/components/schemas/io.l7mp.api.v1.L7mpControllerSpec'
               Stdio: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
               Echo: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
