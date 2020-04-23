@@ -264,7 +264,7 @@ components:
             mapping:
               WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
               UDP: '#/components/schemas/io.l7mp.api.v1.UDPClusterSpec'
-              UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocke
+              UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
         parse:
           type: array
           items:
