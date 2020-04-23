@@ -457,7 +457,12 @@ class UDPListener extends Listener {
         this.emit('emit', metadata, listener);
     }
 
-    end(s, e){ try { this.socket.destroy(); } catch(e) {/*ignore*/} }
+    end(s, e){
+        log.silly('UDPListener.end');
+        try { this.socket.close(); } catch(err) {
+            log.warn('UDPListener.end: Could not remove socket:', err.message);
+        }
+    }
 };
 
 class NetServerListener extends Listener {
