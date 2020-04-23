@@ -36,7 +36,6 @@
         "jq-web": "^0.5.1",
         "json-predicate": "^0.9.5",
         "lodash": "^4.17.15",
-        "merge-stream": "^2.0.0",
         "minimist": "^1.2.5",
         "mississippi": "^4.0.0",
         "npmlog": "^4.1.2",

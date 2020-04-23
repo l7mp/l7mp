@@ -28,8 +28,8 @@ const util        = require('util');
 const stream_pipe = require('stream').prototype.pipe;
 const { Duplex, PassThrough }  = require('stream');
 const duplex3     = require("duplexer2");
-const merge3      = require('merge-stream');
 const miss        = require('mississippi');
+const eventDebug  = require('event-debug');
 
 
 class DatagramStream extends Duplex {
@@ -121,6 +121,22 @@ class DatagramStream extends Duplex {
     }
 };
 
+
+//          port1
+//         +--------+
+// --------> input ------------+       port2
+//         |        |          |     +--------+
+// <-------- output <----+------------- input <---------
+//         +--------+    |     |     |        |
+//                       |     +-----> output--------->
+//                       |     |     +--------+
+//                       |     |
+//                   +---|-----V----+
+//                   | input output |port3
+//                   +---A-----|----+
+//                       |     |
+//                       |     |
+//                       |     V
 class BroadcastStream {
     constructor(){
         this.ports = [];
@@ -129,28 +145,42 @@ class BroadcastStream {
 
     // key is a transparent id
     add(key) {
+        log.silly(`BroadcastStream.add: adding key: "${key}"`);
         let input  = new PassThrough({objectMode: true});
-        let output = new merge3();
-        let port   = duplex3({readableObjectMode: true, writableObjectMode: true},
-                             input, output);
+        // eventDebug(input, `${key}: input`);
+        let output = new MergeStream();
+        // eventDebug(output, `${key}: output`);
+
+        // propagate errors from input/output to port
+        let port   = duplex3({readableObjectMode: true, writableObjectMode: true,
+                              bubbleErrors: true}, input, output);
+        eventDebug(output, `${key}: port`);
 
         this.ports.push( {port: port, input: input, output: output, key: key} );
-        input.once('close', (e) => { console.log('BroadcastStream.close!'); this.remove(key) });
-        input.once('error', (e) => { console.log('BroadcastStream.error!'); this.remove(key) });
-        output.once('close', (e) => { console.log('BroadcastStream.close!'); this.remove(key) });
-        output.once('error', (e) => { console.log('BroadcastStream.error!'); this.remove(key) });
+
+
+        port.once('end', () => {
+            log.silly(`BroadcastStream.end on port ${key}`);
+            this.remove(key);
+        });
+        port.once('error', (e) => {
+            log.silly(`BroadcastStream.error on port ${key}:`, e.message);
+            this.emit('end');
+        });
 
         // input
         this.ports.forEach( (p) => {
             if(p.key !== key){
-                miss.pipe(input, p.output);   // will call merge.add
+                input.pipe(p.output);   // will call merge.add
+                // miss.pipe(input, p.output);   // will call merge.add
             }
         });
 
         // output
         this.ports.forEach( (p) => {
             if(p.key !== key){
-                miss.pipe(p.input, output);   // will call merge.add
+                p.input.pipe(output);   // will call merge.add
+                // miss.pipe(p.input, output);   // will call merge.add
             }
         });
 
@@ -162,6 +192,7 @@ class BroadcastStream {
     }
 
     remove(k) {
+        log.silly(`BroadcastStream.remove: removing key: "${k}"`);
         let i = this.ports.findIndex( ({key}) => key === k );
         if(i >= 0){
             let port   = this.ports[i];
@@ -182,9 +213,11 @@ class BroadcastStream {
                 }
             });
 
-            if(port.output.readable) { port.output.end() };
+            // if(port.output.readable) { port.output.end() };
+            // port.output.end();
 
             this.ports.splice(i, 1);
+
         }
     }
 };
@@ -210,7 +243,51 @@ class DuplexPassthrough {
     right() { return this.right }
 };
 
+// adopted from merge-streams:
+// change: do not end the merge stream when the last writer goes away,
+// we want to keep it around so that later we can add new writers
+var MergeStream = function (/*streams...*/) {
+    var sources = []
+    var output  = new PassThrough({objectMode: true})
+
+    output.setMaxListeners(0)
+
+    output.add = add
+    output.isEmpty = isEmpty
+
+    output.on('unpipe', remove)
+
+    Array.prototype.slice.call(arguments).forEach(add)
+
+    return output
+
+    function add (source) {
+        log.silly('MergeStream.add');
+        if (Array.isArray(source)) {
+            source.forEach(add)
+            return this
+        }
+
+        sources.push(source);
+        source.once('end', remove.bind(null, source))
+        source.once('error', output.emit.bind(output, 'error'))
+        source.pipe(output, {end: false})
+        return this
+    }
+
+    function isEmpty () {
+        return sources.length == 0;
+    }
+
+    function remove (source) {
+        log.silly('MergeStream.remove');
+        sources = sources.filter(function (it) { return it !== source })
+        // if (!sources.length && output.readable) { output.end() }
+    }
+}
+
 // module.exports.socket2dgramstream = socket2dgramstream;
 module.exports.DatagramStream    = DatagramStream;
 module.exports.BroadcastStream   = BroadcastStream;
 module.exports.DuplexPassthrough = DuplexPassthrough;
+module.exports.MergeStream       = MergeStream;

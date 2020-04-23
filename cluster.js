@@ -812,7 +812,7 @@ class SyncCluster extends Cluster {
                 this.streams[label] = new utils.BroadcastStream();
             }
 
-            let port = this.streams[label].add(s);
+            let port = this.streams[label].add(s.name);
             return Promise.resolve(port);
         } else {
             return Promise.reject(
