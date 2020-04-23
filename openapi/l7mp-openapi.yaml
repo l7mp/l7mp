@@ -259,6 +259,12 @@ components:
             - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.UDPListenerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
+          discriminator:
+            propertyName: protocol
+            mapping:
+              WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
+              UDP: '#/components/schemas/io.l7mp.api.v1.UDPClusterSpec'
+              UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocke
         parse:
           type: array
           items:
