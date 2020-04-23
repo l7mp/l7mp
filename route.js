@@ -545,8 +545,8 @@ class Route {
                 if(stage.status !== 'END'){
                     stream.end();
                     stream.destroy();
+                    deleted++;
                 }
-                deleted++;
             } catch(e){
                 log.info('Route.end:', `${this.name}:`,
                          `Could not terminate stage:`,
@@ -558,7 +558,7 @@ class Route {
         }
 
         log.info('Route.end:', `${this.name}:`, `error:`,
-                 error || 'NONE', `delete ${deleted} stages`);
+                 error || 'NONE', `delete ${deleted} streams`);
 
         // return OK if no stage is retrying
         return ret;
