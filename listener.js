@@ -112,6 +112,9 @@ class HTTPListener extends Listener {
             `${req.connection.localPort}-` +
             this.getNewSessionId();
 
+        // eventDebug(req);
+        // eventDebug(res);
+
         // let stream = duplex3(res, req, {objectMode: false});
         let stream = miss.duplex(res, req, {objectMode: false});
 
@@ -162,11 +165,13 @@ class HTTPListener extends Listener {
     }
 
     end(s, e){
+        log.silly('HTTPListener.end');
         let res = s.priv.res;
         this.finalize(res, e);
     }
 
     finalize(res, e){
+        log.silly('HTTPListener.finalize');
         // dump(e, 3);
         if(typeof e === 'string' && e)
             e = { status: 400,

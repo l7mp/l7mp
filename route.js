@@ -281,7 +281,7 @@ class Route {
             stage.stream.on(event, stage.on_disc[event]);
         };
 
-        eh('end', stage);
+        // eh('end', stage);
         eh('close', stage);
         eh('error', stage);
     }
@@ -530,9 +530,9 @@ class Route {
             let stream = stage.stream;
             try{
                 if(stage.on_disc){
-                    // log.info('end:', stream.listenerCount("end"));
-                    stream.removeListener("end", stage.on_disc["end"]);
-                    // log.info('end:', stream.listenerCount("end"));
+                    // // log.info('end:', stream.listenerCount("end"));
+                    // stream.removeListener("end", stage.on_disc["end"]);
+                    // // log.info('end:', stream.listenerCount("end"));
 
                     // log.info('close:', stream.listenerCount("close"));
                     stream.removeListener("close", stage.on_disc["close"]);
