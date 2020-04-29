@@ -206,7 +206,7 @@ class L7mpOpenAPI {
             try {
                 l7mp.deleteSession(ctx.request.params.name);
                 res.status = 200;
-                res.content = 'OK';
+                res.content = { message: 'OK' };
             } catch(e) {
                 res.status = 400;
                 res.content = {
