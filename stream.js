@@ -154,7 +154,7 @@ class BroadcastStream {
         // propagate errors from input/output to port
         let port   = duplex3({readableObjectMode: true, writableObjectMode: true,
                               bubbleErrors: true}, input, output);
-        eventDebug(output, `${key}: port`);
+        // eventDebug(output, `${key}: port`);
 
         this.ports.push( {port: port, input: input, output: output, key: key} );
 
