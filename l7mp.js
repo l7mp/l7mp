@@ -310,7 +310,7 @@ class L7mp {
     }
 
     deleteListener(n){
-        log.info('L7mp.deleteListener');
+        log.info('L7mp.deleteListener:', n);
         let i = this.listeners.findIndex( ({name}) => name === n);
         if(i >= 0){
             let l = this.listeners[i];
