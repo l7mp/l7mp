@@ -61,6 +61,9 @@ components:
         strict:
           type: boolean
           description: 'Enable strict mode: validates all REST API calls against OpenAPI schema (default: false).'
+        version:
+          type: string
+          description: Version info.
 
     io.l7mp.api.v1.ListenerRequest:
       description: 'Wrapper for addListener calls: contains only a single Listener object'

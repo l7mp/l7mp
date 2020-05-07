@@ -1,7 +1,7 @@
 {
     "name": "l7mp",
     "description": "A programmable L7 meta-proxy",
-    "version": "1.0.0",
+    "version": "0.99.0",
     "main": "l7mp.js",
     "files": [
         "cluster.js",
@@ -44,6 +44,7 @@
         "p-event": "^4.1.0",
         "p-retry": "^4.2.0",
         "ws": "^7.2.3",
-        "yamljs": "^0.3.0"
+        "yamljs": "^0.3.0",
+        "git-repo-version": "^1.0.2"
     }
 }

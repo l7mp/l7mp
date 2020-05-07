@@ -30,6 +30,7 @@ const util       = require('util');
 var   log        = require('npmlog');
 const path       = require('path');
 const YAML       = require('yamljs');
+const getVersion = require('git-repo-version');
 
 const Listener   = require('./listener.js').Listener;
 const Cluster    = require('./cluster.js').Cluster;
@@ -210,7 +211,8 @@ class L7mp {
     }
 
     run(){
-        log.silly('L7mp.run');
+        log.info('Starting l7mp version:', this.admin.version,
+                 'Strict mode:', l7mp.admin.strict ? 'enabled' : 'disabled');
 
         try {
             if('clusters' in this.static_config){
@@ -237,7 +239,7 @@ class L7mp {
     }
 
     applyAdmin(admin) {
-        log.info('L7mp.applyAdmin', dumper(admin));
+        log.silly('L7mp.applyAdmin', dumper(admin));
         this.admin.log_level = log.level = 'log_level' in admin ?
             admin.log_level : log.level;
         this.admin.strict = 'strict' in admin ? admin.strict : false;
@@ -260,12 +262,16 @@ class L7mp {
             this.admin.access_log_path = admin.access_log_path;
             log.warn('L7mp.applyAdmin: access_log_path', 'TODO');
         }
+
+        this.admin.version = getVersion({ shaLength: 10, includeDate: true }) ||
+            '<UNKNOWN>';
     }
 
     getAdmin(){
         log.silly('L7mp.getAdmin');
         var admin = { log_level: this.admin.log_level,
-                      strict: this.admin.strict };
+                      strict: this.admin.strict,
+                      version: this.admin.version };
         if(this.admin.log_file) admin.log_file = this.admin.log_file;
         if(this.admin.access_log_path)
             admin.access_log_path = this.admin.access_log_path;
@@ -616,7 +622,6 @@ if('l' in argv) log.level = argv.l;
 
 // strict mode: boolean
 if('s' in argv) l7mp.admin.strict = true;
-log.info('Strict mode: ', l7mp.admin.strict ? 'enabled' : 'disabled');
 
 if(!l7mp.static_config)
     log.error('No static configuration found');
