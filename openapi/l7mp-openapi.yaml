@@ -276,7 +276,7 @@ components:
             properties:
               path:
                 type: string
-                description: Field from the JSON header to parse.
+                description: Field from the JSON header to parse as a JSON Pointer.
               target:
                 type: string
                 description: Target path to write parsed field.
@@ -633,7 +633,7 @@ components:
         - value
       properties:
         path:
-          description: The JSON path to the metadata field to rewrite. Will be created if path does not exist.
+          description: The JSON path (as a JSON Pointer) to the metadata field to rewrite. Will be created if path does not exist.
           type: string
         value:
           description: The value to rewrite the metadata field at the specified path. Can be a simple string or a JSON/YAML snippet.
