@@ -9,7 +9,7 @@ listeners:
     rules:
       - action:
           route:
-            cluster:
+            destination:
               spec: { protocol: L7mpController }
 clusters:
   - name: stdio

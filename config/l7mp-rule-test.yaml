@@ -8,17 +8,17 @@ listeners:
     rules:
       - action:
           route:
-            cluster: controller     # northbound: predefined INLINE/stream
+            destination: controller     # northbound: predefined INLINE/stream
   - name: ws-l
     spec: { protocol: WebSocket, port: 9999 }
     rules:
       - match: { op: starts, path: '/HTTP/url/path', value: '/admin' }
         action:
           route:
-            cluster: echo
+            destination: echo
       - action:
           route:
-            cluster: stdio
+            destination: stdio
 clusters:
   - name: controller
     spec: { protocol: L7mpController }

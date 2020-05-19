@@ -8,5 +8,5 @@ listeners:
     rules:
       - action:
           route:
-            cluster:
+            destination:
               spec: { protocol: Echo }

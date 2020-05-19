@@ -10,7 +10,7 @@ listeners:
       - action:
           route:
             # inline cluster
-            cluster:
+            destination:
               spec: { protocol: "WebSocket", port: 80 }
               endpoints:
                 # - spec: { address:  "127.0.0.1" }

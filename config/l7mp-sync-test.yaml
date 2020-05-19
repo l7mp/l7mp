@@ -8,7 +8,7 @@ listeners:
     rules:
       - action:
           route:
-            cluster: sync
+            destination: sync
 clusters:
   - name: sync
     spec: { protocol: Sync, query: '/HTTP/headers/id' }

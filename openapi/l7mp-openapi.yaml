@@ -145,7 +145,7 @@ components:
         A WebSocket server specification that accepts HTTP/WebSocket requests at a specified port.
         - protocol: WebSocket
         - session ID: IP 5-tuple
-        - type: datagram
+        - type: datagram-stream
         - mode: server
       type: object
       required:
@@ -168,7 +168,7 @@ components:
         A UDP listener that accepts UDP connections. The listener may work in one of 2 possible modes. In Singleton mode, the listener expects a fully qualified remote address-port pair (both connect.address or connect.port specified), connects back to the remote and stops accepting further connection requests. May work with reuseaddr=true in which case the listener connects at creation time, or with reuseaddr=false in which case it either connects immediately (connection=immediate) or waits for the first packet from the specified remote (connection=ondemand). In Server mode, the listener emits a new session for each UDP packet that belongs to a yet unseen connection (unknown IP 4-tuple). If a remote address or port is specified (one of connect.address or connect.port is specified), accept connections only from that remote address or port. Assumes reuseaddr=true and connection=ondemand.
         - protocol: UDP
         - session ID: IP 5-tuple
-        - type: datagram
+        - type: datagram-stream
         - mode: "singleton/server"
       type: object
       required:
@@ -222,7 +222,7 @@ components:
         A Unix Domain Socket (UDS) server specification that accepts IPC connection requests at a specified filename.
         - protocol: UnixDomainSocket
         - session ID: Listener name + ID
-        - type: datagram
+        - type: byte-stream
         - mode: server
       type: object
       required:
@@ -240,10 +240,10 @@ components:
 
     io.l7mp.api.v1.JSONSocketListenerSpec:
       description: |
-        This listener implements the server side of the the JSON stream protocol. Can be established over any datagram transport, the listener expects the first packet of the stream to be a fully specified JSON. The idea is implement the "HTTP header" semantics, but on top of a dumb unreliable datagram transport like UDP or pure IP.
+        This listener implements the server side of the the JSONSocket datagram streaming protocol. JSONSocket implements the "HTTP header" semantics, but on top of a dumb unreliable datagram transport like UDP or pure IP. Can be established over any datagram transport, the listener expects the first packet of the stream to be a fully specified JSON object, which will then be copied into the session metadata, and can return an arbitrary response header to the client. Both the JSON request and response headers are transmitted reliably, subject to user specified timeout.
         - protocol: JSONSocket
         - session ID: Listener name + ID
-        - type: datagram
+        - type: datagram-stream
         - mode: "singleton/server"
       type: object
       required:
@@ -276,7 +276,7 @@ components:
             properties:
               path:
                 type: string
-                description: Field from the JSON header to parse as a JSON Pointer.
+                description: Field to be copied from the JSON header to the session metadata header specified as a JSON Pointer.
               target:
                 type: string
                 description: Target path to write parsed field.
@@ -567,11 +567,11 @@ components:
       required:
         - cluster
       properties:
-        listener:
-          description: The "source" of the route (optional). If specified, must be a string.
-          type: string
-        cluster:
-          description: The "destination" cluster of the route (required). Can be a string in which case it is the name of an existing cluster with the name given, or it can be an inline cluster definition in which case a new cluster will be added.
+        # listener:
+        #   description: The "source" of the route (optional). If specified, must be a string.
+        #   type: string
+        destination:
+          description: The target cluster of the route (required). Can be a string in which case it is the name of an existing cluster with the name given, or it can be an inline cluster definition in which case a new cluster will be added.
           oneOf:
             - type: string
             - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'

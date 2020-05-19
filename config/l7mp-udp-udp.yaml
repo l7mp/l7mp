@@ -8,7 +8,7 @@ listeners:
     rules:
       - action:
           route:
-            cluster: sync
+            destination: sync
             # ingress:
             #   - spec:
             #       protocol: "WebSocket"
@@ -27,7 +27,7 @@ listeners:
     rules:
       - action:
           route:
-            cluster: sync
+            destination: sync
             # ingress:
             #   - spec: { protocol: "Logger", log_prefix: "ingress2" }
             # egress:

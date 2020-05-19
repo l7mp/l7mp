@@ -8,7 +8,7 @@ listeners:
     rules:
       - action:
           route:
-            cluster: controller     # northbound: predefined INLINE/stream
+            destination: controller     # northbound: predefined INLINE/stream
   - name: udp-listener
     spec:
       protocol: UDP
@@ -19,8 +19,8 @@ listeners:
     rules:
       - action:
           route:
-            # cluster: udp-cluster
-            cluster: stdio
+            # destination: udp-cluster
+            destination: stdio
             ingress:
               - up
             egress:
