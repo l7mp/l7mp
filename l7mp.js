@@ -503,14 +503,17 @@ class L7mp {
         let r = { ... a.route};
         if(!r) throw `No route in matching rule`;
 
-        if(!r.cluster)
+        // accept the old API name "cluster"
+        // internally we still use "cluster" instead of "detination"
+        if(!r.destination) r.destination = r.cluster;
+        if(!r.destination)
             throw `Invalid route: Empty cluster`;
-        if(typeof r.cluster !== 'string')
+        if(typeof r.destination !== 'string')
             throw 'Internal error: Inline destination cluster def found in route: '+
-            dumper(r.cluster, 5);
+            dumper(r.destination, 5);
 
         // this is a cluster name, substitute ref
-        let cluster = this.getCluster(r.cluster);
+        let cluster = this.getCluster(r.destination);
         if(!cluster)
             throw `Unknown cluster in route: "${r.cluster}"`;
         r.cluster = { origin: cluster };
