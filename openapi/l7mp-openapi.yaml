@@ -248,14 +248,14 @@ components:
       type: object
       required:
         - protocol
-        - transport_spec
+        - transport
       properties:
         protocol:
           type: string
           enum:  # fixed value
             - JSONSocket
           description: The protocol, must be "JSONSocket".
-        transport_spec:
+        transport:
           description: The specification of the listener that provides the transport service to JSONSocket.
           type: object
           oneOf:
@@ -567,9 +567,9 @@ components:
       required:
         - cluster
       properties:
-        # listener:
-        #   description: The "source" of the route (optional). If specified, must be a string.
-        #   type: string
+        name:
+          description: Name (optional, a unique name name will be assigned automatically if not specified.)
+          type: string
         destination:
           description: The target cluster of the route (required). Can be a string in which case it is the name of an existing cluster with the name given, or it can be an inline cluster definition in which case a new cluster will be added.
           oneOf:

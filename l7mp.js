@@ -568,18 +568,13 @@ class L7mp {
     }
 
     checkRoute(r, to, s){
-        // incompatible: session with everyting: this is an error
-        if(r.type === 'session' && to.type !== 'session')
-            throw `Incompatible streams: session stream routed to` +
-            `a ${to.type} stream`;
-
         // incompatible: datagram to session: warn
-        if(r.type === 'datagram' && to.type !== 'datagram'){
+        if(r.type === 'datagram-stream' && to.type !== 'datagram-stream'){
             log.warn('L7mp.addRoute:', `Session "${s.name}":`,
                      `Stream down-conversion: datagram-stream`,
                      `routed to a "${to.type}"-type stream "${to.name}":`,
                      'Can no longer enforce datagam boundaries');
-            r.type = 'stream';
+            r.type = 'byte-stream';
         }
     }
 
