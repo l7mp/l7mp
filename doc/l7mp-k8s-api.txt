@@ -5,94 +5,748 @@
 #+LaTeX_HEADER:\usepackage{etoolbox}
 #+LaTeX_HEADER:\makeatletter\patchcmd{\@verbatim}{\verbatim@font}{\verbatim@font\scriptsize}{}{}\makeatother
 #+LATEX:\setitemize{noitemsep,topsep=0pt,parsep=0pt,partopsep=0pt}
-#+OPTIONS: toc:nil author:nil ^:nil
+#+OPTIONS: toc:t author:nil ^:nil
 
-#+TITLE: L7mp Kubernetes API: A Simple UDP API Gateway
+#+TITLE: The "MultiProtocol (but mostly just UDP) Service Mesh" (muMS): Kubernetes API
 
 * General considerations
 
-- The API specifies two CRDs: a VirtualService (name may change later)
-  and a Route CRD. VirtualService objects wrap listener side sockets,
-  while Route objects specify the .
-- If a VirtualService contains an in-line ruleset then it will forward
-  the received traffic based on the route specified for the matching
-  rule. Otherwise, it is a stub VirtualService that works in a
-  request-response mode.
-- The =destination=, =ingress= and =egress= specifications in the
-  VirtualService route must be either a proper VirtulService name, in
-  which case the client-side connection parameters (cluster spec) are
-  taken from the VirtulService specification, or a Kubernetes service,
-  in which case the client-side specification is taken from the
-  =port=, =protocol=, and =targetPort= fields in the service
-  spec. (Optionally, the Kubernetes operator may automatically define
-  a default VirtulService object for each user-defined Kubernetes
-  service, dunno which option is better.)
-- Each VirtualService should have a short name (=name=) and a
-  fully-specified name (like
-  =name.namespace.virtualservice.cluster.local=). If a VirtualService
-  refers to another VirtualService with a short name then that
-  VirtualService is assumed to be in the same namespace. To refer to a
-  VirtualService in another namespace, use the fully specified name
-- The default l7mp API port is TCP:1234. The operator should warn on
-  clashing port definitions.
+- The API specifies 3 CRDs: a VirtualService, a Route, and a Target
+  CRD (names may change later). VirtualService objects wrap
+  server-side sockets, Target objects add client-side behavior, and
+  Route objects describe the way connections should be routed across
+  the cluster.
+- Each object should have a short name (e.g., =vsvc-name=) and a
+  fully-specified name (like, e.g.,
+  =vsvc-name.namespace.virtualservice.cluster.local=). If an object
+  refers to another object with a short name then that object is
+  assumed to be in the same namespace. To refer to an object in
+  another namespace, use the fully specified name.
+- It is assumed that the ingress gateway and the sidecar proxies are
+  provided by =l7mp= ("Layer-7 Multiprotocol Proxy"). The default
+  =l7mp= API port is =TCP:1234=. The operator should warn on clashing
+  port definitions.
+- Deploying the gateways and sidecar injection occur manually (we may
+  eventually implement support to ease this). In addition, the sidecar
+  doesn't capture inbound/outbound connections to/from the wrapped app
+  (in contrast to Istio), so the app needs to be aware that it should
+  talk to a sidecar proxy instead of the external world. It is not
+  mandatory to inject each Kubernetes service with a sidecar proxy; a
+  plain Kubernetes service with no sidecars is called a "naked"
+  service. For naked services the endpoints/pods are supposed to
+  support the inbound connection protocol natively (i.e., without
+  =l7mp= doing local protocol conversion) and server-side features
+  will be unavailable (e.g., monitoring). The Kubernetes controller
+  can identify the gateways and sidecars it needs to manage (i.e., for
+  non-naked Kuernetes services, etc.); it is beyond the scope of this
+  spec to define how this is implemented (with a label, annotation,
+  etc.).
+- The minimal setup is to deploy =l7mp= as a multiprotocol ingress
+  gateway manually but let the cluster's internal services be naked
+  Kubernetes services; in this minimal setup sidecar injection and
+  traffic capture are not relevant.
 
-* Example
+** VirtualService
 
-Functionality:
-- set up a gateway as a UDP listener that accepts connections from a
-  specified source IP/UDP port
-- set metadata
-- call out to a transcoder middlepoint that accepts connections on a
-  Unix domain socket (UDS), but expose this server (which would
-  otherwise serve local connections only) via a WebSocket listener for
-  remote callers
-- then route to a worker service which is a default Kubernetes service
-- there are no middlepoints (transformers) in the downlink direction
-  (we could easily add one)
+- VirtualServices describe abstract services that listen on a
+  specified server-side socket address. A VirtualService is either
+  backed by a proper Kubernetes service, which provides the list of
+  endpoints/pods the VirtualService referes to, or map to
+  endpoints/pods using standard Kubernetes label matching (e.g.,
+  "deploy this VirtualService to all pods labeled with
+  =app:worker=). A VirtualService then specifies the basic network
+  parameters clients can use to reach the service (protocol and port)
+  and it can add additional behavior to the service, like request
+  routing, rewriting, etc.
+- If a VirtualService contains an in-line ruleset then traffic
+  received on the corresponding listener will be forwarded based on
+  the route in the matching rule's action. Such "proxy-type"
+  VirtualServices must run a sidecar; it is an error to deploy a proxy
+  VirtualService to a naked Kubernetes service. Otherwise, the
+  VirtualService is a stub that works in a request-response config;
+  such VirtualServices are used e.g., to wrap naked Kubernetes
+  services.
+- A VirtualService consists of 3 parts: a listener specification for
+  creating a server-side socket to receive inbound connection
+  requests, a rule-list (optional) comprising a list of match-action
+  rules, with each match condition specified as a JSONPredicate query
+  on connection metadata and an action that describes what to do with
+  the connection (rewrite rule or route) if the corresponding
+  condition matches, and further options (optional). A rule with an
+  empty match is a catch-all rule that always matches. The rule-list
+  is evaluated when the listener socket emits a new connection request
+  (i.e., at connection-setup time) sequentially, and the action of the
+  fist matching rule is applied. Currently there is no API for
+  adding/deleting individual rules.
+- The Kubernetes control plane operator should automatically generate
+  an (identically named) VirtualService (see example below) for each
+  naked Kubernetes service. The VirtualService should contain the
+  =protocol= and =port= keys from the Kubernetes service spec, and
+  nothing else. This could be done on-demand (when a service appears
+  in a route target, see below), or for all Kubernetes services by
+  default on creation. Contrariwise, a VirtualService must be manually
+  specified for each pod/deployment/service/etc. that runs a sidecar
+  proxy, otherwise, the sidecar would not know what to do with the
+  received traffic; no automatic VirtualService is generated for such
+  services. The operator keeps record of VirtualServices backed by
+  naked Kubernetes services and never generates sidecar config for
+  such services.
 
-:                 +------------+
-:                 | transcoder |
-:                 |UDS:/var/...|
-:                 +------------+
-:                 |l7mp sidecar|
-:                 |  WS: 8888  |
-:                 +------------+
-:                       A |
-:      +--------+ id:1  | |      +---------+
-:  --> |gateway |-------+ +----->|worker   |
-:  <-- |UDP:9001|<---------------|UDP:9999 |
-:      +--------+                +---------+
+** Route
 
-* Environment
+- Routes can be specified either inline in a VirtualService
+  match-action rule in which case the Route is unnamed for the control
+  plane (the proxy still generates a unique name but it is not exposed
+  through to control plane) and share fate with the VirtualService, or
+  separately with a unique name, in which case multiple
+  VirtualServices and/or match-action rules can reuse the same
+  Route.
+- A Route consists of a destination specification (=destination=),
+  pointing to the service "sink" that will eventually consume the
+  traffic of the connection, an ingress chain (=ingress=) that
+  appoints the list of "transformers" or middlepoint services that
+  will process the traffic of the connection in the inbound direction,
+  that is, from the listener socket that emitted the connection
+  request (the "source") towards the destination, and an egress chain
+  (=egress=) that specifies middlepoints in the reverse direction,
+  from the destination to the source. The =destination= is mandatory,
+  but the =ingress= and the =egress= are optional, and each entry is
+  an inline or named Target object. Note that the ingress and egress
+  chains may differ (stream mux/demux).
 
-A set of deployments/services must to be configured manually
-beforehand in the =default= namespace:
-- a =gateway= deployment/service identified by the label
-  =app:gateway=: a set of =l7mp= pods with =hostNetwork:true= setting
-- a =transcoder= deployment identified by the label =app:transcoder=
-  and with each pod containing two containers: a container for the
-  transcoder process itself that accepts connections via UDS (can be a
-  UDS echo server for testing) and another l7mp container that
-  implements the sidecar
-- a =worker= deployment/service identified by the label =app:worker=:
-  some worker service that processes the UDP payloads (can be a
-  HTTP/WS echo server for testing),
+** Target
+
+- Target objects specifies the client-side settings for a connection
+  (the upstream "cluster" as per =l7mp= and Envoy), i.e.,
+  load-balancing rules, local connection parameters (e.g., local bind
+  address and port).  In addition, Targets also specify the endpoints
+  the client should connect to, either via referring to a
+  VirtualService under the =serviceName= key or inline,
+  statically. Targets appear as the entries in the ingress/egress
+  chains and as the destination in Route objects.
+- Targets can either be specified explicitly with a unique name, which
+  allows multiple VirtualServices/Routes to refer to the same Target
+  spec, or inline in the =destination= spec or =ingress= or =egress=
+  list entries without a name.
+- If a =destination= spec or =ingress= or =egress= list entry consists
+  of a single string, then the following rules apply:
+  1) The string is assumed to be the name of a Target (which can add
+     client-side parameters, like load-balancing rules or bind address
+     and port).
+  2) If no named Target with that name exists, then the string is
+     assumed to be a proper VirtualService name, in which case an
+     identically named Target is automatically created with the
+     server-side connection parameters (protocol and port) and the
+     endpoint IPs taken from that VirtualService.
+  3) If a VirtualService with the given name does not exist either,
+     then the string is assumed to be the name of a naked Kubernetes
+     service and an empty VirtualService is automatically generated,
+     taking the server-side connection parameters (protocol and port)
+     from the Kubernetes service spec. This will then allow the
+     auto-generation of the corresponding Target as per point (2)
+     above (see an example later).
+  4) If a naked Kubernetes service does no exist either, return an
+     error.
+- If, in the other hand, the a =destination= or an =ingress= or
+  =egress= list entry is an object, then it is assumed to be a fully
+  specified unnamed in-line Target specification.
+- If a Target refers to a VirtualService (under the key
+  =serviceName=), then the Kubernetes control plane operator will
+  generate the list of endpoint/pod IP addresses for the dataplane
+  from that VirtualService (i.e., "all pod IPs in the deployment of
+  the =worker= service" or "all IPs of pods labeled
+  =app:worker="). This allows the sidecar proxy to implement its own
+  load-balancing policy independently from the default Kubernetes
+  load-balancing mechanism.  Otherwise, the Target lists a fixed set
+  of endpoints statically (this is useful to call external services or
+  to expose, e.g., a UNIX domain socket server via a remote access
+  protocol like WebSocket or UDP, see below).  The endpoint address in
+  this case may be any proper domain name; e.g., specifying =kube-dns=
+  domain name of a Kubernetes service as an endpoint address will fall
+  back to standard Kubernetes load-balancing for the Target.
+
+* Example 1: Request Filtering, Routing, and Protocol Conversion
+
+** Setup
+
+- This example demonstrates a simple UDP API gateway for video-game
+  networking or IoT. The =worker= service is exposed to the outside
+  world though =UDP:9001= through the =gateway=, with the added twist
+  that inbound packets received from the Internet are processed
+  through a =transcoder= service. This service, however, is reachable
+  only via UNIX domain socket (UDS) that does not allow remote access,
+  therefore the =transcoder= service will be exposed to the rest of
+  the cluster on a remote access protocol =WebSocket:8888=, with the
+  =l7mp= sidecar proxy doing proper protocol-conversion for the app
+  (WS<->UDS). (NB: Currently =l7mp= supports only byte-stream UDS so
+  we will lose the original message framing at this point; proper
+  datagram-stream UDS will be added later.) There are no middlepoints
+  (transformers) in the downlink direction.
+
+  :                 +------------+
+  :                 | transcoder |
+  :                 |UDS:/var/...|
+  :                 +------------+
+  :                 |l7mp sidecar|
+  :                 |  WS: 8888  |
+  :                 +------------+
+  :                       A |
+  :      +--------+       | |      +---------+
+  :  --> |gateway |-------+ +----->|worker   |
+  :  <-- |UDP:9001|<---------------|UDP:9999 |
+  :      +--------+                +---------+
+
+** Static config
+
+*** Transcoder
+
+- Add a =transcoder= deployment, identified by the label
+  =app:transcoder= but with no backing Kubernetes service, which will
+  implement the transcoding functionality. Each pod will contain two
+  containers: a container for the transcoder process itself that
+  accepts connections via UDS (can be an UDS echo server for testing)
+  and another =l7mp= container that implements the sidecar. Sidecar
+  injection occurs manually.
+- Use the below config to expose the UDS transcoder service to the
+  cluster on =WS:8888=. Observe that the selector that identifies the
+  endpoints/pods of the VirtualService is given by label matching on
+  =app:transcoder=. Also observe that the VirtualService contains an
+  inline Route and the inline route contains and inline Target for
+  brevity.
+
+  #+BEGIN_SRC yaml
+  apiVersion: l7mp.io/muSM/v1
+  kind: VirtualService
+  metadata:
+    name: transcoder-vsvc
+    namespace: default
+    selector:
+      matchLabels:
+        app: transcoder
+  spec:
+    websocket:
+      port: 8888
+    rules:
+      action:
+        route:
+          destination:
+            unixdomainsocket:
+              filename: "/var/run/sock/uds-echo.sock"
+  #+END_SRC
+
+*** Worker
+
+- Next, add a =worker= deployment with a worker server that processes
+  the UDP payloads and sends the results back (can be an UDP echo
+  server for testing). This will be a "naked" Kubernetes service,
+  without an l7mp sidecar.  Add a Kubernetes service named
+  =worker-svc= and set the =protocol= to UDP and the =port= to 9999 in
+  the Kubernetes service spec.
+- We do not create a separate VirtualService for the =worker= service,
+  but rather let the control plane operator to automatically wrap the
+  service with the below empty VirtualService. Note that by assumption
+  the =worker= service is "naked" (no sidecar), hence this
+  VirtualService will not result an actual sidecar config.
+
+  #+BEGIN_SRC yaml
+  apiVersion: l7mp.io/muSM/v1
+  kind: VirtualService
+  metadata:
+    name: worker-svc
+    namespace: default
+    selector:
+      matchLabels:
+        app: worker
+  spec:
+    udp:
+      port: 9999
+  #+END_SRC
+
+*** Gateway
+
+- Finally, deploy the =gateway= daemonset, backed by the Kubernetes
+  service =gateway-svc=, which will provide the ingress gateway
+  functionality to the cluster. The gateway will perform connection
+  filtering (access is allowed only from =10.0.0.1= on ports
+  =9000-9099=), request routing (through the =transcoder= to the
+  =worker= in the ingress direction, and from the =worker= directly to
+  the =gateway= in the ingress direction), and protocol
+  conversion. Note that the VirtualService contains an inline route
+  and that both the =destination= and the first =ingress= hop refer to
+  VirtualServices as next-hops; the control plane operator
+  atomatically creates indentically named Targets for the
+  corresponding VitualServices (see later).
+
+  #+BEGIN_SRC yaml
+  apiVersion: l7mp.io/muSM/v1
+  kind: VirtualService
+  metadata:
+    name: gateway-vsvc
+    namespace: default
+    selector:
+      serviceName: gateway-svc
+  spec:
+    udp:
+      port: 9001
+    rules:
+    - match:
+        op: and
+        apply:
+          - { op: test, path: '/IP/src_addr', value: '10.0.0.1' }
+          - { op: more, path: '/UDP/src_port', value: 8999 }
+          - { op: less, path: '/UDP/src_port', value: 9100 }
+      action:
+        route:
+          destination: worker-svc
+          ingress:
+            - transcoder-vsvc
+  #+END_SRC
 
 
-* Config
+* Example 2: Request Rewriting and Routing, Load-balancing, Rendezvous Points, and Retries
 
-#+BEGIN_SRC yaml
-apiVersion: l7mp.io/v1
-kind: VirtualService
-metadata:
-  name: transcoder
-  namespace: default
-spec:
-  selector:
-    matchLabels:
-      app: transcoder
+** Setup
+
+The below setup implements a fully-fledged IMS media plane.
+
+  :                                              +------------------------------+
+  :                      2:2                     |   worker                     |
+  :                   +---------+ session_id:1   |+------------+   +----------+ |
+  :  USER A 1:1   --> |gateway A|--------------->||l7mp sidecar|-->|transcoder| |
+  :  192.168.0.1  <-- |UDP:8001 |<---------------||            |<--|UDP:19001 | |
+  :    :8001          +---------+                || JSONSocket |   +----------+ |
+  :                                              ||   :19000   |                |
+  :                      3:3                     ||            |   +----------+ |
+  :  USER B 4:4       +---------+ session_id:1   ||            |-->|sync:     | |
+  :  192.168.0.2  --> |gateway B|--------------->||            |<--|session_id| |
+  :    :8002      <-- |UDP:8002 |<---------------|+------------+   +----------+ |
+  :                   +---------+                +------------------------------+
+
+** Static config
+
+*** Gateway
+
+- The =gateway= daemonset will implement the ingress gateway
+  functionality and route media streams through the cluster. The
+  corresponding Kubernetes service is called =gateway-svc=, backed by
+  a set of =l7mp= pods running with =hostNetwork:true=.
+- First we add a Target specification that will be used later. We need
+  to specify this Target manually as we want to mix in client-side
+  behavior, namely, a custom load-balancing policy (consistent hashing
+  on the value found in the metadata =/labels/session_id= which will
+  be added to the metadata each time a new stream is created), and
+  this can be done only using a Target spec. Note that the Target
+  refers to the VirtualService =worker-vsvc= that will provide the
+  endpoint/pod IPs (via the Kubernetes service =worker-svc=).
+
+  #+BEGIN_SRC yaml
+  apiVersion: l7mp.io/muSM/v1
+  kind: Target
+  metadata:
+    name: worker-target
+    namespace: default
+    selector:
+      serviceName: gateway-vsvc
+  spec:
+    serviceName: worker-vsvc
+    loadbalancer:
+      policy: ConsistentHash
+      key: "/labels/session_id"
+  #+END_SRC
+
+- Next, we statically specify a Route since this same route will apply
+  to all streams at the gateway. Notice that the Route does not have a
+  selector (it can be applied in any VirtualService). Furthermore, the
+  =destination= cluster spec points to the above Target (to add the
+  load-balancer policy). Note also that the route requests a custom
+  retry policy (connection setup errors of disconnects will result the
+  gateway to attempt to rebuild the connection to the target service 3
+  times, with a 2 sec timeout).
+
+  #+BEGIN_SRC yaml
+  apiVersion: l7mp.io/muSM/v1
+  kind: Route
+  metadata:
+    name: gateway-route
+    namespace: default
+  spec:
+    destination: worker-target
+    retry:
+      retry_on: always
+      num_retries: 3
+      timeout: 2000
+  #+END_SRC
+
+*** Worker
+
+- The =worker= deployment will implement media stream processing
+  (transcoding, jitter buffers, etc.). Call the corresponding
+  Kubernetes service =worker-svc= and deploy two containers into each
+  pod: a container for the =transcoder= process that accepts
+  connections via JSONSocket over the transport =UDP:19001= (can be a
+  JSONSocket echo server for testing) and another =l7mp= container
+  that implements the sidecar. Note that JSONSocket makes it possible
+  to attach in-band JSON-formatted metadata to plain datagram streams.
+- The below Target specifies the "rendezvous" point for the two ends
+  of each stream to meet at (User-A and User-B side). This is
+  basically a selective cross-connect that connects all the streams
+  back-to-back for which the query =/labels/session_id= to the stream
+  metadata yields the same value (this is why we need JSONSocket
+  instead of pure UDP: we need to propagate stream descriptors from
+  the gateway to the worker to be able to connect the right streams at
+  the rendezvous point). It is critical that per each worker-pod there
+  be a _single_ rendezvous point (otherwise, streams may not meet),
+  this is why we specify this is a separate named Target instead of
+  just describing it inline in the route of the VirtualService (in
+  which case we would create a separate rendezvous point for each
+  stream, which defeats the purpose).
+
+  #+BEGIN_SRC yaml
+  apiVersion: l7mp.io/muSM/v1
+  kind: Target
+  metadata:
+    name: sync-target
+    namespace: default
+    selector:
+      serviceName: worker-svc
+  spec:
+    sync:
+      query: "/labels/session_id"
+  #+END_SRC
+
+- The next Target implements the call-out to the transcoding app at
+  the worker. Notice that there is no backing service; instead the set
+  of endpoint IPs is fixed in the Target spec (localhost). Also note
+  that the selector is the same as above, so both Targets will be
+  deployed to all pods in the =worker-svc= service.
+
+  #+BEGIN_SRC yaml
+  apiVersion: l7mp.io/muSM/v1
+  kind: Target
+  metadata:
+    name: transcoder-target
+    namespace: default
+    selector:
+      serviceName: worker-svc
+  spec:
+    jsonsocket:
+      transport:
+        udp: { port: 19001 }
+    endpoints:
+      - spec: { address: "127.0.0.1" }
+  #+END_SRC
+
+- Finally, we describe the main VirtualService for the workers. This
+  will expose the transcoder service to the rest of the cluster via
+  =JSONSocket= over the transport =UDP:19000= (theoretically we could
+  select any datagram transport for JSONSocket but UDP is
+  preferred). Notice that the VirtualService uses an in-line Route,
+  with =destination= and =ingress= referring to the Targets specified
+  above, and the transcoder will be traversed in the inbound
+  direction.
+
+  #+BEGIN_SRC yaml
+  apiVersion: l7mp.io/muSM/v1
+  kind: VirtualService
+  metadata:
+    name: worker-vsvc
+    namespace: default
+    selector:
+      serviceName: worker-svc
+  spec:
+    jsonsocket:
+      transport:
+        udp: { port: 19000 }
+    rules:
+      - action:
+          route:
+            destination: sync-target
+            ingress:
+              - transcoder-target
+  #+END_SRC
+
+** Adding user calls
+
+- Suppose =User A= connects from =192.168.0.1:8001= to the port
+  =UDP:8001= to join the session identified by
+  =/labels/session_id:1=. The below VirtualService will open the
+  ingress gateway via the requested UDP listener, connect back to the
+  user, store the stream identifier (=1=) in the stream metadata, and
+  finally send the connection to the worker by referring it to the
+  Route =gateway-route= (see above). By using JSONSocket, any label we
+  store in the =rewrite= section to the stream metadata will be
+  propagated to the worker and from there to the transcoder app (so it
+  may be a good idea to add the complete SDP (Session Description
+  Protocol) payload here to the stream metadata at this point). The
+  optional setting =removeOrphanSessions:true= will make sure that any
+  stream established via this VirtualService will be properly deleted
+  by the dataplane once the VirtualService itself is deleted.
+
+  #+BEGIN_SRC yaml
+  apiVersion: l7mp.io/muSM/v1
+  kind: VirtualService
+  metadata:
+    name: gateway-user-a-vsvc
+    namespace: default
+    selector:
+      serviceName: gateway-svc
+  spec:
+    udp:
+      port: 8001,
+      connect: { address: "192.168.0.1", port: 8001 }
+    rules:
+      - action:
+          rewrite:
+            - path: "/labels/session_id"
+              value: "1"
+          route: gateway-route
+    options:
+      removeOrphanSessions: true
+  #+END_SRC
+
+- Finally, the below VirtualService opens the gateway for =User B= to
+  connect from =192.168.0.1:8002= to the port =UDP:8002= and join the
+  same session (=/labels/session_id:1=). Since both ends set the
+  session identifier to the same value, the rendezvous point at the
+  =worker= (the =sync-target=) will connect the two streams into a
+  single call (after processing both ingress streams through the
+  transcoder).
+
+  #+BEGIN_SRC yaml
+  apiVersion: l7mp.io/muSM/v1
+  kind: VirtualService
+  metadata:
+    name: gateway-user-b-vsvc
+    namespace: default
+    selector:
+      serviceName: gateway-svc
+  spec:
+    udp:
+      port: 8002,
+      connect: { address: "192.168.0.2", port: 8002 }
+    rules:
+      - action:
+          rewrite:
+            - path: "/labels/session_id"
+              value: "1"
+          route: gateway-route
+    options:
+      removeOrphanSessions: true
+  #+END_SRC
+
+* Mapping VirtualServices and Routes to =l7mp= REST API Calls
+
+- VirtualServices map to =l7mp= Listeners, Routes map to =l7mp=
+  Routes, and Targets map to =l7mp= Clusters almost verbatim. The
+  difficult parts are:
+  1) converting between certain Kubernetes API defs and the
+     corresponding =l7mp= REST API calls (mostly listener and cluster
+     specs),
+  2) automatically generating a Target for a VirtualService,
+  3) automatically generating a VirtualService for a naked Kubernetes
+     service, and
+  4) maintaining a list of endpoint/pod IPs for VirtualServices
+     through Kubernetes services or labels and synchronizing these to
+     the dataplane.
+
+** Example
+
+- Suppose we have a Route =my-route= with a destination target
+  referring to a naked Kubernetes service =my-destination-svc= running
+  on =UDP:2000=, and we want to use this route in another
+  VirtualService =my-source-vsvc=.
+
+  #+BEGIN_SRC yaml
+  apiVersion: l7mp.io/muSM/v1
+  kind: Route
+  metadata:
+    name: my-route
+  spec:
+    destination: my-destination-svc
+    retry:
+      retry_on: always
+      num_retries: 3
+
+  ---
+
+  apiVersion: l7mp.io/muSM/v1
+  kind: VirtualService
+  metadata:
+    name: my-source-vsvc
+    selector:
+      serviceName: my-source-svc
+  spec:
+    udp: { port: 8000 }
+    rules:
+      - action:
+          route: my-route
+  #+END_SRC
+
+- Note that for brevity in the below we use the short names of the
+  VirtualService, Route and Target objects to name the corresponding
+  =l7mp= Listeners, Routes and Targets; implementations should use the
+  long name instead.
+
+** Converting between Kubernetes API defs and the =l7mp= REST API calls
+
+- Configuration will start by considering each VirtualService one by
+  one and generating an =addListener= REST API call to =l7mp= for each
+  (except for VirtualServices wrapping naked Kubernetes
+  services). Consider the VirtualService =my-source-vsvc=.
+- The first step is to simply convert the VirtualService =spec=
+
+  #+BEGIN_SRC yaml
+  spec:
+    udp: { port: 8000 }
+  #+END_SRC
+
+  to an =l7mp= Listener =spec= as follows:
+
+  #+BEGIN_SRC yaml
   listener:
-    spec: { protocol: WebSocket, port: 9999 }
+    spec: { protocol: UDP, port: 8000 }
+  #+END_SRC
+
+- The rest is just copied from the VirtualService =spec=, yielding the
+  following =addListener= call to =l7mp=:
+
+  #+BEGIN_SRC yaml
+  listener:
+    name: my-source-vsvc
+    spec: { protocol: UDP, port: 8000 }
+    rules:
+      - action:
+          route: my-route
+  #+END_SRC
+
+- Second, taking note that the Listener refers to a route for which
+  there is no corresponding Route in the =l7mp= config, the below
+  =addRoute= call is made by simply copying everything from the Route
+  object to the route spec. Note that the route will be added to the
+  same =l7mp= sidecars that correspond the =my-source-vsvc=
+  VirtualService (=serviceName:my-source-svc=).
+
+  #+BEGIN_SRC yaml
+  route:
+    name: my-route
+    spec:
+      destination: my-destination-svc
+      retry:
+        retry_on: always
+        num_retries: 3
+  #+END_SRC
+
+** Automatically generating a VirtualService
+
+- Since the above route refers to a destination for which there is no
+  Target yet, the operator will need to create one automatically. Of
+  course, if the Target exists, the operator will skip this step.
+- However, the Target to be defined refers to the naked service
+  =my-destination-svc= and there is no VirtualService available for
+  this service yet, so first the operator needs to create an
+  identically named VirtualService for =my-destination-svc=. Again, if
+  the VirtualService exists, this step is skipped too.
+- Note that the selector is that of the target service, i.e.,
+  of =my-destination-svc=.
+
+  #+BEGIN_SRC yaml
+  apiVersion: l7mp.io/muSM/v1
+  kind: VirtualService
+  metadata:
+    name: my-destination-svc
+    selector:
+      serviceName: my-destination-svc
+  spec:
+    udp: { port: 2000 }
+  #+END_SRC
+
+- Since this is a naked service, no =addListener= call is issued to
+  the dataplane.
+
+** Automatically generating a Target
+
+- Now the operator can eventually auto-generate a(n identically named)
+  Target for the above VirtualService. Note that the target defines
+  client-side behavior so it is bound to the caller (i.e., with the
+  selector =serviceName:my-source-svc=).
+
+  #+BEGIN_SRC yaml
+  apiVersion: l7mp.io/muSM/v1
+  kind: Target
+  metadata:
+    name: my-destination-svc
+    namespace: default
+    selector:
+      serviceName: my-source-svc
+  spec:
+    udp: { port: 2000 }
+    serviceName: my-destination-svc
+  #+END_SRC
+
+** Maintaining a list of endpoint/pod IPs
+
+- Eventually, we can generate the =l7mp= config for the auto-generated
+  Target =my-destination-svc=. For this, we will need to generate an
+  =addCluster= call to =l7mp=.
+- First, the same simple conversion occurs as in the =addListener=
+  call, namely, the =Target= spec:
+
+  #+BEGIN_SRC yaml
+  spec:
+    udp: { port: 2000 }
+  #+END_SRC
+
+  is converted to an =l7mp= Cluster =spec= as follows:
+
+  #+BEGIN_SRC yaml
+  cluster:
+    spec: { protocol: UDP, port: 2000 }
+  #+END_SRC
+
+- Then, the endpoints are added to the cluster. Suppose that there are
+  two pods/endpoints corresponding to the service =my-destination-svc=
+  with IP addresses =10.0.0.1= and =10.0.0.2=. Then, the Kubernetes
+  control plane operator will substitute the key-value
+  ={serviceName:worker-vsvc}= in the Target =spec= with the endpoint
+  list ={endpoints:...}= in the generated =addCluster= call.
+- Finally, the operator will simply copy the remaining keys from the
+  Target verbatim to the cluster (nothing in this case, but in other
+  cases there could be further properties, like =loadbalancer=).
+- Then, the following =addCluster= call is issued to the sidecars that
+  run the service =my-source-svc= (=serviceName:my-source-svc=).
+
+  #+BEGIN_SRC yaml
+  cluster:
+    name: my-destination-svc
+    spec: { protocol: UDP, port: 2000 }
+    endpoints:
+      - spec: { address: "10.0.0.1" }
+      - spec: { address: "10.0.0.2" }
+  #+END_SRC
+
+- If the destination Target explicitly specifies the endpoints(s)
+  (this is not the case here, but see e.g., =transcoder-target= in
+  Example 2) then the operator must copy these endpoint specs verbatim
+  to the cluster endpoint list and stop managing the endpoints of the
+  cluster from that point.
+- Note that the above must be repeated for all target specifications
+  in the route, i..e., for each entry in the =ingress= chain and the
+  =egress= chain.
+
+** Inline Routes and Targets
+
+- If a route is specified inline then no explicit =addRoute= is
+  issued, the route is copied straight to the =addListener=
+  call. Similarly, inline targets are copied into the corresponding
+  =addListener= or =addRoute= calls, but the operator must convert
+  between the Target =spec= and the =l7mp= Cluster =spec= as above.
+- For example, the =transcoder-vsvc= from Example 1 (with an inline
+  route and target) will yield the below =addListener= call:
+
+  #+BEGIN_SRC yaml
+  listener:
+    name: transcoder-vsvc
+    spec: { protocol: WebSocket, port: 8888 }
     rules:
       action:
         route:
@@ -100,64 +754,58 @@ spec:
             spec:
               protocol: UnixDomainSocket
               filename: "/var/run/sock/uds-echo.sock"
+  #+END_SRC
 
----
+** Deletion and Modification
 
-apiVersion: l7mp.io/v1
-kind: VirtualService
-metadata:
-  name: worker
-  namespace: default
-spec:
-  selector:
-    matchLabels:
-      app: worker
+- Deleting a named VirtualService generates a =deleteListener= call to
+  =l7mp=, deleting a named Target generates a =deleteCluster= call,
+  and deleting a named Route yields a =deleteRoute=.  Deleting any
+  target of a Route (=destination=, =ingress= or =egress=)
+  automatically deletes the Route, deleting a Route deletes the rules
+  whose action refers to the Route (=deleteRule=, TODO), and deleting
+  the last match-action rule of a Listener deletes the Listener. This,
+  of course, generates an =l7mp= call only for non-naked services.
+- When a new pod appears for a VirtualService, then the endpoint list
+  for all Targets that refer to the VirtualService (the same
+  =serviceName=) must be updated, using the =l7mp= EndPoint API
+  (TODO).
 
----
+** Caveats
 
-apiVersion: l7mp.io/v1
-kind: VirtualService
-metadata:
-  name: my-udp-service
-  namespace: default
-  selector:
-    serviceName: gateway
-    namespace: default
-spec:
-  virtualHost:
-  - name: my-udp-endpoint
-    spec: { protocol: UDP, port: 9001 }
-    rules:
-    - match:
-        op: and
-        apply:
-          - { op: starts, path: '/IP/src_addr', value: '10.0.0' }
-          - { op: test, path: '/UDP/src_port', value: 9001 }
-      action:
-        rewrite:
-          - path: "HTTP/headers"
-            value: { id: 1 }
-        route:
-          cluster: worker
-          ingress:
-            - transcoder
-      options:
-        removeOrphanSessions: true
-#+END_SRC
+- Currently it is not entirely clear how to auto-generate a cluster
+  spec for a Target object from a VirtualService spec because this is
+  protocol specific. For example, the VirtualService spec
+  #+BEGIN_SRC yaml
+  listener:
+    spec: { protocol: UDP, port: 2000, connect: {address: ..., port: ...}}
+  #+END_SRC
+  will map to the Target spec with dropping the =connect= part:
+  #+BEGIN_SRC yaml
+  cluster:
+    spec: { protocol: UDP, port: 2000 }
+  #+END_SRC
+  But for JSONSocket the protocol and port come from the =transport=
+  spec, so the VirtualService
+  #+BEGIN_SRC yaml
+  listener:
+    spec:
+      protocol: JSONSocket
+      transport: { protocol: UDP, port: 19000 }
+  #+END_SRC
+  maps to the cluster spec:
+  #+BEGIN_SRC yaml
+  cluster:
+    spec:
+      protocol: JSONSocket
+      transport: { protocol: UDP, port: 19000 }
+  #+END_SRC
+  Should we just make this protocol-specific?? Is there a more clever
+  way to do this?
 
-* Sessions
+* TODO
 
-Eventually, we should be able to query/kill live streams/sessions from the
-data plane, but currently this is a TODO
-
-* How K8s API objects map to L7mp objects
-
-|----------------+---------------+------|
-| K8s API        | L7mp REST API | Note |
-|----------------+---------------+------|
-| Upstream       | Cluster       | v1   |
-| VirtualService | Listener      | v1   |
-| Session        | Session       | ???  |
-| Gateway        | Listener      | TODO |
-| Route          | Route         | TODO |
-|----------------+---------------+------|
+- Monitoring & Prometheus integration
+- Encryption
+- Health-checking and circuit breaking
+- QoS
