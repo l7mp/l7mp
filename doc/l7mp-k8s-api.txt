@@ -7,9 +7,9 @@
 #+LATEX:\setitemize{noitemsep,topsep=0pt,parsep=0pt,partopsep=0pt}
 #+OPTIONS: toc:t author:nil ^:nil
 
-#+TITLE: The "MultiProtocol (but mostly just UDP) Service Mesh" (muMS): Kubernetes API
+#+TITLE: The "MultiProtocol (but mostly just UDP) Service Mesh" (MSM): Kubernetes API
 
-* General considerations
+* Concepts
 
 - The API specifies 3 CRDs: a VirtualService, a Route, and a Target
   CRD (names may change later). VirtualService objects wrap
@@ -147,7 +147,7 @@
      above (see an example later).
   4) If a naked Kubernetes service does no exist either, return an
      error.
-- If, in the other hand, the a =destination= or an =ingress= or
+- If, on the other hand, the a =destination= or an =ingress= or
   =egress= list entry is an object, then it is assumed to be a fully
   specified unnamed in-line Target specification.
 - If a Target refers to a VirtualService (under the key
@@ -215,7 +215,7 @@
   brevity.
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/muSM/v1
+  apiVersion: l7mp.io/MSM/v1
   kind: VirtualService
   metadata:
     name: transcoder-vsvc
@@ -249,7 +249,7 @@
   VirtualService will not result an actual sidecar config.
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/muSM/v1
+  apiVersion: l7mp.io/MSM/v1
   kind: VirtualService
   metadata:
     name: worker-svc
@@ -278,7 +278,7 @@
   corresponding VitualServices (see later).
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/muSM/v1
+  apiVersion: l7mp.io/MSM/v1
   kind: VirtualService
   metadata:
     name: gateway-vsvc
@@ -340,7 +340,7 @@ The below setup implements a fully-fledged IMS media plane.
   endpoint/pod IPs (via the Kubernetes service =worker-svc=).
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/muSM/v1
+  apiVersion: l7mp.io/MSM/v1
   kind: Target
   metadata:
     name: worker-target
@@ -364,7 +364,7 @@ The below setup implements a fully-fledged IMS media plane.
   times, with a 2 sec timeout).
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/muSM/v1
+  apiVersion: l7mp.io/MSM/v1
   kind: Route
   metadata:
     name: gateway-route
@@ -402,7 +402,7 @@ The below setup implements a fully-fledged IMS media plane.
   stream, which defeats the purpose).
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/muSM/v1
+  apiVersion: l7mp.io/MSM/v1
   kind: Target
   metadata:
     name: sync-target
@@ -421,7 +421,7 @@ The below setup implements a fully-fledged IMS media plane.
   deployed to all pods in the =worker-svc= service.
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/muSM/v1
+  apiVersion: l7mp.io/MSM/v1
   kind: Target
   metadata:
     name: transcoder-target
@@ -446,7 +446,7 @@ The below setup implements a fully-fledged IMS media plane.
   direction.
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/muSM/v1
+  apiVersion: l7mp.io/MSM/v1
   kind: VirtualService
   metadata:
     name: worker-vsvc
@@ -483,7 +483,7 @@ The below setup implements a fully-fledged IMS media plane.
   by the dataplane once the VirtualService itself is deleted.
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/muSM/v1
+  apiVersion: l7mp.io/MSM/v1
   kind: VirtualService
   metadata:
     name: gateway-user-a-vsvc
@@ -513,7 +513,7 @@ The below setup implements a fully-fledged IMS media plane.
   transcoder).
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/muSM/v1
+  apiVersion: l7mp.io/MSM/v1
   kind: VirtualService
   metadata:
     name: gateway-user-b-vsvc
@@ -534,7 +534,7 @@ The below setup implements a fully-fledged IMS media plane.
       removeOrphanSessions: true
   #+END_SRC
 
-* Mapping VirtualServices and Routes to =l7mp= REST API Calls
+* Mapping Control Plane Objects to =l7mp= REST API Calls
 
 - VirtualServices map to =l7mp= Listeners, Routes map to =l7mp=
   Routes, and Targets map to =l7mp= Clusters almost verbatim. The
@@ -557,7 +557,7 @@ The below setup implements a fully-fledged IMS media plane.
   VirtualService =my-source-vsvc=.
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/muSM/v1
+  apiVersion: l7mp.io/MSM/v1
   kind: Route
   metadata:
     name: my-route
@@ -569,7 +569,7 @@ The below setup implements a fully-fledged IMS media plane.
 
   ---
 
-  apiVersion: l7mp.io/muSM/v1
+  apiVersion: l7mp.io/MSM/v1
   kind: VirtualService
   metadata:
     name: my-source-vsvc
@@ -650,7 +650,7 @@ The below setup implements a fully-fledged IMS media plane.
   of =my-destination-svc=.
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/muSM/v1
+  apiVersion: l7mp.io/MSM/v1
   kind: VirtualService
   metadata:
     name: my-destination-svc
@@ -671,7 +671,7 @@ The below setup implements a fully-fledged IMS media plane.
   selector =serviceName:my-source-svc=).
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/muSM/v1
+  apiVersion: l7mp.io/MSM/v1
   kind: Target
   metadata:
     name: my-destination-svc
@@ -756,7 +756,7 @@ The below setup implements a fully-fledged IMS media plane.
               filename: "/var/run/sock/uds-echo.sock"
   #+END_SRC
 
-** Deletion and Modification
+** Deletion and modification
 
 - Deleting a named VirtualService generates a =deleteListener= call to
   =l7mp=, deleting a named Target generates a =deleteCluster= call,
