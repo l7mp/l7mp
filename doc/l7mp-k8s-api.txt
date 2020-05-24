@@ -116,7 +116,7 @@
 
 ** Target
 
-- Target objects specifies the client-side settings for a connection
+- Target objects specify the client-side settings for a connection
   (the upstream "cluster" as per =l7mp= and Envoy), i.e.,
   load-balancing rules, local connection parameters (e.g., local bind
   address and port).  In addition, Targets also specify the endpoints
@@ -396,7 +396,7 @@ The below setup implements a fully-fledged IMS media plane.
   the gateway to the worker to be able to connect the right streams at
   the rendezvous point). It is critical that per each worker-pod there
   be a _single_ rendezvous point (otherwise, streams may not meet),
-  this is why we specify this is a separate named Target instead of
+  this is why we specify this as a separate named Target instead of
   just describing it inline in the route of the VirtualService (in
   which case we would create a separate rendezvous point for each
   stream, which defeats the purpose).
@@ -418,7 +418,14 @@ The below setup implements a fully-fledged IMS media plane.
   the worker. Notice that there is no backing service; instead the set
   of endpoint IPs is fixed in the Target spec (localhost). Also note
   that the selector is the same as above, so both Targets will be
-  deployed to all pods in the =worker-svc= service.
+  deployed to all pods in the =worker-svc= service. Note further that
+  the default "Trivial" load-balancer is assumed every time a Target
+  does not define a specific load-balancer; the Trivial load-balancer
+  always chooses the first endpoint from the endpoint list. (Since
+  existing ordering of endpoints is not enforced by the EndPoint API
+  on adds/deletes, it makes no sense to set the Trivial load-balancer
+  for VirtualServices backed by multiple endpoints/pods, since the
+  choice will be essentially random.)
 
   #+BEGIN_SRC yaml
   apiVersion: l7mp.io/MSM/v1
@@ -477,7 +484,7 @@ The below setup implements a fully-fledged IMS media plane.
   store in the =rewrite= section to the stream metadata will be
   propagated to the worker and from there to the transcoder app (so it
   may be a good idea to add the complete SDP (Session Description
-  Protocol) payload here to the stream metadata at this point). The
+  Protocol) payload to the stream metadata at this point). The
   optional setting =removeOrphanSessions:true= will make sure that any
   stream established via this VirtualService will be properly deleted
   by the dataplane once the VirtualService itself is deleted.
@@ -622,9 +629,10 @@ The below setup implements a fully-fledged IMS media plane.
 - Second, taking note that the Listener refers to a route for which
   there is no corresponding Route in the =l7mp= config, the below
   =addRoute= call is made by simply copying everything from the Route
-  object to the route spec. Note that the route will be added to the
-  same =l7mp= sidecars that correspond the =my-source-vsvc=
-  VirtualService (=serviceName:my-source-svc=).
+  object to the route spec. Note that the route will be added to all
+  the =l7mp= sidecars to which a VirtualService were added that refers
+  to the Route (for now this is all pods with
+  =serviceName:my-source-svc=).
 
   #+BEGIN_SRC yaml
   route:
@@ -741,7 +749,8 @@ The below setup implements a fully-fledged IMS media plane.
   =addListener= or =addRoute= calls, but the operator must convert
   between the Target =spec= and the =l7mp= Cluster =spec= as above.
 - For example, the =transcoder-vsvc= from Example 1 (with an inline
-  route and target) will yield the below =addListener= call:
+  route and target) will yield the below =addListener= call to =l7mp=
+:
 
   #+BEGIN_SRC yaml
   listener:
@@ -801,7 +810,10 @@ The below setup implements a fully-fledged IMS media plane.
       transport: { protocol: UDP, port: 19000 }
   #+END_SRC
   Should we just make this protocol-specific?? Is there a more clever
-  way to do this?
+  way to do this? My guess is that it'd be best to require the user to
+  manually define all VirtualServices, even the stubs for naked
+  services, and Targets initially, and adding automated management of
+  these objects in a later version
 
 * TODO
 
