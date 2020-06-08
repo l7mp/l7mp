@@ -1,28 +1,25 @@
 * Importance: superhigh
 
-** TODO RTP support: listener in server mode + cluster (modules later)
-** DONE API validation: switch on
-** DONE ConsistentHash loadbalancer (https://www.npmjs.com/package/hashring)
-** TODO Rule API
+** TODO Handle named RuleList references in Listener and Route objects
+** TODO RuleList API: add/delete rulelists
+** TODO Defer resolving named references (to clusters, routes, etc.) to runtime
 ** TODO Endpoint API: addEndpoint(cluster, new endpoint, optional name), deleteEndPoint(name)
-** DONE UDP server
 ** TODO Loadbalancer: Weighted/RoundRobin
-** TODO l7mp versioning: get version info from git node.js
+** TODO API validation: switch back!
 
 * Importance: high
 
-** TODO access_log
-** DONE Add timestamps to log messages
-** TODO Make sure binary mode works well (iperf should work through L7mp just fine)
-** TODO UDP: return into "connect" mode (waiting for packet) after stream is destroyed
 ** TODO sanitize debug output (currently L7mp is too chatty even at info level)
-** TODO session setup retries, auto-reconnect (also expose retry objects through the API)
 ** TODO Timeout module
 ** TODO stream statistics
 ** TODO expose statistics to Prometheus (implement the prometheus_listener)
 ** TODO expose statistics to rule-matching (this would allow simple qos/rate-limiting)
 ** TODO health-check: kubelet should be able to detect if L7mp is running
-** TODO L7mp: die on detecting unhandled promises
+
+* Wishlist
+
+** TODO Generic parser/deparser support in Listeners/Clusters
+** TODO access_log
 
 * Importance: minor
 
@@ -31,13 +28,21 @@
 
 * Test
 
-** DONE connection/stream disconnect (losing a WebSocket stream along a chain should disconnect the session)
 ** TODO stream segmentation correctness (do datagram streams correctly maintain message boundaries? do we always correctly set objectomode?)
 ** TODO verify each dependency for streams3 support
 ** TODO unit tests
 
 * Importance: DONE
 
+** DONE Add timestamps to log messages
+** DONE Make sure binary mode works well (iperf should work through L7mp just fine)
+** DONE UDP: return into "connect" mode (waiting for packet) after stream is destroyed
+** DONE session setup retries, auto-reconnect (also expose retry objects through the API)
+** DONE L7mp: die on detecting unhandled promises
+** DONE connection/stream disconnect (losing a WebSocket stream along a chain should disconnect the session)
+** DONE ConsistentHash loadbalancer (https://www.npmjs.com/package/hashring)
+** DONE UDP server
+** DONE l7mp versioning: get version info from git node.js
 ** DONE implement rule matching using the standard JSON query language
 ** DONE documentation + github
 ** DONE implement OpenAPI definitions for the REST API
