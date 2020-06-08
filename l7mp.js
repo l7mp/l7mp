@@ -52,6 +52,24 @@ global.dump = function dump(o, depth=5){
     console.log(dumper(o, depth));
 }
 
+// validate object schamas beyond OpenAPI validation
+const validate = (object, schema) => {
+    if(object === null || !object ||
+       !(object instanceof Object &&
+         Object.getPrototypeOf(object) == Object.prototype))
+        return 'An object (a set of key-value pairs) is expected';
+
+    let e = Object
+        .entries(schema)
+        .map( ([key, ref]) => [
+            key,
+            !ref.required || (key in object),
+            !ref.validate || ref.validate(object[key])
+        ])
+        .find( ([_, r, v]) => !r || !v );
+    return e && `Property ${e[0]} is ${ !e[1] ? 'required' : 'invalid' }`;
+}
+
 Object.defineProperty(log, 'heading',
                       { get: () => { return new Date().toISOString() } });
 log.headingStyle = { bg: '', fg: 'white' }
@@ -281,6 +299,27 @@ class L7mp {
     addListener(l) {
         log.info('L7mp.addListener', dumper(l, 8));
 
+        let schema = {
+            name: {
+                validate: (value) => /^\S+?$/.test(value), // alnum
+                required: true,
+            },
+            spec: {
+                validate: (value) => value instanceof Object,
+                required: true,
+            },
+            rules: {
+                validate: (value) => value instanceof Array,
+                required: true,
+            }
+        };
+
+        let e = validate(l, schema);
+        if(e){
+            log.warn(`L7mp.addListener:`, e );
+            throw new Error(`L7mp.Listener: ${e}`);
+        }
+
         if(this.getListener(l.name)){
             let e = `Listener "${l.name}" already defined`;
             log.warn(`L7mp.addListener:`, e );
@@ -338,6 +377,23 @@ class L7mp {
     addCluster(c) {
         log.info('L7mp.addCluster', dumper(c, 8));
 
+        let schema = {
+            name: {
+                validate: (value) => /^\S+?$/.test(value),
+                required: true,
+            },
+            spec: {
+                validate: (value) => value instanceof Object,
+                required: true,
+            },
+        };
+
+        let e = validate(c, schema);
+        if(e){
+            log.warn(`L7mp.addCluster:`, e );
+            throw new Error(`L7mp.addCluster: ${e}`);
+        }
+
         if(this.getCluster(c.name)){
             let e = `Cluster "${c.name}" already defined`;
             log.warn('L7mp.addCluster', e);
@@ -351,6 +407,14 @@ class L7mp {
 
     addClusterMaybeInline(c){
         log.silly('L7mp.addClusterMaybeInline', dumper(c, 8));
+
+        // must be an object
+        let e = validate(c, {});
+        if(e){
+            log.warn(`L7mp.addClusterMaybeInline:`, e );
+            throw new Error(`L7mp.addClusterMaybeInline: ${e}`);
+        }
+
         if(typeof c === 'string'){
             // this is a cluster name, substitute ref
             let cluster = this.getCluster(c);
@@ -404,6 +468,22 @@ class L7mp {
     addRule(r) {
         log.info('L7mp.addRule', dumper(r, 8));
 
+        let schema = {
+            name: {
+                validate: (value) => /^\S+?$/.test(value),
+            },
+            action: {
+                validate: (value) => value instanceof Object,
+                required: true,
+            },
+        };
+
+        let e = validate(r, schema);
+        if(e){
+            log.warn(`L7mp.addRule:`, e );
+            throw new Error(e);
+        }
+
         r.name = this.newName(r.name || `Rule_${Rule.index++}`, this.getRule);
         if(!r.name){
             let e =
@@ -421,7 +501,7 @@ class L7mp {
             let route = r.action.route;
 
             // destination
-            let n = this.addClusterMaybeInline(route.cluster);
+            let n = this.addClusterMaybeInline(route.destination);
             route.cluster = n;
             for(let dir of ['ingress', 'egress']){
                 if(!route[dir]) continue;
