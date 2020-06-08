@@ -105,10 +105,13 @@ components:
               UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
               JSONSocket: '#/components/schemas/io.l7mp.api.v1.JSONSocketListenerSpec'
         rules:
-          description: A list of Rule objects (required).
-          type: array
-          items:
-            $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+          description: The name of a match-action table or an inline list of match-action ules (required).
+          oneOf:
+            - type: string  # reference to a named RuleList
+            - $ref: '#/components/schemas/io.l7mp.api.v1.RuleList'
+        #   type: array
+        #   items:
+        #     $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
         options:
           description: Optional features.
           type: object
@@ -543,29 +546,11 @@ components:
           description: The JSON path to the metadata field to hash on (optional).
           type: string
 
-    # io.l7mp.api.v1.WebSocketEndPointSpec:
-    #   description: A WebSocket endpoint specification.
-    #   type: object
-    #   required:
-    #     - address
-    #   properties:
-    #     address:
-    #       $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
-
-    # io.l7mp.api.v1.UDPEndPointSpec:
-    #   description: A UDP endpoint specification.
-    #   type: object
-    #   required:
-    #     - address
-    #   properties:
-    #     address:
-    #       $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
-
     io.l7mp.api.v1.Route:
       description: The route to be assigned to a session in a math-action rule.
       type: object
       required:
-        - cluster
+        - destination
       properties:
         name:
           description: Name (optional, a unique name name will be assigned automatically if not specified.)
@@ -641,8 +626,6 @@ components:
     io.l7mp.api.v1.Action:
       description: The "action" part of a math-action rule that assigns a route to the matched sessions.
       type: object
-      required:
-        - route
       properties:
         rewrite:
           description: A list of rewrite rules.
@@ -650,7 +633,13 @@ components:
           items:
             $ref: '#/components/schemas/io.l7mp.api.v1.Rewrite'
         route:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Route'
+          description: A named Route or an inline Route specification.
+          oneOf:
+            - type: string  # reference to a named Route
+            - $ref: '#/components/schemas/io.l7mp.api.v1.Route'
+        apply:
+          description: A named RuleList to defer match-action processing to.
+          type: string  # reference to a named Route
 
     io.l7mp.api.v1.Rule:
       description: A math-action rule that defines the route of a connection through the L7mp pipeline. May contain a match and an action. If no match is specified, a wildcard match is automatically installed.
@@ -666,6 +655,21 @@ components:
           $ref: '#/components/schemas/io.l7mp.api.v1.JSONPredicate'
         action:
           $ref: '#/components/schemas/io.l7mp.api.v1.Action'
+
+    io.l7mp.api.v1.RuleList:
+      description: An abstraction for a math-action table, i.e., an ordered list of match-action rules with each rule specifying a matching condition on metadata and an action to execute if the corresponding rule matches. Rules are searched sequentially until a matching one is found; if no match is found the request is dropped.
+      type: object
+      required:
+        - rules
+      properties:
+        name:
+          description: Name (optional).
+          type: string
+        rules:
+          description: A list of Rule objects.
+          type: array
+          items:
+            $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
 
     io.l7mp.api.v1.Metadata:
       description: "Metadata that describes a session's all known parameters, like ports and IP addresses, status, HTTP headers (if relevant), etc. In general, metadata are created by the listener and they can be modified/queried/matched in rules/actions."
