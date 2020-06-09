@@ -114,9 +114,9 @@ class Rule {
         log.silly('Rule.apply:', `"${this.name}"`);
 
         if(this.match.apply(s)){
-            _.extend(s.metadata, this.action.set);
-            this.stats.total_applied++;
             log.silly(`Rule.apply: "${this.name}": Match`);
+            // _.extend(s.metadata, this.action.set);
+            this.stats.total_applied++;
             return this.action;
         }
         log.silly(`Rule.apply: "${this.name}": No match`);
@@ -167,3 +167,53 @@ Rule.getAtPath = (data, path) => {
 }
 
 module.exports.Rule = Rule;
+
+//------------------------------------
+//
+// RuleList (aka: MatchActionTable)
+//
+//------------------------------------
+class RuleList {
+    constructor(rs){
+        this.name   = rs.name;
+        this.rules  = rs.rules;
+    }
+
+    toJSON(){
+        log.silly('RuleList.toJSON:', `"${this.name}"`);
+        return {
+            name:   this.name,
+            rules:  this.rules,
+        };
+    }
+
+    // // apply rule to session
+    // apply(s){
+    //     log.silly('RuleList.apply:', `"${this.name}"`);
+
+    //     // late-bind rules
+    //     for(let i = 0; i < this.rules.length; i++){
+    //         // this is a rule name, substitute ref to Rule
+    //         let ru = this.getRule(this.rules[i]);
+    //         if(!ru){
+    //             let e = `Cannot find named rule "${this.rules[i]}"`;
+    //             log.warn(`RuleList.apply: "${this.name}":`, e);
+    //             throw new Error(`Cannot apply RuleList "${this.name}": ${e}`);
+    //         }
+
+    //         let action = ru.apply(s)
+    //         if (action)
+    //             return action;
+    //     }
+
+    //     log.silly(`RuleList.apply: "${this.name}": No match`);
+    // }
+};
+RuleList.index = 0;
+
+RuleList.create = (r) => {
+    log.silly("RuleList.create:", dumper(r, 5));
+    return new RuleList(r);
+}
+
+module.exports.RuleList = RuleList;

@@ -348,21 +348,19 @@ class L7mpOpenAPI {
 
             await this.api.handleRequest(ctx, req, res);
 
-            if(res.status && res.status === 200){
-                // HTTPListener will automatically set status code to
-                // 200
-                stream.end(JSON.stringify(res.content, null, 4), '',
-                           () => { s.emit('end') });
-            } else {
-                // the "listener.finalize" path
-                s.emit('error', res);
-            }
+            s.end(res);
+
+            // if(res.status && res.status === 200){
+            //     s.emit('end', res);
+            // } else {
+            //     s.emit('error', res);
+            // }
             // make sure we never retry this, even if policy requires
             // setImmediate(() => s.emit('end'));
         } catch(res) {
             // should receive a status/msg pair
             if(!res) res = { status: 500, content: { message: 'Internal server error' }};
-            s.emit('error', res);
+            s.end(res);
         }
     }
 };

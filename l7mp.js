@@ -36,6 +36,7 @@ const Listener   = require('./listener.js').Listener;
 const Cluster    = require('./cluster.js').Cluster;
 const Session    = require('./session.js').Session;
 const Rule       = require('./rule.js').Rule;
+const RuleList   = require('./rule.js').RuleList;
 const Route      = require('./route.js').Route;
 
 const hostname   = os.hostname();
@@ -64,7 +65,8 @@ const validate = (object, schema) => {
         .map( ([key, ref]) => [
             key,
             !ref.required || (key in object),
-            !ref.validate || ref.validate(object[key])
+            !ref.validate || (!ref.required && !(key in object)) ||
+                ref.validate(object[key])
         ])
         .find( ([_, r, v]) => !r || !v );
     return e && `Property ${e[0]} is ${ !e[1] ? 'required' : 'invalid' }`;
@@ -106,10 +108,11 @@ class L7mp {
         this.admin      = {};
         this.listeners  = [];
         this.clusters   = [];
+        this.rulelists  = [];
         this.rules      = [];
         this.sessions   = [];
         this.routes     = [];
-        // this.transforms = [];
+        this.endpoints  = [];
         this.cleanup    = [];
     }
 
@@ -119,113 +122,41 @@ class L7mp {
             admin:      this.getAdmin(),
             listeners:  this.listeners,
             clusters:   this.clusters,
+            rulelists:  this.rulelists,
             rules:      this.rules,
             sessions:   this.sessions,
             routes:     this.routes,
-            // transforms: this.transforms,
+            endpoints:  this.endpoints,
         };
     }
 
-    async route(metadata, listener, priv){
-        log.info('L7mp.route:', `New session "${metadata.name}"`,
-                 `listener: ${listener.origin.name}:`, dumper(metadata, 3));
-
-        let s = this.addSession(metadata, listener.origin,
-                                listener.stream, priv);
-
-        // status is INIT
-
-        // error
-        s.on('error', (e) => {
-            log.warn('Session.error:', `Session "${s.name}":`,
-                     dumper(e,3));
-                     // e.message || dumper(e,1));
-            s.metadata.status = 'FINALIZING';
-            listener.origin.end(s, e);
-            setImmediate(() =>
-                         this.deleteSessionIfExists(s.name));
-        });
-
-        // normal end
-        s.on('end', () => {
-            log.info('Session.end:', `Session "${s.name}":`,
-                     `Ending normally`);
-            s.metadata.status = 'FINALIZING';
-            setImmediate(() =>
-                         this.deleteSessionIfExists(s.name));
-            s.metadata.status = 'DESTROYED';
-        });
-
-        s.on('destroy', () => {
-            log.silly('Session.end:',
-                      `Session "${s.name}" destroyed`);
-            s.metadata.status = 'DESTROYED';
-            // let I/O still happen
-            setImmediate(() =>
-                         this.deleteSessionIfExists(s.name));
-        });
-
-        // match rules
-        var rules = s.listener.rules;
-        var action;
-        for(let i = 0; i < rules.length; i++){
-            action = rules[i].apply(s)
-            if (action) break;
-        }
-
-        if(!action){
-            log.warn('L7mp.route:', `No route for session "${s.name}"`);
-            this.deleteSession(s.name);
-            s.stream.destroy();
-            return;
-        }
-
-        // apply metadata rewrite rules
-        if(action.rewrite){
-            action.rewrite.forEach( (r) => {
-                log.silly('L7mp.route', `Applying metadata rewrite rule:`,
-                          dumper(r, 3));
-                Rule.setAtPath(s.metadata, r.path, r.value)
-            });
-        }
-
-        // init the ingress/egress chains but do not connect them for now
-        try {
-            this.addRoute(s, listener, action);
-        } catch(e) {
-            log.warn('L7mp.route', `Session "${s.name}" rejected:`, e);
-            s.emit('end', )
-            listener.origin.end(s, e);
-            this.deleteSession(s.name);
-            return;
-        }
-
-        s.on('connect', () => {
-            log.silly('Session.connect:',
-                      `Session "${s.name}" successully connected`);
-            s.metadata.status = 'CONNECTED';
-        });
-
-        s.on('disconnect', () => {
-            log.silly('Session.disconnect:',
-                      `Session "${s.name}" temporarily disconnected`);
-            s.metadata.status = 'DISCONNECTED';
-        });
-
-        s.route.pipeline().then(
-            (route) => s.emit('connect'),
-            (e)     => s.emit('error', e)
-        );
+    newName(name, find){
+        let i = 0;
+        do{
+            if(i > MAX_NAME_ATTEMPTS){
+                let e = `Could not find new name after` +
+                    `${MAX_NAME_ATTEMPTS} iterations`;
+                log.error('L7mp.newName:', e);
+                throw new Error(`Cannot create new name from ${name}: ${e}`);
+            }
+            var newname = name + (i > 0 ? `_${i}` : '');
+            i++;
+        } while(find.bind(this)(newname));
+        return newname;
     }
 
     readConfig(config){
         log.silly('L7mp.readConfig', config);
-        // may throw
-        if(path.extname(config).toLowerCase() === '.yaml')
-            this.static_config = YAML.parse(fs.readFileSync(config, 'utf8'));
-        else
-            this.static_config = JSON.parse(fs.readFileSync(config));
-        this.applyAdmin(this.static_config.admin);
+        try {
+            if(path.extname(config).toLowerCase() === '.yaml')
+                this.static_config = YAML.parse(fs.readFileSync(config, 'utf8'));
+            else
+                this.static_config = JSON.parse(fs.readFileSync(config));
+            this.applyAdmin(this.static_config.admin);
+        } catch(e) {
+            log.error(`Could not read static configuration ${config}:`,
+                      e.code ? `${e.code}: ${e.message}` : e.message);
+        }
     }
 
     run(){
@@ -251,10 +182,17 @@ class L7mp {
                 );
             }
         } catch(e) {
-            log.error(`Could not read static configuration ${config}:`,
-                      e.message);
+            console.log(dumper(e, 6));
+            log.error(`Could not execute static configuration ${config}:`,
+                      e.code ? `${e.code}: ${e.message}` : e.message);
         }
     }
+
+    ////////////////////////////////////////////////////
+    //
+    // Admin API
+    //
+    ////////////////////////////////////////////////////
 
     applyAdmin(admin) {
         log.silly('L7mp.applyAdmin', dumper(admin));
@@ -296,6 +234,11 @@ class L7mp {
         return admin;
     }
 
+    ////////////////////////////////////////////////////
+    //
+    // Listener API
+    //
+    ////////////////////////////////////////////////////
     addListener(l) {
         log.info('L7mp.addListener', dumper(l, 8));
 
@@ -316,36 +259,38 @@ class L7mp {
 
         let e = validate(l, schema);
         if(e){
-            log.warn(`L7mp.addListener:`, e );
-            throw new Error(`L7mp.Listener: ${e}`);
+            log.warn('L7mp.addListener:', e);
+            throw new Error(`Cannot add listener: ${e}`);
         }
 
         if(this.getListener(l.name)){
             let e = `Listener "${l.name}" already defined`;
             log.warn(`L7mp.addListener:`, e );
-            throw new Error(e);
+            throw new Error(`Cannot add listener: ${e}`);
         }
 
         var li = Listener.create(l);
-        li.on('emit', (m, l, p) => this.route(m, l, p));
         this.listeners.push(li);
 
-        l.rules.forEach( (r) => {
-            if(typeof r === 'string'){
-                // this is a rule name, substitute ref to Rule
-                var ru = this.getRule(r.name);
-                if(ru){
-                    li.rules.push(ru);
-                } else {
-                    let e = 'Cannot find named rule "${r}"';
-                    log.warn('L7mp.addListener', e);
-                    throw new Error(e);
-                }
-            } else {
-                li.rules.push(this.addRule(r));
-            }
-        });
+        // if this is a reference to a named RuleList (aka:
+        // MatchActionTable), defer binding until runtime, otherwise,
+        // create a new rulelist
+        if(Array.isArray(l.rules)){
+            let rl = {};
+            rl.rules = l.rules;
+            rl.name = this.newName(`RuleList_${RuleList.index++}`,
+                                   this.getRuleList);
+            this.addRuleList(rl);
+            li.rules = rl.name;
+        }
 
+        if(typeof li.rules !== 'string'){
+            let e = `Invalid RuleList`;
+            log.warn(`L7mp.addListener:`, e );
+            throw new Error(`Cannot add listener: ${e}`);
+        }
+
+        li.on('emit', (s) => this.addSession(s));
         return li;
     }
 
@@ -366,14 +311,20 @@ class L7mp {
                         this.deleteSession(s.name);
                 }
             l.end();
+
             this.listeners.splice(i, 1);
         } else {
             let e = `Unknown listener "${n}"`;
             log.warn(`L7mp.deleteListener:`, e );
-            throw new Error(e);
+            throw new Error(`Cannot delete listener: ${e}`);
         }
     }
 
+    ////////////////////////////////////////////////////
+    //
+    // Cluster API
+    //
+    ////////////////////////////////////////////////////
     addCluster(c) {
         log.info('L7mp.addCluster', dumper(c, 8));
 
@@ -390,51 +341,19 @@ class L7mp {
 
         let e = validate(c, schema);
         if(e){
-            log.warn(`L7mp.addCluster:`, e );
-            throw new Error(`L7mp.addCluster: ${e}`);
+            log.warn('L7mp.addCluster:', e);
+            throw new Error(`Cannot add cluster: ${e}`);
         }
 
         if(this.getCluster(c.name)){
             let e = `Cluster "${c.name}" already defined`;
             log.warn('L7mp.addCluster', e);
-            throw new Error(e);
+            throw new Error(`Cannot add cluster: ${e}`);
         }
 
-        var cl = Cluster.create(c);
-        this.clusters.push(cl);
-        return cl;
-    }
-
-    addClusterMaybeInline(c){
-        log.silly('L7mp.addClusterMaybeInline', dumper(c, 8));
-
-        // must be an object
-        let e = validate(c, {});
-        if(e){
-            log.warn(`L7mp.addClusterMaybeInline:`, e );
-            throw new Error(`L7mp.addClusterMaybeInline: ${e}`);
-        }
-
-        if(typeof c === 'string'){
-            // this is a cluster name, substitute ref
-            let cluster = this.getCluster(c);
-            if(!cluster)
-                throw new Error(`Unknown cluster in route: "${c}"`);
-            return c;
-        } else {
-            // inline cluster def
-            if(c.spec && c.spec.protocol){
-                let name = this.newName(`${c.spec.protocol}_Cluster_${Cluster.index++}`,
-                                        this.getCluster);
-                if(!name)
-                    throw new Error(`Could not find new name after ${MAX_NAME_ATTEMPTS} iterations`);
-                c.name = name;
-                let cluster = this.addCluster(c);
-                return name;
-            } else {
-                throw new Error(`No spec in inline cluster definition`);
-            }
-        }
+        c = Cluster.create(c);
+        this.clusters.push(c);
+        return c;
     }
 
     getCluster(n){
@@ -461,16 +380,23 @@ class L7mp {
         } else {
             let e = `Unknown cluster "${n}"`;
             log.warn(`L7mp.deleteCluster:`, e );
-            throw new Error(e);
+            throw new Error(`Cannot delete cluster: ${e}`);
         }
     }
 
+    ////////////////////////////////////////////////////
+    //
+    // Rule API
+    //
+    ////////////////////////////////////////////////////
+
     addRule(r) {
-        log.info('L7mp.addRule', dumper(r, 8));
+        log.info('L7mp.addRule:', dumper(r, 8));
 
         let schema = {
             name: {
                 validate: (value) => /^\S+?$/.test(value),
+                required: true,
             },
             action: {
                 validate: (value) => value instanceof Object,
@@ -480,44 +406,37 @@ class L7mp {
 
         let e = validate(r, schema);
         if(e){
-            log.warn(`L7mp.addRule:`, e );
-            throw new Error(e);
+            log.warn('L7mp.addRule:', e);
+            throw new Error(`Cannot add rule: ${e}`);
         }
 
-        r.name = this.newName(r.name || `Rule_${Rule.index++}`, this.getRule);
-        if(!r.name){
-            let e =
-                `Could not find new name after ${MAX_NAME_ATTEMPTS} iterations`;
-            log.error('L7mp.addRule', e);
-            throw new Error(e);
+        if(this.getRule(r.name)){
+            let e = `Rule "${r.name}" already defined`;
+            log.warn('L7mp.addRule', e);
+            throw new Error(`Cannot add rule: ${e}`);
         }
 
-        var ru = Rule.create(r);
-        this.rules.push(ru);
+        r = Rule.create(r);
+        this.rules.push(r);
 
-        // substitute inline clusters (in the ingress/egress chain or
-        // the destination of the rule) with a reference
-        if(r.action && r.action.route){
-            let route = r.action.route;
-
-            // destination
-            let n = this.addClusterMaybeInline(route.destination);
-            route.cluster = n;
-            for(let dir of ['ingress', 'egress']){
-                if(!route[dir]) continue;
-                for(let i = 0; i < route[dir].length; i++) {
-                    n = this.addClusterMaybeInline(route[dir][i]);
-                    route[dir][i] = n;
-                }
+        let route = r.action.route;
+        if(route){
+            if(typeof route === 'object'){
+                // inline route: create
+                route.name = route.name ||
+                    this.newName(`Route_${Route.index++}`, this.getRoute);
+                this.addRoute(route);
+                r.action.route = route.name;
             }
-        } else {
-            let e =
-                `Invalid Rule "${ru.name}": No action and/or route found in rule`;
-            log.error('L7mp.addRule', e);
-            throw new Error(e);
+
+            if(typeof r.action.route !== 'string'){
+                let e = `Invalid route`;
+                log.warn(`L7mp.addRule:`, e );
+                throw new Error(`Cannot add rule: ${e}`);
+            }
         }
 
-        return ru;
+        return r;
     }
 
      getRule(n){
@@ -525,106 +444,170 @@ class L7mp {
         return this.rules.find( ({name}) => name === n );
     }
 
-    // internal, not to be called from the API
-    addSession(metadata, listener, stream, priv){
-        log.silly('L7mp.addSession:', `Session: ${metadata.name}`);
-        var i = 0;
+    deleteRule(n){
+        log.info('L7mp.deleteRule:', n);
+        let i = this.rules.findIndex( ({name}) => name === n);
+        if(i >= 0){
+            this.rules.splice(i, 1);
+        } else {
+            let e = `Unknown rule "${n}"`;
+            log.warn(`L7mp.deleteRule:`, e );
+            throw new Error(`Cannot delete rule: ${e}`);
+        }
+    }
 
-        let name = this.newName(metadata.name, this.getSession);
-        if(!name){
-            let e =
-                `Could not find new name after ${MAX_NAME_ATTEMPTS} iterations`;
-            log.warn('L7mp.addSession', e);
-            throw new Error(e);
+    ////////////////////////////////////////////////////
+    //
+    // RuleList (aka MatchActionTable) API
+    //
+    ////////////////////////////////////////////////////
+
+    addRuleList(r) {
+        log.info('L7mp.addRuleList', dumper(r, 8));
+
+        let schema = {
+            name: {
+                validate: (value) => /^\S+?$/.test(value),
+                required: true,
+            },
+            rules: {
+                validate: (value) => value instanceof Array,
+                required: true,
+            },
+        };
+
+        let e = validate(r, schema);
+        if(e){
+            log.warn('L7mp.addRuleList:', e);
+            throw new Error(`Cannot add RuleList: ${e}`);
         }
 
-        metadata.name = name;
-        let se = new Session(metadata, listener, stream, priv);
-        this.sessions.push(se);
-        return se;
-    }
-
-    deleteSession(n){
-        log.info('L7mp.deleteSession:', `"${n}"`);
-
-        let i = this.sessions.findIndex( ({name}) => name === n);
-        if(i < 0){
-            let e = `Unknown session "${n}"`;
-            log.warn(`L7mp.deleteSession:`, e );
-            throw new Error(e);
+        if(this.getRuleList(r.name)){
+            let e = `RuleList "${r.name}" already defined`;
+            log.warn('L7mp.addRuleList', e);
+            throw new Error(`Cannot add RuleList: ${e}`);
         }
 
-        let s = this.sessions[i];
+        r = RuleList.create(r);
+        this.rulelists.push(r);
 
-        // returns 1 if no retrying stage exists
-        if(!s.route)
-            // init phase, don't have a route yet
-            s.stream.destroy();
-        else
-            if(this.deleteRoute(s.route.name))
-                this.sessions.splice(i, 1);
+        for(let i = 0; i < r.rules.length; i++){
+            let rule = r.rules[i];
+            if(typeof rule === 'object'){
+                // inline rule: create
+                rule.name = rule.name ||
+                    this.newName(`Rule_${Rule.index++}`, this.getRule);
+                this.addRule(rule);
+                r.rules[i] = rule.name;
+            }
+
+            if(typeof r.rules[i] !== 'string'){
+                let e = `Invalid rule`;
+                log.warn(`L7mp.addRule:`, e );
+                throw new Error(`Cannot add rule: ${e}`);
+            }
+        }
+
+        return r;
     }
 
-    deleteSessionIfExists(n){
-        if(this.getSession(n)) this.deleteSession(n);
+     getRuleList(n){
+        log.silly('L7mp.getRuleList:', n);
+        return this.rulelists.find( ({name}) => name === n );
     }
 
-    getSession(n){
-        log.silly('L7mp.getSession:', n);
-        return this.sessions.find( ({name}) => name === n );
+    deleteRuleList(n){
+        log.info('L7mp.deleteRuleList:', n);
+        let i = this.rulelists.findIndex( ({name}) => name === n);
+        if(i >= 0){
+            this.rulelists.splice(i, 1);
+            // remove the listeners that refer to this rulelist
+            for(let l of this.listeners){
+                if(l.rules.name === n)
+                    this.deleteListener(l.name);
+            }
+        } else {
+            let e = `Unknown RuleList "${n}"`;
+            log.warn(`L7mp.deleteRuleList:`, e );
+            throw new Error(`Cannot delete RuleList: ${e}`);
+        }
     }
 
-    // internal, not to be called from the API
-    addRoute(s, l, a){
-        log.silly('L7mp.addRoute:', `Session: ${s.name}`);
-        if(!a) throw `No matching rule`;
+    ////////////////////////////////////////////////////
+    //
+    // Route API
+    //
+    ////////////////////////////////////////////////////
 
-        // deep copy!
-        let r = { ... a.route};
-        if(!r) throw `No route in matching rule`;
+    addRoute(r){
+        log.silly('L7mp.addRoute:', dumper(r, 6));
 
-        // accept the old API name "cluster"
-        // internally we still use "cluster" instead of "detination"
-        if(!r.destination) r.destination = r.cluster;
-        if(!r.destination)
-            throw `Invalid route: Empty cluster`;
-        if(typeof r.destination !== 'string')
-            throw 'Internal error: Inline destination cluster def found in route: '+
-            dumper(r.destination, 5);
+        // accept ols-style API
+        r.destination = r.destination || r.cluster;
 
-        // this is a cluster name, substitute ref
-        let cluster = this.getCluster(r.destination);
-        if(!cluster)
-            throw `Unknown cluster in route: "${r.cluster}"`;
-        r.cluster = { origin: cluster };
+        let schema = {
+            name: {
+                validate: (value) => /^\S+?$/.test(value),
+                required: true,
+            },
+            destination: {
+                required: true,
+            },
+            ingress: {
+                validate: (value) => value instanceof Array,
+            },
+            egress: {
+                validate: (value) => value instanceof Array,
+            },
+            retry: {
+                validate: (value) => value instanceof Object,
+            },
+        };
 
-        r.listener = l;
+        let e = validate(r, schema);
+        if(e){
+            log.warn('L7mp.addRoute:', e);
+            throw new Error(`Cannot add route: ${e}`);
+        }
 
-        let ro = Route.create(r);
-        log.silly('L7mp.addRoute:', `${ro.name} created`);
+        if(typeof r.destination === 'object'){
+            // inline cluster: create
+            r.destination.name = r.destination.name ||
+                this.newName(`Cluster_${Cluster.index++}`, this.getCluster);
+            this.addCluster(r.destination);
+            r.destination = r.destination.name;
+        }
+
+
+        if(typeof r.destination !== 'string'){
+            let e = `Invalid destination`;
+            log.warn(`L7mp.addRoute:`, e );
+            throw new Error(`Cannot add route: ${e}`);
+        }
 
         for(let dir of ['ingress', 'egress']){
             if(!r[dir]) continue;
-            r[dir].forEach( (c) => {
-                if(typeof c !== 'string')
-                    throw 'Internal error: Inline cluster def found in ' +
-                    `${dir} route: ` + dumper(c, 5);
-
-                // this is a cluster name, substitute ref
-                c = this.getCluster(c);
-                if(!c)
-                    throw `Unknown transform cluster "${c}" in ` +
-                    `"${dir}" route`;
-                ro.chain[dir].push({ origin: c });
-                this.checkRoute(ro, c, s);
-            });
-            this.checkRoute(ro, cluster, s);
+            for(let i = 0; i < r[dir].length; i++){
+                let c = r[dir][i];
+                if(typeof c === 'object'){
+                    // inline cluster: create
+                    c.name = c.name ||
+                        this.newName(`Cluster_${Cluster.index++}`, this.getCluster);
+                    this.addCluster(c);
+                    r[dir][i] = c.name;
+                }
+                if(typeof r[dir][i] !== 'string'){
+                    let e = `Invalid cluster`;
+                    log.warn(`L7mp.addRoute:`, e );
+                    throw new Error(`Cannot add route: ${e}`);
+                }
+            }
         }
 
-        s.setRoute(ro);
-        this.routes.push(ro);
+        r = Route.create(r);
+        this.routes.push(r);
 
-        return ro;
+        return r;
     }
 
     getRoute(n){
@@ -636,38 +619,147 @@ class L7mp {
     deleteRoute(n){
         log.silly('L7mp.deleteRoute:', n);
         let i = this.routes.findIndex(({name}) => name === n);
-        if(i >= 0){
-            // returns 1 if no retrying stage exists
-            if(this.routes[i].end()){
-                this.routes.splice(i, 1);
-                return 1;
-            }
+        if(i >= 0)
+            this.routes.splice(i, 1);
+    }
+
+    ////////////////////////////////////////////////////
+    //
+    // EndPoint API
+    //
+    ////////////////////////////////////////////////////
+
+    addEndPoint(ep){
+        log.silly('L7mp.addEndPoint:', dumper(ep, 6));
+
+        let schema = {
+            name: {
+                validate: (value) => /^\S+?$/.test(value),
+                required: true,
+            },
+            spec: {
+                validate: (value) => value instanceof Object,
+                required: true,
+            },
+        };
+
+        let e = validate(ep, schema);
+        if(e){
+            log.warn('L7mp.addEndPoint:', e);
+            throw new Error(`Cannot add route: ${e}`);
+        }
+
+        ep = EndPoint.create(ep);
+        this.endpoints.push(ep);
+
+        return ep;
+    }
+
+    getEndPoint(n){
+        log.silly('L7mp.getEndPoint:', n);
+        return this.endponts.find( ({name}) => name === n );
+    }
+
+    // internal, not to be called from the API
+    deleteEndPoint(n){
+        log.silly('L7mp.deleteEndPoint:', n);
+        let i = this.endpoints.findIndex(({name}) => name === n);
+        if(i >= 0)
+            this.endpoints.splice(i, 1);
+    }
+
+    ////////////////////////////////////////////////////
+    //
+    // Session API
+    //
+    ////////////////////////////////////////////////////
+
+    // internal, not to be called from the API
+    addSession(s){
+        log.silly('L7mp.addSession');
+
+        let schema = {
+            metadata: {
+                validate: (value) => value instanceof Object,
+                required: true,
+            },
+            listener: {
+                validate: (value) => value instanceof Object,
+                required: true,
+            },
+            priv: {
+                validate: (value) => value instanceof Object,
+            },
+        };
+
+        let e = validate(s, schema);
+        if(e){
+            log.warn('L7mp.addSession:', s);
+            throw new Error(`Cannot add sesson: ${e}`);
+        }
+
+        s.metadata.name = this.newName(s.metadata.name, this.getSession);
+        s = new Session(s);
+        this.sessions.push(s);
+
+        s.on('init', () => log.silly(`Session "${s.name}: initializing"`));
+        s.on('connect', () => log.silly(`Session "${s.name}:`,
+                                        `successfully (re)connected"`));
+        s.on('disconnect', (origin, error) => {
+            log.info(`Session "${s.name}":`,
+                     `temporarily disconnected at stream ${origin.name}`,
+                     `reason: ${error.message}`);
+        });
+
+        s.on('error', (e) => {
+            if(log.level === 'silly') dump(e);
+            log.warn(`Session "${s.name}": fatal error:`, e.message);
+            if(s.priv && s.priv.end)
+                s.priv.end(s, e);
+        });
+
+        // normal end
+        s.on('end', (msg) => {
+            log.info(`Session "${s.name}": ending normally`);
+            if(s.priv && s.priv.end)
+                s.priv.end(s, msg);
+        });
+
+        s.on('destroy', () => {
+            log.silly(`Session "${s.name}": destroyed`);
+            setImmediate(() => this.deleteSession(s.name));
+        });
+
+        // may use .error()
+        try {
+            s.create();
+        } catch(e){
+            if(log.level === 'silly') dump(e);
+            e = `Could not create session "${s.name}": ${e.message}`
+            log.warn(e);
+        }
+
+        return s;
+    }
+
+    deleteSession(n){
+        log.info('L7mp.deleteSession:', `"${n}"`);
+
+        let i = this.sessions.findIndex( ({name}) => name === n);
+        if(i < 0){
+            let e = `Unknown session "${n}"`;
+            log.warn(`L7mp.deleteSession:`, e );
+            throw new Error(`Cannot delete session: ${e}`);
         } else {
-            return 0;
+            this.sessions.splice(i, 1);
         }
     }
 
-    checkRoute(r, to, s){
-        // incompatible: datagram to session: warn
-        if(r.type === 'datagram-stream' && to.type !== 'datagram-stream'){
-            log.warn('L7mp.addRoute:', `Session "${s.name}":`,
-                     `Stream down-conversion: datagram-stream`,
-                     `routed to a "${to.type}"-type stream "${to.name}":`,
-                     'Can no longer enforce datagam boundaries');
-            r.type = 'byte-stream';
-        }
+    getSession(n){
+        log.silly('L7mp.getSession:', n);
+        return this.sessions.find( ({name}) => name === n );
     }
 
-    newName(name, find){
-        let i = 0;
-        do{
-            if(i > MAX_NAME_ATTEMPTS)
-                return;
-            var newname = name + (i > 0 ? `_${i}` : '');
-            i++;
-        } while(find.bind(this)(newname));
-        return newname;
-    }
 };
 
 ///////////////////////////////////////
@@ -687,13 +779,7 @@ log.on('log.error', (msg) => {
 
 global.l7mp = new L7mp();
 var config = argv.c;
-try {
-    // applies config.admin
-    l7mp.readConfig(config);
-} catch(e) {
-    log.error(`Could not read static configuration ${config}`,
-              e.message);
-}
+l7mp.readConfig(config);
 
 // override loglevel
 if('l' in argv) log.level = argv.l;

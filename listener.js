@@ -152,41 +152,38 @@ class HTTPListener extends Listener {
                 },
                 headers: req.headers,
             },
-            status: 'INIT',
         };
 
-        let listener = {  // immutable
-            origin: this,
-            stream: stream,
-        };
+        this.emit('emit', {
+            metadata: metadata,
+            listener: { origin: this.name, stream: stream },
+            priv: { req: req, res: res, end: this.end },
+        });
 
-        var priv = { req: req, res: res };
-        this.emit('emit', metadata, listener, priv);
     }
 
+    // if we receive an object or empty msg: normal end, jsonify 7 send msg if any
+    // anything else is an error
     end(s, e){
         log.silly('HTTPListener.end');
         let res = s.priv.res;
-        this.finalize(res, e);
-    }
 
-    finalize(res, e){
-        log.silly('HTTPListener.finalize');
-        // dump(e, 3);
-        if(typeof e === 'string' && e)
-            e = { status: 400,
-                  content: { message: 'Bad request',
-                             error: e } };
-        else if(typeof e === 'object' && e)
-        {} // do nothing
-        else
-            e = { status: 500,
-                  content: {
-                      message: 'Internal Server Error' } };
-        // dump(e);
+        if(!e){
+            e = { status: 200, content: { message: 'OK'} };
+        } else if(e instanceof Error){
+            e.status = e.status || 500;
+            e.content = { message: 'Internal server error',
+                          error: e.message };
+        } else if(e && typeof e === 'object'){
+            e.status = e.status || 400;
+            e.content = e.content ||
+                { message: 'Bad request',
+                  error: e };
+        } else {
+            e = { status: 500, content: { message: 'Internal server error' }};
+        }
+
         let msg = JSON.stringify(e.content, null, 4);
-        // dump(msg);
-
         res.writeHead(e.status, {
             'Content-Length': msg.length,
             'Content-Type': 'application/json'
@@ -265,16 +262,13 @@ class WebSocketListener extends Listener {
                 },
                 headers: req.headers,
             },
-            status: 'INIT',
         };
 
-        let listener = {
-            origin: this,
-            stream: duplex
-        };
-
-        var priv = { socket: socket, req: req };
-        this.emit('emit', metadata, listener, priv);
+        this.emit('emit', {
+            metadata: metadata,
+            listener: { origin: this.name, stream: duplex },
+            priv: { socket: socket, req: req, end: this.end },
+        });
     }
 
     end(s, e){
@@ -451,23 +445,14 @@ class UDPListener extends Listener {
                 src_port: conn.remote_port,
                 dst_port: conn.local_port,
             },
-            status: 'INIT',
         };
 
-        let listener = {
-            origin: this,
-            stream: conn.stream,
-        };
-
-        this.emit('emit', metadata, listener);
+        this.emit('emit', {
+            metadata: metadata,
+            listener: { origin: this.name, stream: conn.stream },
+        });
     }
 
-    end(s, e){
-        log.silly('UDPListener.end');
-        try { this.socket.close(); } catch(err) {
-            log.warn('UDPListener.end: Could not remove socket:', err.message);
-        }
-    }
 };
 
 class NetServerListener extends Listener {
@@ -523,105 +508,96 @@ class NetServerListener extends Listener {
                     src_port: socket.remotePort,
                     dst_port: socket.address().port,
                 },
-                status: 'INIT',
             } :
             {
                 name: name,
                 UNIX: {
                     filename: this.localAddress
                 },
-                status: 'INIT',
             };
 
-        let listener = {
-            origin: this,
-            stream: socket,
-        };
-
-        this.emit('emit', metadata, listener, {});
-    }
-
-    end(s, e){
-        log.info('NetServerListener: end:', e ? e.message : 'No error');
-        // no-op
-    }
-};
-
-class JSONSocketListener extends Listener {
-    constructor(l){
-        super(l);
-        this.type = 'datagram';
-        let li = {
-            name: this.name + '-embedded_listener',
-            spec: l.spec.transport_spec,
-        };
-        if(!li.spec)
-            log.error('JSONSocketListener:', 'No transport specified');
-        this.transport = Listener.create(li);
-
-        log.info('JSONSocketListener:', `${this.name} initialized`);
-
-        this.transport.on('emit', (m, l, p) => this.onSession(m, l, p));
-        // eventDebug(socket);
-    }
-
-    onSession(m, l, p){
-        log.info('JSONSocketListener:', `${this.name}:`,
-                 `New connection request: "${m.name}"`);
-        // stream should be in object mode so we should be able to
-        // read the entire "JSON header" in one shot
-        l.stream.once('data', (chunk) => {
-            if(typeof chunk !== 'object')
-                log.warn('JSONSocketListener:', `${this.name}:`,
-                         `Transport is not message based, JSON header`,
-                         `may be fragmented`);
-            try {
-                var header = JSON.parse(chunk);
-            } catch(e){
-                log.warn('JSONSocketListener:', `${this.name}:`,
-                         `Invalid JSON header, dropping connection`);
-                l.stream.destroy();
-                return;
-            }
-
-            if(typeof header.metadata === 'undefined'){
-                log.warn('JSONSocketListener:', `${this.name}:`,
-                         `Empty metadata in header:`, dumper(header,5));
-                l.stream.destroy();
-                return;
-            }
-
-            for(let q of this.spec.parse){
-                if(!q.path){
-                    log.warn('JSONSocketListener:', `${this.name}:`,
-                             `Invalid parse path`);
-                    return;
-                }
-
-                let value = Rule.getAtPath(header.metadata, q.path);
-                if(typeof value === 'undefined'){
-                    log.warn('JSONSocketListener:', `${this.name}:`,
-                             `Empty field in JSON header for query`,
-                             `"${q.path}"`);
-                    continue;
-                }
-                let target = q.target || q.path;
-                Rule.setAtPath(m, target, value)
-            }
-
-            l.origin = this;
-            m.name = `JSONSocket:${this.name}-` + this.getNewSessionId();
-
-            // reemit chunk
-            setImmediate(() => { l.stream.emit("data", chunk); });
-
-            // and emit new session
-            this.emit('emit', m, l, {});
+        this.emit('emit', {
+            metadata: metadata,
+            listener: { origin: this.name, stream: socket },
         });
     }
-
-    end(s, e){ /*ignore*/ };
 };
+
+// class JSONSocketListener extends Listener {
+//     constructor(l){
+//         super(l);
+//         this.type = 'datagram';
+//         let li = {
+//             name: this.name + '-embedded_listener',
+//             spec: l.spec.transport_spec,
+//         };
+//         if(!li.spec)
+//             log.error('JSONSocketListener:', 'No transport specified');
+//         this.transport = Listener.create(li);
+
+//         log.info('JSONSocketListener:', `${this.name} initialized`);
+
+//         this.transport.on('emit', (m, l, p) => this.onSession(m, l, p));
+//         // eventDebug(socket);
+//     }
+
+//     onSession(m, l, p){
+//         log.info('JSONSocketListener:', `${this.name}:`,
+//                  `New connection request: "${m.name}"`);
+//         // stream should be in object mode so we should be able to
+//         // read the entire "JSON header" in one shot
+//         l.stream.once('data', (chunk) => {
+//             if(typeof chunk !== 'object')
+//                 log.warn('JSONSocketListener:', `${this.name}:`,
+//                          `Transport is not message based, JSON header`,
+//                          `may be fragmented`);
+//             try {
+//                 var header = JSON.parse(chunk);
+//             } catch(e){
+//                 log.warn('JSONSocketListener:', `${this.name}:`,
+//                          `Invalid JSON header, dropping connection`);
+//                 l.stream.destroy();
+//                 return;
+//             }
+
+//             if(typeof header.metadata === 'undefined'){
+//                 log.warn('JSONSocketListener:', `${this.name}:`,
+//                          `Empty metadata in header:`, dumper(header,5));
+//                 l.stream.destroy();
+//                 return;
+//             }
+
+//             for(let q of this.spec.parse){
+//                 if(!q.path){
+//                     log.warn('JSONSocketListener:', `${this.name}:`,
+//                              `Invalid parse path`);
+//                     return;
+//                 }
+
+//                 let value = Rule.getAtPath(header.metadata, q.path);
+//                 if(typeof value === 'undefined'){
+//                     log.warn('JSONSocketListener:', `${this.name}:`,
+//                              `Empty field in JSON header for query`,
+//                              `"${q.path}"`);
+//                     continue;
+//                 }
+//                 let target = q.target || q.path;
+//                 Rule.setAtPath(m, target, value)
+//             }
+
+//             l.origin = this;
+//             m.name = `JSONSocket:${this.name}-` + this.getNewSessionId();
+
+//             // reemit chunk
+//             setImmediate(() => { l.stream.emit("data", chunk); });
+
+//             // and emit new session
+//             this.emit('emit', m, l, {});
+//         });
+//     }
+
+//     end(s, e){ /*ignore*/ };
+// };
 
 Listener.create = (l) => {
     log.silly('Listener.create', dumper(l, 8));
