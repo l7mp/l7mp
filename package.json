@@ -32,6 +32,7 @@
         "delay": "^4.3.0",
         "duplexer2": "^0.1.4",
         "event-debug": "^2.1.0",
+        "git-repo-version": "^1.0.2",
         "hashring": "^3.2.0",
         "jq-web": "^0.5.1",
         "json-predicate": "^0.9.5",
@@ -39,12 +40,10 @@
         "minimist": "^1.2.5",
         "mississippi": "^4.0.0",
         "npmlog": "^4.1.2",
-        "openapi-backend": "^2.3.8",
-        "openapi-transformer": "^0.5.4",
-        "p-event": "^4.1.0",
+        "openapi-backend": "^2.4.1",
+        "p-event": "^4.2.0",
         "p-retry": "^4.2.0",
-        "ws": "^7.2.3",
-        "yamljs": "^0.3.0",
-        "git-repo-version": "^1.0.2"
+        "ws": "^7.3.0",
+        "yamljs": "^0.3.0"
     }
 }
