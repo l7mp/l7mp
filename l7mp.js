@@ -172,7 +172,12 @@ class L7mp {
 
             if('listeners' in this.static_config){
                 this.static_config.listeners.forEach(
-                    (l) => this.addListener(l)
+                    (l) => this.addListener(l).catch((e) => {
+                        log.error(`Could not initialize static configuration`,
+                                  `${config}:`,
+                                  e.code ? `${e.code}: ${e.message}` : e.message
+                                 );
+                    })
                 );
             }
 
@@ -183,7 +188,7 @@ class L7mp {
             }
         } catch(e) {
             console.log(dumper(e, 6));
-            log.error(`Could not execute static configuration ${config}:`,
+            log.error(`Could not initialize static configuration ${config}:`,
                       e.code ? `${e.code}: ${e.message}` : e.message);
         }
     }
@@ -239,7 +244,7 @@ class L7mp {
     // Listener API
     //
     ////////////////////////////////////////////////////
-    addListener(l) {
+    async addListener(l) {
         log.info('L7mp.addListener', dumper(l, 8));
 
         let schema = {
@@ -270,7 +275,6 @@ class L7mp {
         }
 
         var li = Listener.create(l);
-        this.listeners.push(li);
 
         // if this is a reference to a named RuleList (aka:
         // MatchActionTable), defer binding until runtime, otherwise,
@@ -291,6 +295,16 @@ class L7mp {
         }
 
         li.on('emit', (s) => this.addSession(s));
+        this.listeners.push(li);
+
+        // this may fail: promise
+        try {
+            await li.run();
+        } catch(e){
+            log.silly(`L7mp.addListener:`, e);
+            log.warn(`Cannot add listener: ${e.message}`);
+            throw e;
+        }
         return li;
     }
 
@@ -707,12 +721,12 @@ class L7mp {
                                         `successfully (re)connected"`));
         s.on('disconnect', (origin, error) => {
             log.info(`Session "${s.name}":`,
-                     `temporarily disconnected at stream ${origin.name}`,
-                     `reason: ${error.message}`);
+                     `temporarily disconnected at stream "${origin}":`,
+                     `reason: ${error ? error.message : 'unknown'}`);
         });
 
         s.on('error', (e) => {
-            if(log.level === 'silly') dump(e);
+            // if(log.level === 'silly') dump(e);
             log.warn(`Session "${s.name}": fatal error:`, e.message);
             if(s.priv && s.priv.end)
                 s.priv.end(s, e);
@@ -738,12 +752,10 @@ class L7mp {
             e = `Could not create session "${s.name}": ${e.message}`
             log.warn(e);
         }
-
-        return s;
     }
 
     deleteSession(n){
-        log.info('L7mp.deleteSession:', `"${n}"`);
+        log.verbose('L7mp.deleteSession:', `"${n}"`);
 
         let i = this.sessions.findIndex( ({name}) => name === n);
         if(i < 0){

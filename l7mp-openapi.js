@@ -49,13 +49,13 @@ class L7mpOpenAPI {
         this.api.init();
 
         this.api.registerHandler('getConf', (ctx, req, res) => {
-            log.info("L7mp.api.getConf");
+            log.verbose("L7mp.api.getConf");
             res.status = 200;
             res.content = l7mp;
         });
 
         this.api.registerHandler('setConf', (ctx, req, res) => {
-            log.info("L7mp.api.setConf");
+            log.verbose("L7mp.api.setConf");
             try {
                 l7mp.static_config = req.body;
                 let result = l7mp.run();
@@ -71,19 +71,19 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('getAdmin', (ctx, req, res) => {
-            log.info("L7mp.api.getAdmin");
+            log.verbose("L7mp.api.getAdmin");
             res.status = 200;
             res.content = l7mp.getAdmin();
         });
 
         this.api.registerHandler('getListeners', (ctx, req, res) => {
-            log.info("L7mp.api.getListeners");
+            log.verbose("L7mp.api.getListeners");
             res.status = 200;
             res.content = l7mp.listeners;
         });
 
         this.api.registerHandler('getListener', (ctx, req, res) => {
-            log.info("L7mp.api.getListener");
+            log.verbose("L7mp.api.getListener");
             let result = l7mp.getListener(ctx.request.params.name);
             if(result){
                 res.status = 200;
@@ -97,10 +97,10 @@ class L7mpOpenAPI {
             }
         });
 
-        this.api.registerHandler('addListener', (ctx, req, res) => {
-            log.info("L7mp.api.addListener");
+        this.api.registerHandler('addListener', async (ctx, req, res) => {
+            log.verbose("L7mp.api.addListener");
             try {
-                let result = l7mp.addListener(req.body.listener);
+                let result = await l7mp.addListener(req.body.listener);
                 res.status = 200;
                 res.content = { message: 'OK' };
             } catch(e) {
@@ -113,7 +113,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('deleteListener', (ctx, req, res) => {
-            log.info("L7mp.api.deleteListener");
+            log.verbose("L7mp.api.deleteListener");
             try {
                 let result =
                     l7mp.deleteListener(ctx.request.params.name);
@@ -129,13 +129,13 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('getClusters', (ctx, req, res) => {
-            log.info("L7mp.api.getClusters");
+            log.verbose("L7mp.api.getClusters");
             res.status = 200;
             res.content = l7mp.clusters;
         });
 
         this.api.registerHandler('getCluster', (ctx, req, res) => {
-            log.info("L7mp.api.getCluster");
+            log.verbose("L7mp.api.getCluster");
             let result = l7mp.getCluster(ctx.request.params.name);
             if(result){
                 res.status = 200;
@@ -150,7 +150,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('addCluster', (ctx, req, res) => {
-            log.info("L7mp.api.addCluster");
+            log.verbose("L7mp.api.addCluster");
             try {
                 let result = l7mp.addCluster(req.body.cluster);
                 res.status = 200;
@@ -165,7 +165,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('deleteCluster', (ctx, req, res) => {
-            log.info("L7mp.api.deleteCluster");
+            log.verbose("L7mp.api.deleteCluster");
             try {
                 let result =
                     l7mp.deleteCluster(ctx.request.params.name);
@@ -181,13 +181,13 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('getSessions', (ctx, req, res) => {
-            log.info("L7mp.api.getSessions");
+            log.verbose("L7mp.api.getSessions");
             res.status = 200;
             res.content = l7mp.sessions;
         });
 
         this.api.registerHandler('getSession', (ctx, req, res) => {
-            log.info("L7mp.api.getSession");
+            log.verbose("L7mp.api.getSession");
             let result = l7mp.getSession(ctx.request.params.name);
             if(result){
                 res.status = 200;
@@ -202,7 +202,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('deleteSession', (ctx, req, res) => {
-            log.info("L7mp.api.deleteSession");
+            log.verbose("L7mp.api.deleteSession");
             try {
                 l7mp.deleteSession(ctx.request.params.name);
                 res.status = 200;
@@ -217,7 +217,7 @@ class L7mpOpenAPI {
         });
 
         this.api.register('validationFail', (ctx, req, res) => {
-            log.info("L7mp.api.validationFail");
+            log.verbose("L7mp.api.validationFail");
             res.status = 400;
             res.content = {
                 message: 'Bad request: Input validation failed',
@@ -226,14 +226,14 @@ class L7mpOpenAPI {
         });
 
         this.api.register('notFound', (ctx, req, res) => {
-            log.info("L7mp.api.notFound");
+            log.verbose("L7mp.api.notFound");
             res.status = 404;
             res.content = { message: 'Not found',
                             error: 'Unknown API operation' };
         });
 
         this.api.register('notImplemented', (ctx, req, res) => {
-            log.info("L7mp.api.notImplemented");
+            log.verbose("L7mp.api.notImplemented");
             res.status = 501;
             res.content = { message: 'No handler registered for operation' };
         });
@@ -294,7 +294,7 @@ class L7mpOpenAPI {
                     try {
                         req.body = JSON.parse(body);
                     } catch(e){
-                        log.info('l7mp.openapi: handleRequest:',
+                        log.warn('l7mp.openapi: handleRequest:',
                                  'Invalid JSON request: ', e);
                         res.status = 400;
                         res.content = { message: 'Bad request'};
@@ -318,7 +318,7 @@ class L7mpOpenAPI {
                 try {
                     req.body = YAML.parse(body);
                 } catch(e) {
-                    log.info('l7mp.openapi: handleRequest: Invalid YAML request: ', e);
+                    log.warn('l7mp.openapi: handleRequest: Invalid YAML request: ', e);
                     res.status = 400;
                     res.content = { message: 'Bad request',
                                     error: 'Invalid YAML format in request: ' + e};
@@ -329,7 +329,7 @@ class L7mpOpenAPI {
             default:
                 if(req.method === 'POST' || req.method === 'PUT'){
                     // we request a known payload
-                    log.info('l7mp.openapi: handleRequest: Unknown content type');
+                    log.warn('l7mp.openapi: handleRequest: Unknown content type');
                     res.status = 415;
                     res.content = { message: 'Unsupported Media Type',
                                     error: 'Unknown content type: ' +

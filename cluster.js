@@ -453,8 +453,8 @@ class WebSocketCluster extends Cluster {
         log.silly('WebSocketCluster.connect:', `Protocol: ${this.protocol}`,
                   `Session: ${s.name}`);
         var e = this.loadbalancer.apply(s);
-        // Promisifies endpoints events
-        // cancels the event listeners on reject!
+        // Promisifies endpoint events: cancels the event listeners on
+        // reject!
         return pEvent(e.connect(s), 'open', {
             rejectionEvents: ['close', 'error', 'unexpected-response'],
             multiArgs: true, timeout: s.route.retry.timeout

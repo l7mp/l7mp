@@ -33,6 +33,7 @@ const util         = require('util');
 const miss         = require("mississippi");
 const duplex3      = require("duplexer2");
 const eventDebug   = require('event-debug');
+const pEvent       = require('p-event');
 
 const StreamCounter = require('./stream-counter.js').StreamCounter;
 const utils         = require('./stream.js');
@@ -80,6 +81,9 @@ class HTTPListener extends Listener {
         super(l);
         this.type = 'session';
         this.mode = 'server';
+    }
+
+    run(){
         this.server = http.createServer( this.onRequest );
 
         this.server.on('error', (e) => {
@@ -197,6 +201,9 @@ class WebSocketListener extends Listener {
         super(l);
         this.type = 'datagram';
         this.mode = 'server';
+    }
+
+    run(){
         this.server = new WebSocket.Server( { port: this.spec.port } );
 
         this.server.on('error', (e) => {
@@ -304,126 +311,162 @@ class UDPListener extends Listener {
 
         this.local_address  = this.spec.address || '0.0.0.0';
         this.local_port     = this.spec.port || -1;
+        this.onConn         = this.onConnect.bind(this);
 
-        var socket = udp.createSocket({type: 'udp4',
-                                       reuseAddr: this.reuseaddr});
-
-        // eventDebug(socket);
-
-        this.socket = socket;
-        socket.bind(
-            { port: this.local_port, address: this.local_address },
-            () => {
-                log.silly('UDPListener:', `"${this.name}" bound to`,
-                          `${this.local_address}:${this.local_port}`);
-
-                if(this.mode === 'singleton' &&
-                   this.connection === 'immediate'){
-                    this.onConnect();
-                } else {
-                    this.onConn = this.onConnect.bind(this);
-                    // after a connection is established for a remote,
-                    // we should no longer get new packets from that
-                    // connection any more on this socket, so each no
-                    // packet received will spark a new connection
-                    socket.on('message', this.onConn);
-                }
-            });
+        this.socket = udp.createSocket({type: 'udp4',
+                                        reuseAddr: this.reuseaddr});
+        // eventDebug(this.socket);
     }
 
-    // without msg/rinfo: connected+immediate mode
-    // otherwise we are called from the first packet
-    onConnect(msg, rinfo){
-        // check source
-        if(this.mode === 'singleton'){
-            if(rinfo && (
-                rinfo.address !== this.spec.connect.address ||
-                    rinfo.port !== this.spec.connect.port)){
-                log.warn('UDPListener:onConnect: Singleton/connected mode:',
-                         `"${this.name}:"`,
-                         `packet received from unknown peer:`,
-                         `${rinfo.address}:${rinfo.port}, expecting`,
-                         `${this.spec.connect.address}:${this.spec.connect.port}`);
-                return;
-            }
+    run(){
+        if(this.mode === 'singleton')
+            return this.run_singleton();
+        else
+            return this.run_server();
+    }
 
-            // piggyback on the listener's socket
-            let connection = {
-                socket:         this.socket,
-                local_address:  this.local_address,
-                local_port:     this.local_port,
-                remote_address: rinfo ? rinfo.address : this.spec.connect.address,
-                remote_port:    rinfo ? rinfo.port : this.spec.connect.port,
-                msg:            msg,
-                rinfo:          rinfo,
-            };
+    async run_singleton(){
+        log.silly('UDPListener:run_singleton', `"${this.name}"`);
 
-            if(this.connection === 'ondemand'){
-                connection.socket.removeListener("message", this.onConn);
-                connection.socket.emit('message', msg, rinfo);
-            }
-
-            this.socket.connect(connection.remote_port, connection.remote_address,
-                                () => {
-                               log.info(`UDPListener: "${this.name}"`,
-                                        `connected to remote`,
-                                        `${connection.remote_address}:`+
-                                        `${connection.remote_port} on`,
-                                        `${connection.local_address}:`+
-                                        `${connection.local_port}`);
-
-                                    this.onRequest(connection);
-                                });
-        } else {
-            // server mode
-            if(this.spec.connect && (
-                (this.spec.connect.address &&
-                 rinfo.address !== this.spec.connect.address) ||
-                    (this.spec.connect.port &&
-                     rinfo.port !== this.spec.connect.port))){
-                log.warn('UDPListener:onConnect: Server/unconnected mode:',
-                         `"${this.name}:"`,
-                         `packet received from unknown peer:`,
-                         `${rinfo.address}:${rinfo.port}, expecting`,
-                         `${this.spec.connect.address || '<ANY>'}`+
-                         `${this.spec.connect.port || '<ANY>'}`);
-                return;
-            }
-
-            // a new socket for this connection
-            let socket = udp.createSocket({type: 'udp4',
-                                       reuseAddr: this.reuseaddr});
-            // eventDebug(socket);
-            socket.bind(
-                { port: this.local_port, address: this.local_address },
-                () => {
-
-                    let connection = {
-                        socket:         socket,
-                        local_address:  this.local_address,
-                        local_port:     this.local_port,
-                        remote_address: rinfo.address,
-                        remote_port:    rinfo.port,
-                        msg:            msg,
-                        rinfo:          rinfo,
-                    };
-
-                    socket.connect(rinfo.port, rinfo.address,
-                           () => {
-                               log.info(`UDPListener: "${this.name}"`,
-                                        `new connection for remote`,
-                                        `${connection.remote_address}:`+
-                                        `${connection.remote_port} on`,
-                                        `${connection.local_address}:`+
-                                        `${connection.local_port}`);
-
-                               setImmediate(() => {
-                                   socket.emit('message', msg, rinfo);
-                               });
-                               this.onRequest(connection);
-                           });
-                });
+        try {
+            // emits socket.error if fails
+            this.socket.bind({ port: this.local_port,
+                               address: this.local_address });
+            await pEvent(this.socket, 'listening',
+                         { rejectionEvents: ['close', 'error'] });
+        } catch(e){
+            throw new Error(`UDPListener.run_singleton: "${this.name}": `,
+                            `Could not bind to `+
+                            `${this.local_address}:${this.local_port}`);
         }
+
+        log.verbose('UDPListener:run_singleton', `"${this.name}:"`,
+                    `bound to ${this.local_address}:${this.local_port}`);
+
+        if(this.connection === 'ondemand'){
+            this.socket.on('message', this.onConn);
+        }
+
+        // immediate: piggyback on the listener's socket
+        let connection = {
+            socket:         this.socket,
+            local_address:  this.local_address,
+            local_port:     this.local_port,
+            remote_address: this.spec.connect.address,
+            remote_port:    this.spec.connect.port,
+        };
+
+        try{
+            this.socket.connect(connection.remote_port,
+                                connection.remote_address);
+            await pEvent(this.socket, 'connect',
+                         { rejectionEvents: ['close', 'error'] });
+        } catch(e){
+            throw new Error(`UDPListener.run_singleton: "${this.name}": `+
+                            `Could not connect to `+
+                            `${connection.remote_address}:`+
+                            `${connection.remote_port}`);
+        }
+
+        log.verbose(`UDPListener.run_singleton: "${this.name}"/immediate`,
+                    `connected to remote`,
+                    `${connection.remote_address}:`+
+                    `${connection.remote_port} on`,
+                    `${connection.local_address}:`+
+                    `${connection.local_port}`);
+
+        return this.onRequest(connection);
+    }
+
+    async run_server(){
+        log.silly('UDPListener:run_server', `"${this.name}"`);
+
+        try {
+            // emits socket.error if fails
+            this.socket.bind({ port: this.local_port,
+                               address: this.local_address });
+            await pEvent(this.socket, 'listening',
+                         { rejectionEvents: ['close', 'error'] });
+        } catch(e){
+            throw new Error(`UDPListener.run_server: "${this.name}: "`+
+                            `Could not bind to `+
+                            `${this.local_address}:${this.local_port}`);
+        }
+
+        log.verbose('UDPListener:run_server', `"${this.name}:"`,
+                    `bound to ${this.local_address}:${this.local_port}`);
+
+        this.socket.on('message', this.onConn);
+    }
+
+    // ondemand!
+    async onConnect(msg, rinfo){
+        if(rinfo && this.spec.connect && (
+            rinfo.address !== this.spec.connect.address ||
+                rinfo.port !== this.spec.connect.port)){
+            let e = 'UDPListener:onConnect: Singleton/connected mode: '+
+                `"${this.name}:" packet received from unknown peer: `+
+                `${rinfo.address}:${rinfo.port}, expecting `+
+                `${this.spec.connect.address}:${this.spec.connect.port}`;
+            throw new Error(e);
+        }
+
+        log.verbose('UDPListener.onConnect: new connection from',
+                    `${rinfo.address}:${rinfo.port}`);
+
+        if(this.mode === 'singleton' && this.connection === 'ondemand'){
+            var socket = this.socket;
+            socket.removeListener("message", this.onConn);
+        } else {
+            // server mode: a new socket for this connection
+            var socket = udp.createSocket({type: 'udp4',
+                                           reuseAddr: this.reuseaddr});
+            // eventDebug(socket);
+            try {
+                // emits socket.error if fails
+                socket.bind({ port: this.local_port,
+                              address: this.local_address });
+                await pEvent(socket, 'listening',
+                             { rejectionEvents: ['close', 'error'] });
+            } catch(e){
+                throw new Error(`UDPListener.onConnect: "${this.name}"/server: `,
+                                `Could not bind to `+
+                                `${this.local_address}:${this.local_port}`);
+            }
+        }
+
+        // piggyback on the listener's socket
+        let connection = {
+            socket:         socket,
+            local_address:  this.local_address,
+            local_port:     this.local_port,
+            remote_address: rinfo.address,
+            remote_port:    rinfo.port,
+            msg:            msg,
+            rinfo:          rinfo,
+        };
+
+        try{
+            connection.socket.connect(connection.remote_port,
+                                      connection.remote_address);
+            await pEvent(connection.socket, 'connect',
+                         { rejectionEvents: ['close', 'error'] });
+        } catch(e){
+            throw new Error('UDPListener.onConnect: '+
+                            `"${this.name}:" `+
+                            `Could not connect to `+
+                            `${connection.remote_address}:`+
+                            `${connection.remote_port}`);
+        }
+
+        log.verbose(`UDPListener.onConnect: "${this.name}"`,
+                    `connected to remote`,
+                    `${connection.remote_address}:`+
+                    `${connection.remote_port} on`,
+                    `${connection.local_address}:`+
+                    `${connection.local_port}`);
+
+        return this.onRequest(connection);
     }
 
     onRequest(conn){
@@ -451,6 +494,9 @@ class UDPListener extends Listener {
             metadata: metadata,
             listener: { origin: this.name, stream: conn.stream },
         });
+
+        if(conn.msg)
+            conn.socket.emit('message', conn.msg, conn.rinfo);
     }
 
 };
@@ -460,6 +506,9 @@ class NetServerListener extends Listener {
         super(l);
         this.type = 'byte-stream';
         this.mode = 'server';
+    }
+
+    run(){
         this.server = net.createServer();
 
         this.server.on('error', (e) => {
