@@ -22,9 +22,14 @@ COPY openapi/l7mp-openapi.yaml openapi/
 # Expose the control port
 EXPOSE 1234
 
-# run
-#CMD exec /bin/sh -c "trap : TERM INT; (while true; do sleep 1000; done) & wait"
+# test container
+# CMD exec /bin/sh -c "trap : TERM INT; (while true; do sleep 1000; done) & wait"
+
+# should work eventually
 # CMD [ "node", "l7mp.js", "-c", "config/l7mp-minimal.yaml", "-s", "-l", "silly" ]
+
 # disable validation
 #CMD [ "node", "l7mp.js", "-c", "config/l7mp-minimal.yaml", "-l", "silly" ]
-CMD [ "l7mp", "-c", "config/l7mp-minimal.yaml", "-s", "-l", "info" ]
+
+# for testing
+CMD [ "node", "l7mp-proxy.js", "-c", "config/l7mp-minimal.yaml", "-s", "-l", "info" ]
