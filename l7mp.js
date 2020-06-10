@@ -22,13 +22,10 @@
 
 'use strict';
 
-const os         = require('os');
+const path       = require('path');
 const fs         = require('fs');
-
-const parseArgs  = require('minimist');
 const util       = require('util');
 var   log        = require('npmlog');
-const path       = require('path');
 const YAML       = require('yamljs');
 const getVersion = require('git-repo-version');
 
@@ -39,19 +36,7 @@ const Rule       = require('./rule.js').Rule;
 const RuleList   = require('./rule.js').RuleList;
 const Route      = require('./route.js').Route;
 
-const hostname   = os.hostname();
-
 const MAX_NAME_ATTEMPTS = 20;
-
-global.dumper = function dumper(o, depth=1){
-    return util.inspect(o, {compact: 100000,
-                            breakLength: Infinity,
-                            depth: depth});
-}
-
-global.dump = function dump(o, depth=5){
-    console.log(dumper(o, depth));
-}
 
 // validate object schamas beyond OpenAPI validation
 const validate = (object, schema) => {
@@ -71,35 +56,6 @@ const validate = (object, schema) => {
         .find( ([_, r, v]) => !r || !v );
     return e && `Property ${e[0]} is ${ !e[1] ? 'required' : 'invalid' }`;
 }
-
-Object.defineProperty(log, 'heading',
-                      { get: () => { return new Date().toISOString() } });
-log.headingStyle = { bg: '', fg: 'white' }
-
-// cleanup handlers
-for(let event of ['exit', 'SIGINT', 'SIGTERM']){
-    process.on(event, () => {
-        log.info(`Normal exit: event: ${event}`);
-        if(l7mp && l7mp.cleanup)
-            l7mp.cleanup.forEach(file => {
-                try {
-                    fs.accessSync(file);
-                    log.silly(`Cleanup: removing "${file}"`);
-                    fs.unlinkSync(file);
-                } catch(e) { /* NOP */ }
-            })
-        process.exit();
-    });
-}
-
-process.on('uncaughtException', (err) => {
-    log.error(`Uncaught exception:`, err);
-});
-
-process.on('unhandledRejection', (reason, p) => {
-    log.error(`Unhandled Rejection at Promise ${dumper(p, 3)}: Reason:`,
-              reason);
-});
 
 class L7mp {
     constructor() {
@@ -787,32 +743,4 @@ class L7mp {
 
 };
 
-///////////////////////////////////////
-
-var usage = 'l7mp -c <static_config> -s -l <log-level>'
-var argv = parseArgs(process.argv.slice(2));
-if(!('c' in argv)){
-    console.error(usage);
-    process.exit(1);
-}
-
-log.stream = process.stderr;
-log.on('log.error', (msg) => {
-    console.error(`Error: ${msg.prefix}: ${msg.message}`);
-    process.exit(1);
-});
-
-global.l7mp = new L7mp();
-var config = argv.c;
-l7mp.readConfig(config);
-
-// override loglevel
-if('l' in argv) log.level = argv.l;
-
-// strict mode: boolean
-if('s' in argv) l7mp.admin.strict = true;
-
-if(!l7mp.static_config)
-    log.error('No static configuration found');
-
-l7mp.run();
+module.exports.L7mp = L7mp;
