@@ -103,7 +103,7 @@ process.on('unhandledRejection', (reason, p) => {
 
 class L7mp {
     constructor() {
-        this.static_config;
+        this.static_config = {};
         // object hierarchy
         this.admin      = {};
         this.listeners  = [];
@@ -152,7 +152,8 @@ class L7mp {
                 this.static_config = YAML.parse(fs.readFileSync(config, 'utf8'));
             else
                 this.static_config = JSON.parse(fs.readFileSync(config));
-            this.applyAdmin(this.static_config.admin);
+            this.static_config = this.static_config || {};
+            this.applyAdmin(this.static_config.admin || {});
         } catch(e) {
             log.error(`Could not read static configuration ${config}:`,
                       e.code ? `${e.code}: ${e.message}` : e.message);
@@ -181,9 +182,21 @@ class L7mp {
                 );
             }
 
+            if('rulelists' in this.static_config){
+                this.static_config.rulelists.forEach(
+                    (r) => this.addRuleList(r)
+                );
+            }
+
             if('rules' in this.static_config){
                 this.static_config.rules.forEach(
                     (r) => this.addRule(r)
+                );
+            }
+
+            if('routes' in this.static_config){
+                this.static_config.routes.forEach(
+                    (r) => this.addRoute(r)
                 );
             }
         } catch(e) {
