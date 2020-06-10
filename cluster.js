@@ -614,7 +614,7 @@ class EchoCluster extends Cluster {
         super( {
             name:         c.name || 'EchoCluster',
             spec:         {protocol: 'Echo' },
-            type:         'byte-stream'
+            type:         'datagram-stream'
         });
     }
 
@@ -632,7 +632,7 @@ class EchoCluster extends Cluster {
 
     stream(s){
         log.silly('EchoCluster.stream', `Session: "${s.name}"`);
-        return Promise.resolve(new stream.PassThrough());
+        return Promise.resolve(new stream.PassThrough({readableObjectMode: true}));
     }
 };
 
