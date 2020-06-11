@@ -25,7 +25,7 @@
 const path       = require('path');
 const fs         = require('fs');
 const util       = require('util');
-var   log        = require('npmlog');
+const log        = require('npmlog');
 const YAML       = require('yamljs');
 const getVersion = require('git-repo-version');
 
@@ -37,6 +37,18 @@ const RuleList   = require('./rule.js').RuleList;
 const Route      = require('./route.js').Route;
 
 const MAX_NAME_ATTEMPTS = 20;
+
+// WARNING: these dumpers are needed for development and testing only,
+// will be removed later
+global.dumper = function dumper(o, depth=1){
+    return util.inspect(o, {compact: 100000,
+                            breakLength: Infinity,
+                            depth: depth});
+}
+
+global.dump = function dump(o, depth=5){
+    console.log(dumper(o, depth));
+}
 
 // validate object schamas beyond OpenAPI validation
 const validate = (object, schema) => {
@@ -193,7 +205,8 @@ class L7mp {
             log.warn('L7mp.applyAdmin: access_log_path', 'TODO');
         }
 
-        this.admin.version = getVersion({ shaLength: 10, includeDate: true }) ||
+        this.admin.version =
+            getVersion({ shaLength: 10, includeDate: true }) ||
             '<UNKNOWN>';
     }
 

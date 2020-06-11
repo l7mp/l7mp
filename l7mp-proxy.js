@@ -29,7 +29,7 @@ const fs         = require('fs');
 
 const parseArgs  = require('minimist');
 const util       = require('util');
-var   log        = require('npmlog');
+const log        = require('npmlog');
 const path       = require('path');
 const YAML       = require('yamljs');
 const hostname   = os.hostname();
@@ -37,16 +37,6 @@ const hostname   = os.hostname();
 const L7mp       = require('./l7mp.js').L7mp;
 
 // Globals
-global.dumper = function dumper(o, depth=1){
-    return util.inspect(o, {compact: 100000,
-                            breakLength: Infinity,
-                            depth: depth});
-}
-
-global.dump = function dump(o, depth=5){
-    console.log(dumper(o, depth));
-}
-
 global.l7mp = new L7mp();
 
 // Set up logging
