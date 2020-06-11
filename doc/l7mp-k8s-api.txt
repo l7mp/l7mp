@@ -302,7 +302,6 @@
             - transcoder-vsvc
   #+END_SRC
 
-
 * Example 2: Request Rewriting and Routing, Load-balancing, Rendezvous Points, and Retries
 
 ** Setup

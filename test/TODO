@@ -1,0 +1,21 @@
+* Debugging
+
+add "debugger" statements in the code and run "./node_modules/mocha/bin/mocha debug test.js"
+
+* Listener
+** TODO HTTP
+** TODO WebSocket
+** TODO UDP
+** DONE TCP
+** TODO UnixDomainSocket
+
+* Cluster
+** TODO HTTP
+** TODO WebSocket
+** TODO UDP
+** TODO TCP
+** TODO UnixDomainSocket
+** DONE Echo
+** DONE JSONEncap
+** TODO JSONDecap
+** TODO Sync

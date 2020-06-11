@@ -17,7 +17,7 @@ describe('TCPListener', ()  => {
     });
 
     context('create', () => {
-        it('runs',         () => { l = Listener.create( {name: 'TCP', spec: { protocol: 'TCP', port: 54321 }}); assert.exists(l); });
+        it('created',      () => { l = Listener.create( {name: 'TCP', spec: { protocol: 'TCP', port: 54321 }}); assert.exists(l); });
         it('object',       () => { assert.isObject(l); });
         // TCPListener is not exported so we cannot check from here
         it('instanceOf',   () => { assert.instanceOf(l, Listener); });
@@ -29,31 +29,36 @@ describe('TCPListener', ()  => {
         it('can-listen',   () => { l.on('emit', (x) => { s = x }); assert.isOk(true); });
     });
 
+    context('#run', () => {
+        it('runs', () => { l.run(); assert.exists(l); });
+    });
+
     context('#connect', () => {
-        it('connect', (done) => { c = new Net.connect({port: 54321}, () => { assert.isOk(true); done; }) });
-        it('address', () => { assert.equal(c.localAddress, '127.0.0.1'); });
+        it('connect',    (done) => { c = new Net.connect({port: 54321}, () => { assert.isOk(true); done(); }) });
+        it('address',        () => { assert.equal(c.localAddress, '127.0.0.1'); });
         it('remote-address', () => { assert.equal(c.remoteAddress, '127.0.0.1'); });
-        it('remote-port', () => { assert.equal(c.remoteAddress, 54321); });
-        it('isa stream', () => { assert.instanceOf(c, Stream); });
-        it('readable',   () => { assert.isOk(c.readable); });
-        it('writeable',  () => { assert.isOk(c.writable); });
+        it('remote-port',    () => { assert.equal(c.remotePort, 54321); });
+        it('isa stream',     () => { assert.instanceOf(c, Stream); });
+        it('readable',       () => { assert.isOk(c.readable); });
+        it('writeable',      () => { assert.isOk(c.writable); });
     });
 
     context('emits session', () => {
         it('emits',  () => { assert.isOk(s); });
-        it('session-instanceOf',   () => { assert.instanceOf(s, Session); });
         it('session-metadata', () => { assert.property(s, 'metadata'); });
         it('session-metadata-name', () => { assert.nestedProperty(s, 'metadata.name'); });
         it('session-metadata-IP', () => { assert.nestedProperty(s, 'metadata.IP'); });
-        it('session-metadata-src-addr', () => { assert.nestedPropertyVal(s, 'metadata.IP.src_addr', '127.0.0.1'); });
-        it('session-metadata-dst-addr', () => { assert.nestedPropertyVal(s, 'metadata.IP.dst_addr', '127.0.0.1'); });
+        it('session-metadata-src-addr', () => { assert.nestedProperty(s, 'metadata.IP.src_addr'); });
+        it('session-metadata-src-addr', () => { assert.match(s.metadata.IP.src_addr, /127.0.0.1/); });
+        it('session-metadata-dst-addr', () => { assert.nestedProperty(s, 'metadata.IP.dst_addr'); });
+        it('session-metadata-dst-addr', () => { assert.match(s.metadata.IP.dst_addr, /127.0.0.1/); });
         it('session-metadata-TCP', () => { assert.nestedProperty(s, 'metadata.TCP'); });
         it('session-metadata-src-port', () => { assert.nestedProperty(s, 'metadata.TCP.src_port'); });
         it('session-metadata-dst-port', () => { assert.nestedPropertyVal(s, 'metadata.TCP.dst_port', 54321); });
         it('session-listener', () => { assert.nestedPropertyVal(s, 'listener.origin', 'TCP'); });
         it('session-stream', () => { assert.nestedProperty(s, 'listener.stream'); });
         it('session-stream', () => { assert.nestedProperty(s, 'listener.origin', 'TCP'); });
-        it('session-stream', () => { assert.instanceOf(s.listener.stream, 'Stream') });
+        it('session-stream', () => { assert.instanceOf(s.listener.stream, Stream) });
         it('session-stream-readable',   () => { assert.isOk(s.listener.stream.readable); });
         it('session-stream-writeable',  () => { assert.isOk(s.listener.stream.writable); });
     });
