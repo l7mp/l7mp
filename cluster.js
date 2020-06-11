@@ -201,6 +201,30 @@ EndPoint.index = 0;
 // EndPoint.prototype = Object.create(EventEmitter.prototype)
 util.inherits(EndPoint, EventEmitter);
 
+// Test: produces a stream when requested
+class TestEndPoint extends EndPoint {
+    constructor(c, e) {
+        super(c, e);
+        this.timeout = 0;
+        // programmable ok/fail sequence
+        // ok: emit test-open after timeout
+        // fail: emit test-error after timeout
+        this.mode = ['ok'];
+        this.round = 0;
+    }
+    connect(s){
+        let strm = new stream.PassThrough();
+        setTimeout( () => {
+            if(this.mode[this.round] === 'ok')
+                strm.emit('test-open', this.round);
+            else
+                strm.emit('test-error', this.round);
+            this.round = (this.round + 1) % this.mode.length;
+        }, this.timeout);
+        return strm;
+    }
+};
+
 class WebSocketEndPoint extends EndPoint {
     constructor(c, e) {
         super(c, e);
@@ -362,6 +386,7 @@ EndPoint.create = (c, e) => {
     case 'UDP':              return new UDPEndPoint(c, e);
     case 'TCP':              return new NetSocketEndPoint(c, e);
     case 'UnixDomainSocket': return new NetSocketEndPoint(c, e);
+    case 'Test':             return new TestEndPoint(c, e);
     default:
         log.error('EndPoint.create',
                   `TODO: Protocol "${c.protocol}" unimplemented`);
@@ -412,20 +437,22 @@ class Cluster {
 
     addEndPoint(e){
         log.silly('Cluster.addEndPoint:', dumper(e));
-        this.endpoints.push(EndPoint.create(this, e));
+        let ep = EndPoint.create(this, e);
+        this.endpoints.push(ep);
         this.loadbalancer.update(this.endpoints);
+        return ep;
     }
 
     getEndPoint(n){
         return this.endpoints.find( ({name}) => name === n );
     }
 
-    deleteEndPoint(e){
-        log.silly('Cluster.deleteEndPoint:', dumper(e));
+    deleteEndPoint(n){
+        log.silly('Cluster.deleteEndPoint: name:', n);
 
-        var i = this.endpoints.findIndex( ({name}) => name === e.name );
+        var i = this.endpoints.findIndex( ({name}) => name === n );
         if(i < 0){
-            log.warn('Cluster.deleteEndPoint', 'EndPoint "${e.name}" undefined');
+            log.warn('Cluster.deleteEndPoint', 'EndPoint "${n}" undefined');
             return;
         }
 
@@ -441,6 +468,29 @@ Cluster.index = 0;
 util.inherits(Cluster, EventEmitter);
 
 // class HTTPCluster extends Cluster {};
+
+// test: returns a stream after timeout or may fail after timeout
+class TestCluster extends Cluster {
+    constructor(c) {
+        super(c);
+        this.type = 'byte-stream'; // test endpoint returns
+                                   // non-objectmode passthrough
+    }
+
+    async connect(s){
+        var e = this.endpoints[0];
+        return pEvent(e.connect(s), 'test-open', {
+            rejectionEvents: ['test-error'],
+            multiArgs: true, timeout: s.route.retry.timeout
+        });
+    }
+
+    async stream(s){
+        return this.connect(s).then(
+            (args) => { return args[0]; }
+        );
+    }
+};
 
 class WebSocketCluster extends Cluster {
     constructor(c) {
@@ -470,7 +520,7 @@ class WebSocketCluster extends Cluster {
                 let ws = args[0];
                 let _stream = WebSocket
                     .createWebSocketStream(ws, {readableObjectMode: true});
-                eventDebug(_stream);
+                // eventDebug(_stream);
                 return _stream;
             });
     }
@@ -825,6 +875,7 @@ class SyncCluster extends Cluster {
 Cluster.create = (c) => {
     log.silly('Cluster.create', dumper(c, 4));
     switch(c.spec.protocol){
+    case 'Test':             return new TestCluster(c);
     case 'HTTP':             return new HTTPCluster(c);
     case 'WebSocket':        return new WebSocketCluster(c);
     case 'UDP':              return new UDPCluster(c);
@@ -843,4 +894,6 @@ Cluster.create = (c) => {
     }
 }
 
-module.exports.Cluster = Cluster;
+module.exports.Cluster      = Cluster;
+module.exports.EndPoint     = EndPoint;
+module.exports.LoadBalancer = LoadBalancer;

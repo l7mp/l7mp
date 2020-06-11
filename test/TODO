@@ -1,21 +1,45 @@
-* Debugging
+* Notes
 
-add "debugger" statements in the code and run "./node_modules/mocha/bin/mocha debug test.js"
+- Debugging: add "debugger" statements in the code and run "./node_modules/mocha/bin/mocha debug test.js"
+- Naming: 1*: unit tests, 2*: API tests, 3*: integration tests
 
-* Listener
-** TODO HTTP
-** TODO WebSocket
-** TODO UDP
-** DONE TCP
-** TODO UnixDomainSocket
+* Unit tests
 
-* Cluster
-** TODO HTTP
-** TODO WebSocket
-** TODO UDP
-** TODO TCP
-** TODO UnixDomainSocket
-** DONE Echo
-** DONE JSONEncap
-** TODO JSONDecap
-** TODO Sync
+** EndPoint: 10-*
+*** TODO WebSocket
+*** TODO UDP
+*** TODO TCP
+*** TODO JSONSocket
+*** TODO Test
+
+** Cluster: 11-*
+*** TODO HTTP
+*** TODO WebSocket
+*** TODO UDP
+*** TODO TCP
+*** TODO UnixDomainSocket
+*** TODO JSONSocket
+*** DONE Echo
+*** DONE JSONEncap
+*** TODO JSONDecap
+*** TODO Sync
+*** TODO Test
+
+** Listener: 12-*
+*** TODO HTTP
+*** TODO WebSocket
+*** TODO UDP
+*** DONE TCP
+*** TODO UnixDomainSocket
+*** TODO Test
+
+** Route, Rule, RuleList: 13-*
+*** TODO Route
+*** TODO Rule
+*** TODO RuleList
+
+** Session: routing, retry, load-balancing: 14-*
+*** TODO Session
+*** TODO Routing
+*** TODO Retry
+*** TODO LoadBalancing

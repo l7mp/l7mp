@@ -48,7 +48,6 @@ class Listener {
         this.spec      = l.spec;
         this.rules     = [];
         this.type      = "";
-        this.sessionId = 0;
         this.stats     = {
             active_sessions:   0,
             accepted_sessions: 0,
@@ -69,17 +68,34 @@ class Listener {
             options: this.options,
         };
     }
-
 }
 
 // Inherit from EventEmitter: roughly equivalent to:
 // Listener.prototype = Object.create(EventEmitter.prototype)
 util.inherits(Listener, EventEmitter);
 
+// for testing: emits a session req when we ask
+class TestListener extends Listener {
+    constructor(l){
+        super(l);
+        this.type = 'datagram-stream';  // whatever
+        this.mode = 'server';
+    }
+    run(){ }
+    emit(m, s, p){
+        this.emit('emit',
+                  { metadata: m,
+                    listener: { origin: this.name, stream: s },
+                    priv: p,
+                  });
+    }
+
+}
+
 class HTTPListener extends Listener {
     constructor(l){
         super(l);
-        this.type = 'session';
+        this.type = 'byte-stream';
         this.mode = 'server';
     }
 
@@ -658,6 +674,7 @@ Listener.create = (l) => {
     case 'TCP':              return new NetServerListener(l);
     case 'UnixDomainSocket': return new NetServerListener(l);
     case 'JSONSocket':       return new JSONSocketListener(l);
+    case 'Test':             return new TestListener(l);
     default:  log.error('Listener.create',
                         `Unknown protocol: "${protocol}"`);
     }
