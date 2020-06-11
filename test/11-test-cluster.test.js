@@ -6,7 +6,7 @@ const Cluster      = require('../cluster.js').Cluster;
 const LoadBalancer = require('../cluster.js').LoadBalancer;
 
 describe('TestCluster', ()  => {
-    var e, c;
+    var e, c, s_ok;
     before( () => {
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'warn' });
@@ -54,9 +54,13 @@ describe('TestCluster', ()  => {
     context('#stream()', () => {
         it('ok', async () => {
             e = c.endpoints[0]; e.mode=['ok']; e.timeout=0;
-            let s = await c.stream({route:{retry:{timeout:1000}}});
+            s_ok = await c.stream({route:{retry:{timeout:1000}}});
             assert.isOk(true);
         });
+        it('exists',     () => { assert.isOk(s_ok); });
+        it('instanceOf', () => { assert.instanceOf(s_ok, Stream); });
+        it('readable',   () => { assert.isOk(s_ok.readable); });
+        it('writeable',  () => { assert.isOk(s_ok.writable); });
         it('fail', async () => {
             e = c.endpoints[0]; e.mode=['fail']; e.timeout=0;
             let s = await c.stream({route:{retry:{timeout:1000}}}).

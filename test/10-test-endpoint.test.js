@@ -4,7 +4,7 @@ const L7mp     = require('../l7mp.js').L7mp;
 const EndPoint = require('../cluster.js').EndPoint;
 
 describe('TestEndPoint', ()  => {
-    var e;
+    var e, s_ok;
     before( () => {
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'error' });
@@ -24,9 +24,13 @@ describe('TestEndPoint', ()  => {
     context('#connect()', () => {
         it('ok', (done) => {
             e.mode=['ok']; e.timeout=0;
-            let s = e.connect({});
-            s.on('test-open', () => { assert.isOk(true); done(); });
+            s_ok = e.connect({});
+            s_ok.on('test-open', () => { assert.isOk(true); done(); });
         });
+        it('exists',     () => { assert.isOk(s_ok); });
+        it('instanceOf', () => { assert.instanceOf(s_ok, Stream); });
+        it('readable',   () => { assert.isOk(s_ok.readable); });
+        it('writeable',  () => { assert.isOk(s_ok.writable); });
         it('fail', (done) => {
             e.mode=['fail']; e.timeout=0;
             let s = e.connect({});

@@ -107,7 +107,7 @@ class Session {
     // warning: session does not hold hard references to listeners,
     // rules/rulelists, routes and clusters, because these may be
     // deleted from the API any time
-    async create(){
+    create(){
         log.silly('Session.create:', `${this.name}`,
                   `listener: ${this.source.origin}:`);
 
@@ -139,7 +139,9 @@ class Session {
         // we keep this route inline even if Route is deleted from API
         this.route = {...route};
         this.checkRoute();
+    }
 
+    async router(){
         try{
             await this.pipeline();
         } catch(e){
@@ -394,7 +396,8 @@ class Session {
                           `(${error.retriesLeft} retries left):`,
                           (error.errno) ?
                           `${error.errno}: ${error.address}:${error.port}` :
-                          dumper(error, 1));
+                          error.message);
+                          // dumper(error, 1));
 
                 // DISCONNECTED BUT UNDER RETRY
                 stage.status = error.retriesLeft == 0 ?
@@ -563,13 +566,12 @@ class Session {
 
         if(this.metadata.status === 'CONNECTED')
             this.emit('disconnect', stage.origin, error);
-        if(this.active_streams === 0)
-            this.destroy();
+        // if(this.active_streams === 0)
+        //     this.destroy();
 
         switch(this.route.retry.retry_on){
         case 'always':
         case 'disconnect':
-
             // this may fail: no promise
             try {
                 if(stage.origin === this.source.origin){
@@ -617,7 +619,8 @@ class Session {
                 log.silly('Session.disconnect:',
                           `Could not reconnect session "${this.name}":`,
                           e.message);
-                return;
+                this.error(`Could not reconnect session "${this.name}":`,
+                           e.message);
             }
 
             break;
@@ -631,6 +634,9 @@ class Session {
     }
 
     async reconnect(stage){
+        log.silly('Session.reconnect:', `Session ${this.name}:`,
+                  `reconnecting on cluster "${stage.origin}"`);
+
         // dampen retries: never attempt to reconnect a cluster within
         // timeout msecs of the last successfull connection (handle
         // clusters that reconnect but then immediately drop
@@ -646,8 +652,7 @@ class Session {
 
         let num_retries = retry.retry_on === 'disconnect' ||
             retry.retry_on === 'always' ? retry.num_retries : 0;
-
-        return this.connect_stage(stage, num_retries);
+        return this.connect_stage(stage, num_retries > 0 ? num_retries-1 : 0);
     }
 
     get_stages(){

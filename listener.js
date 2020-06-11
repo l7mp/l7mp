@@ -46,7 +46,7 @@ class Listener {
         this.protocol  = l.spec.protocol;
         this.name      = l.name;
         this.spec      = l.spec;
-        this.rules     = [];
+        this.rules     = "";
         this.type      = "";
         this.stats     = {
             active_sessions:   0,
@@ -82,14 +82,12 @@ class TestListener extends Listener {
         this.mode = 'server';
     }
     run(){ }
-    emit(m, s, p){
-        this.emit('emit',
-                  { metadata: m,
-                    listener: { origin: this.name, stream: s },
-                    priv: p,
-                  });
+    emitSession(m, s, p){ this.emit('emit', this.getSession(m,s,p))}
+    getSession(m, s, p){
+        return { metadata: m,
+                 listener: { origin: this.name, stream: s },
+                 priv: p};
     }
-
 }
 
 class HTTPListener extends Listener {
@@ -210,6 +208,10 @@ class HTTPListener extends Listener {
         });
         res.end(msg);
     }
+
+    close(){
+        this.server.close();
+    }
 };
 
 class WebSocketListener extends Listener {
@@ -300,6 +302,10 @@ class WebSocketListener extends Listener {
         // connection because it encountered an unexpected condition
         // that prevented it from fulfilling the request.
         s.priv.socket.close(1011, e.toString());
+    }
+
+    close(){
+        this.server.close();
     }
 };
 
@@ -515,6 +521,14 @@ class UDPListener extends Listener {
             conn.socket.emit('message', conn.msg, conn.rinfo);
     }
 
+    // do not close session, ie, this.socket for singleton/immediate
+    close(){
+        if(this.mode === 'server' ||
+           (this.mode === 'server' && this.connection === 'ondemand')){
+            this.socket.close();
+            this.socket.unref();
+        }
+    }
 };
 
 class NetServerListener extends Listener {
@@ -585,6 +599,11 @@ class NetServerListener extends Listener {
             metadata: metadata,
             listener: { origin: this.name, stream: socket },
         });
+    }
+
+    close(){
+        this.server.close();
+        this.server.unref();
     }
 };
 

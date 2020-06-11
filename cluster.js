@@ -213,12 +213,13 @@ class TestEndPoint extends EndPoint {
         this.round = 0;
     }
     connect(s){
+        log.silly('TestEndPoint.connect');
         let strm = new stream.PassThrough();
         setTimeout( () => {
             if(this.mode[this.round] === 'ok')
-                strm.emit('test-open', this.round);
+                strm.emit('test-open', strm);
             else
-                strm.emit('test-error', this.round);
+                strm.emit('test-error', new Error('TestEndPoint.error'));
             this.round = (this.round + 1) % this.mode.length;
         }, this.timeout);
         return strm;
@@ -478,6 +479,7 @@ class TestCluster extends Cluster {
     }
 
     async connect(s){
+        log.silly('TestCluster.connect');
         var e = this.endpoints[0];
         return pEvent(e.connect(s), 'test-open', {
             rejectionEvents: ['test-error'],
@@ -486,6 +488,7 @@ class TestCluster extends Cluster {
     }
 
     async stream(s){
+        log.silly('TestCluster.stream');
         return this.connect(s).then(
             (args) => { return args[0]; }
         );

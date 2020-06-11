@@ -143,7 +143,6 @@ class L7mp {
                 this.static_config.listeners.forEach(
                     (l) => this.addListener(l).catch((e) => {
                         log.error(`Could not initialize static configuration`,
-                                  `${config}:`,
                                   e.code ? `${e.code}: ${e.message}` : e.message
                                  );
                     })
@@ -306,7 +305,7 @@ class L7mp {
                     if(r && r.source.origin.name === l.name)
                         this.deleteSession(s.name);
                 }
-            l.end();
+            l.close();
 
             this.listeners.splice(i, 1);
         } else {
@@ -734,6 +733,8 @@ class L7mp {
             e = `Could not create session "${s.name}": ${e.message}`
             log.warn(e);
         }
+
+        s.router();
     }
 
     deleteSession(n){

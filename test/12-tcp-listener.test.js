@@ -7,9 +7,21 @@ const Listener     = require('../listener.js').Listener;
 const Session      = require('../session.js').Session;
 
 describe('TCPListener', ()  => {
-    var l;
-    var s;
-    var c;
+    var l, s, c;
+    var readers = {};
+    var reader = (name, stream, done) => {
+        let f = () => {
+            let data = ''; let chunk;
+            while (null !== (chunk = stream.read())) {
+                data += chunk;
+            }
+            assert.equal(data, 'test');
+            done();
+        };
+        readers[name] = f;
+        return f;
+    };
+
     before( () => {
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'error' });
@@ -85,6 +97,20 @@ describe('TCPListener', ()  => {
                 done();
             });
             s.listener.stream.write('test');
+        });
+        it('server-stream-end',  () => {
+            s.listener.stream.removeAllListeners();
+            c.removeAllListeners();
+            s.listener.stream.destroy();
+            assert.isOk(true);
+        });
+        it('client-stream-end',  () => { c.destroy(); assert.isOk(true); });
+    });
+
+    context('stop', () => {
+        it('stop-server',  () => {
+            l.close();
+            assert.isOk(true);
         });
     });
 });
