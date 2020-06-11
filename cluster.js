@@ -694,7 +694,7 @@ class JSONEncapCluster extends Cluster {
         super( {
             name:         c.name || 'JSONEncapCluster',
             spec:         { protocol: 'JSONEncap'},
-            type:         'datagram',
+            type:         'datagram-stream',
         } );
     }
 
