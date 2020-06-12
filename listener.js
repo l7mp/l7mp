@@ -48,6 +48,7 @@ class Listener {
         this.spec      = l.spec;
         this.rules     = "";
         this.type      = "";
+        this.sessionId = 0;
         this.stats     = {
             active_sessions:   0,
             accepted_sessions: 0,
@@ -607,81 +608,143 @@ class NetServerListener extends Listener {
     }
 };
 
-// class JSONSocketListener extends Listener {
-//     constructor(l){
-//         super(l);
-//         this.type = 'datagram';
-//         let li = {
-//             name: this.name + '-embedded_listener',
-//             spec: l.spec.transport_spec,
-//         };
-//         if(!li.spec)
-//             log.error('JSONSocketListener:', 'No transport specified');
-//         this.transport = Listener.create(li);
+// 1. create transport
+// 2. wait for first packet
+// 3. if not a proper JSONSocket header, drop
+// 4. accept header, send response, emit a new session, set metadata from the JSONSocket header
+// WARNING: ineacivity timeout is NOT IMPLEMENTED
+class JSONSocketListener extends Listener {
+    constructor(l){
+        super(l);
 
-//         log.info('JSONSocketListener:', `${this.name} initialized`);
+        // 1. create transport
+        let li = {
+            name: this.name + '-transport-listener',
+            spec: l.spec.transport_spec,
+        };
+        if(!li.spec){
+            let e = 'JSONSocketListener: No transport specified';
+            log.warning(e);
+            throw new Error(e);
+        }
+        this.transport = Listener.create(li);
+        this.type = this.transport.type;
 
-//         this.transport.on('emit', (m, l, p) => this.onSession(m, l, p));
-//         // eventDebug(socket);
-//     }
+        log.info('JSONSocketListener:', `${this.name} initialized, using transport:`,
+                 dumper(this.transport.spec, 2));
+    }
 
-//     onSession(m, l, p){
-//         log.info('JSONSocketListener:', `${this.name}:`,
-//                  `New connection request: "${m.name}"`);
-//         // stream should be in object mode so we should be able to
-//         // read the entire "JSON header" in one shot
-//         l.stream.once('data', (chunk) => {
-//             if(typeof chunk !== 'object')
-//                 log.warn('JSONSocketListener:', `${this.name}:`,
-//                          `Transport is not message based, JSON header`,
-//                          `may be fragmented`);
-//             try {
-//                 var header = JSON.parse(chunk);
-//             } catch(e){
-//                 log.warn('JSONSocketListener:', `${this.name}:`,
-//                          `Invalid JSON header, dropping connection`);
-//                 l.stream.destroy();
-//                 return;
-//             }
+    run(){
+        log.info('JSONSocketListener.run');
+        this.transport.on('emit', this.onSession.bind(this));
+        this.transport.run();
+        // eventDebug(socket);
+    }
 
-//             if(typeof header.metadata === 'undefined'){
-//                 log.warn('JSONSocketListener:', `${this.name}:`,
-//                          `Empty metadata in header:`, dumper(header,5));
-//                 l.stream.destroy();
-//                 return;
-//             }
+    close(){
+        log.info('JSONSocketListener.close');
+        this.transport.close();
+    }
 
-//             for(let q of this.spec.parse){
-//                 if(!q.path){
-//                     log.warn('JSONSocketListener:', `${this.name}:`,
-//                              `Invalid parse path`);
-//                     return;
-//                 }
+    // WARNING: we may lose the JSON header here when the transport (e.g., UDP) re-emits the packet
+    // using setImmediate();
+    onSession(s){
+        log.silly('JSONSocketListener:', `${this.name}:`, `New connection request: "${s.metadata.name}"`);
+        let m = s.metadata;
+        let l = s.listener;
 
-//                 let value = Rule.getAtPath(header.metadata, q.path);
-//                 if(typeof value === 'undefined'){
-//                     log.warn('JSONSocketListener:', `${this.name}:`,
-//                              `Empty field in JSON header for query`,
-//                              `"${q.path}"`);
-//                     continue;
-//                 }
-//                 let target = q.target || q.path;
-//                 Rule.setAtPath(m, target, value)
-//             }
+        // 2. wait for first packet: stream should be in object mode so we should be able to read
+        // the entire "JSON header" in one shot
+        l.stream.once('data', (chunk) => {
 
-//             l.origin = this;
-//             m.name = `JSONSocket:${this.name}-` + this.getNewSessionId();
+            log.silly('JSONSocketListener:', `${this.name}:`,
+                      `Received packet, checking for JSON header`);
 
-//             // reemit chunk
-//             setImmediate(() => { l.stream.emit("data", chunk); });
+            // warn if we are not in object mode
+            if(typeof chunk !== 'object' ||
+               !(l.stream.readableObjectMode || l.stream.writableObjectMode))
+                log.warn('JSONSocketListener:', `${this.name}:`,
+                         `Transport is not message-based, JSON header may be fragmented`);
 
-//             // and emit new session
-//             this.emit('emit', m, l, {});
-//         });
-//     }
+            try {
+                var header = JSON.parse(chunk);
+            } catch(e){
+                log.warn('JSONSocketListener:', `${this.name}:`,
+                         `Invalid JSON header, dropping connection`);
+                l.stream.end(JSON.stringify({
+                    JSONSocketVersion: 1,
+                    JSONSocketStatus: 400,
+                    JSONSocketMessage: "Bad Request: Invalid JSON request header",
+                }));
+                return;
+            }
 
-//     end(s, e){ /*ignore*/ };
-// };
+            // 3. if not a proper JSONSocket header, drop
+            if(typeof header['JSONSocketVersion'] === 'undefined'){
+                log.warn('JSONSocketListener:', `${this.name}:`,
+                         `No JSONSocket version info in header:`, dumper(header,5));
+                l.stream.end(JSON.stringify({
+                    JSONSocketVersion: 1,
+                    JSONSocketStatus: 400,
+                    JSONSocketMessage: "Bad Request: No JSONSocket version in request header",
+                }));
+                return;
+            }
+            let version = header['JSONSocketVersion'];
+
+            if(typeof version != "number") {
+                log.warn('JSONSocketListener:', `${this.name}:`,
+                         `JSONSocket version info is not numeric in header:`,
+                         dumper(header,5));
+                l.stream.end(JSON.stringify({
+                    JSONSocketVersion: 1,
+                    JSONSocketStatus: 400,
+                    JSONSocketMessage: "Bad Request: Invalid JSONSocket version",
+                }));
+                return;
+            }
+
+            if(version < 0 || version > 1) {
+                log.warn('JSONSocketListener:', `${this.name}:`,
+                         `Unsupported JSONSocket version in header:`,
+                         dumper(header,5));
+                l.stream.end(JSON.stringify({
+                    JSONSocketVersion: 1,
+                    JSONSocketStatus: 505,
+                    JSONSocketMessage: "JSONSocket Version Not Supported",
+                }));
+                return;
+            }
+
+            log.silly('JSONSocketListener:', `${this.name}:`,
+                      `Accepting connection with JSONSocket header`, dumper(header,5));
+
+            // 4. accept header, send response, emit a new session, set metadata from the
+            // JSONSocket header
+            l.stream.write(JSON.stringify({
+                JSONSocketVersion: 1,
+                JSONSocketStatus: 200,
+                JSONSocketMessage: "OK",
+            }));
+
+            m.name = `JSONSocket:${this.name}-` + this.getNewSessionId();
+            if(m['JSONSocket'])
+                log.warn('JSONSocketListener:', `${this.name}:`,
+                         `Will overwrite metadata in transport session`);
+
+            m['JSONSocket'] = header;
+
+            l.origin = this.name;
+
+            // and emit new session
+            this.emit('emit', m, l, {});
+
+            // Do not reemit header!: setImmediate(() => { l.stream.emit("data", chunk); });
+        });
+    }
+
+    end(s, e){ this.transport.end(); };
+};
 
 Listener.create = (l) => {
     log.silly('Listener.create', dumper(l, 8));

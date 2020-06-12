@@ -590,6 +590,142 @@ class UDPCluster extends Cluster {
     }
 };
 
+// 1. create transport
+// 2. ask for a stream
+// 3. add JSONSocket fields to metadata and send as header
+// 4. wait for a valid response header from server and return stream to caller
+
+class JSONSocketCluster extends Cluster {
+    constructor(c) {
+        let lb = c.loadbalancer;
+        // let transport do its own loadbalancing
+        c.loadbalancer = { policy: 'Trivial' };
+        super(c);
+
+        // 1. create transport
+        let cu = {
+            name: this.name + '-transport-cluster',
+            spec: c.spec.transport_spec,
+            loadbalancer: lb,
+        };
+        if(!cu.spec){
+            let e = 'JSONSocketCluster: No transport specified';
+            log.warning(e);
+            throw new Error(e);
+        }
+        this.transport = Cluster.create(cu);
+        this.type = this.transport.type;
+
+        log.info('JSONSocketCluster:', `${this.name} initialized, using transport:`,
+                 dumper(this.transport, 2));
+    }
+
+    addEndPoint(e){
+        log.silly('JSONSocketCluster.addEndPoint:', dumper(e));
+        return this.transport.addEndPoint(e);
+    }
+
+    getEndPoint(n){
+        return this.transport.getEndPoint(e);
+    }
+
+    deleteEndPoint(n){
+        log.silly('Cluster.deleteEndPoint: name:', n);
+        return this.transport.deleteEndPoint(e);
+    }
+
+    async connect(s){
+        log.silly('JSONSocketCluster.connect:', `Session: ${s.name}`);
+        return this.transport.connect(s);
+    }
+
+    async stream(s){
+        log.silly('JSONSocketCluster.stream:',  `Protocol: ${this.protocol}`,
+                  `Session: ${s.name}`);
+
+        // 2. ask for a stream
+        try {
+            var stream = this.connect(s);
+        } catch(e){
+            log.silly('JSONSocketCluster.stream:', `Could not obtain transport stream:`,
+                      e.message);
+            return Promise.reject(e.message);
+        }
+
+        if(!(stream.readableObjectMode || stream.writableObjectMode))
+            log.warn('JSONSocketCluster:', `${this.name}:`,
+                     `Transport is not message-based, JSON headers may be fragmented`);
+
+        // 3. add JSONSocket fields to metadata and send as header
+        let req_header = {...s.metadata};
+        req_header['JSONSocketVersion'] = 1; // overwrite
+
+        stream.write(JSON.stringify(req_header));
+
+        // 4. wait for a valid response header from server and return stream to caller
+        try {
+            var data = await pEvent(stream, 'data', {
+                rejectionEvents: ['close', 'error'],
+                multiArgs: true, // TODO: support TIMEOUT: timeout: this.timeout
+            });
+        } catch(e){
+            log.silly('JSONSocketCluster.stream:', `Error receiving response header:`,
+                      e.message);
+            stream.destroy();
+            return Promise.reject(e.message);
+        }
+
+        log.silly('JSONSocketCluster:', `${this.name}:`,
+                  `Received packet, checking for JSON response header"`);
+
+        try {
+            var header = JSON.parse(data);
+        } catch(e){
+            let err = `Invalid JSON response header, dropping connection:`+e.message;
+            log.warn('JSONSocketCluster:', `${this.name}:`, err);
+            stream.destroy();
+            return Promise.reject(err);
+        }
+
+        if(typeof header['JSONSocketVersion'] === 'undefined'){
+            log.warn('JSONSocketCluster:', `${this.name}:`,
+                     `No JSONSocket version info in reponse header:`, dumper(header,5));
+            stream.destroy();
+            return Promise.reject(err);
+        }
+
+        let version = header['JSONSocketVersion'];
+
+        if(typeof version != "number") {
+            let err = `JSONSocket version info is not numeric in response header: `+
+                dumper(header,5);
+            log.warn('JSONSocketCluster:', `${this.name}:`, err);
+            stream.destroy();
+            return Promise.reject(err);
+        }
+
+        if(version < 0 || version > 1) {
+            let err = `Unsupported JSONSocket version "${version}" in header, dropping connection`;
+            log.warn('JSONSocketCluster:', `${this.name}:`, err);
+            stream.destroy();
+            return Promise.reject(err);
+        }
+
+        if(header['JSONSocketStatus'] < 200 || header['JSONSocketStatus'] > 299){
+            let err = `Server sent invalid statis "${header['JSONSocketStatus']}" in `+
+                `response header, dropping connection`;
+            log.warn('JSONSocketCluster:', `${this.name}:`, err);
+            stream.destroy();
+            return Promise.reject(err);
+        }
+
+        log.silly('JSONSocketCluster:', `${this.name}:`, `Connected`);
+        return Promise.resolve(stream);
+    }
+};
+
+// non-transport
+
 class L7mpControllerCluster extends Cluster {
     constructor(c) {
         super( {
@@ -884,6 +1020,7 @@ Cluster.create = (c) => {
     case 'UDP':              return new UDPCluster(c);
     case 'TCP':              return new NetSocketCluster(c);
     case 'UnixDomainSocket': return new NetSocketCluster(c);
+    case 'JSONSocket':       return new JSONSocketCluster(c);
     case 'Stdio':            return new StdioCluster(c);
     case 'Echo':             return new EchoCluster(c);
     case 'Logger':           return new LoggerCluster(c);

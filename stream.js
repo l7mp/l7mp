@@ -113,8 +113,9 @@ class DatagramStream extends Duplex {
     // net.socket has destroy/end, dgram.socket has close... why???
     destroy(){ this.end(); }
 
-    end(){
+    end(msg){
         setImmediate( () => {
+            this.socket.send(msg);
             this.socket.emit('end');
             try{this.socket.close()}catch(e){/*nop*/};
         });
