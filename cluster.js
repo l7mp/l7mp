@@ -74,8 +74,9 @@ class TrivialLoadBalancer extends LoadBalancer {
 
     apply(s) {
         if(this.es.length === 0){
-            log.error('TrivialLoadBalancer.apply: No endpoint in cluster');
-            process.exit();
+            let err = 'TrivialLoadBalancer.apply: No endpoint in cluster'
+            log.warn(err);
+            throw new Error(err);
         }
         return this.es[0];
     }
@@ -379,6 +380,19 @@ class NetSocketEndPoint extends EndPoint {
     }
 };
 
+class JSONSocketEndPoint extends EndPoint {
+    constructor(c, e) {
+        super(c, e);
+        e.name = e.name + ':transport-endpoint';
+        this.cluster.transport.addEndPoint(e);
+    }
+
+    connect(s){
+        throw new Error('JSONSocketEndPoint.connect: Internal error:',
+                       'Should never be called directly');
+    }
+};
+
 EndPoint.create = (c, e) => {
     log.silly('EndPoint.create:', `Protocol: ${c.protocol}` );
     switch(c.protocol){
@@ -388,6 +402,7 @@ EndPoint.create = (c, e) => {
     case 'TCP':              return new NetSocketEndPoint(c, e);
     case 'UnixDomainSocket': return new NetSocketEndPoint(c, e);
     case 'Test':             return new TestEndPoint(c, e);
+    case 'JSONSocket':       return new JSONSocketEndPoint(c, e);
     default:
         log.error('EndPoint.create',
                   `TODO: Protocol "${c.protocol}" unimplemented`);
@@ -453,7 +468,7 @@ class Cluster {
 
         var i = this.endpoints.findIndex( ({name}) => name === n );
         if(i < 0){
-            log.warn('Cluster.deleteEndPoint', 'EndPoint "${n}" undefined');
+            log.warn('Cluster.deleteEndPoint', `EndPoint "${n}" undefined`);
             return;
         }
 
@@ -590,23 +605,16 @@ class UDPCluster extends Cluster {
     }
 };
 
-// 1. create transport
-// 2. ask for a stream
-// 3. add JSONSocket fields to metadata and send as header
-// 4. wait for a valid response header from server and return stream to caller
-
 class JSONSocketCluster extends Cluster {
     constructor(c) {
-        let lb = c.loadbalancer;
-        // let transport do its own loadbalancing
-        c.loadbalancer = { policy: 'Trivial' };
         super(c);
 
+        // crate a dummy transport cluster with no endpoints
         // 1. create transport
         let cu = {
-            name: this.name + '-transport-cluster',
+            name: this.name + ':transport-cluster',
             spec: c.spec.transport_spec,
-            loadbalancer: lb,
+            loadbalancer: c.loadbalancer || { policy: 'Trivial' },
         };
         if(!cu.spec){
             let e = 'JSONSocketCluster: No transport specified';
@@ -620,32 +628,22 @@ class JSONSocketCluster extends Cluster {
                  dumper(this.transport, 2));
     }
 
-    addEndPoint(e){
-        log.silly('JSONSocketCluster.addEndPoint:', dumper(e));
-        return this.transport.addEndPoint(e);
-    }
-
-    getEndPoint(n){
-        return this.transport.getEndPoint(e);
-    }
-
-    deleteEndPoint(n){
-        log.silly('Cluster.deleteEndPoint: name:', n);
-        return this.transport.deleteEndPoint(e);
-    }
-
     async connect(s){
-        log.silly('JSONSocketCluster.connect:', `Session: ${s.name}`);
-        return this.transport.connect(s);
+        throw new Error('JSONSocketEndPoint.connect: Internal error:',
+                        `Session: ${s.name}`,
+                        'Should never be called directly');
     }
 
+    // 1. create transport stream
+    // 2. add JSONSocket fields to metadata and send as header
+    // 3. wait for a valid response header from server and return stream to caller
     async stream(s){
         log.silly('JSONSocketCluster.stream:',  `Protocol: ${this.protocol}`,
                   `Session: ${s.name}`);
 
         // 2. ask for a stream
         try {
-            var stream = this.connect(s);
+            var stream = await this.transport.stream(s);
         } catch(e){
             log.silly('JSONSocketCluster.stream:', `Could not obtain transport stream:`,
                       e.message);
