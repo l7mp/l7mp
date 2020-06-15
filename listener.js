@@ -692,9 +692,9 @@ class JSONSocketListener extends Listener {
             }
             let version = header['JSONSocketVersion'];
 
-            if(typeof version != "number") {
+            if(typeof version != "number" || !Number.isInteger(version)) {
                 log.warn('JSONSocketListener:', `${this.name}:`,
-                         `JSONSocket version info is not numeric in header:`,
+                         `JSONSocket version info is not numeric/integer in header:`,
                          dumper(header,5));
                 l.stream.end(JSON.stringify({
                     JSONSocketVersion: 1,
@@ -737,7 +737,10 @@ class JSONSocketListener extends Listener {
             l.origin = this.name;
 
             // and emit new session
-            this.emit('emit', m, l, {});
+            this.emit('emit', {
+                metadata: m,
+                listener: { origin: this.name, stream: l.stream },
+            });
 
             // Do not reemit header!: setImmediate(() => { l.stream.emit("data", chunk); });
         });

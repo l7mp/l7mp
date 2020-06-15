@@ -30,6 +30,7 @@ describe('JSONSocketListener', ()  => {
         l7mp.run(); // should return
     });
 
+
     context('create', () => {
         it('created',      () => {
             l = Listener.create( {
@@ -51,89 +52,156 @@ describe('JSONSocketListener', ()  => {
         it('has-transport-spec-spec', () => { assert.nestedProperty(l, 'transport.spec'); });
         it('has-transport-protocol',  () => { assert.nestedPropertyVal(l, 'transport.spec.protocol', 'UDP'); });
         it('has-transport-port',      () => { assert.nestedPropertyVal(l, 'transport.spec.port', 54321); });
+        it('can-listen',              () => { l.on('emit', (x) => { s = x }); assert.isOk(true); });
     });
 
     context('#run', () => {
-        it('runs', () => { l.run(); assert.exists(l); });
+        it('runs', () => { l.on('emit', (x) => { s = x }); l.run(); assert.exists(l); });
     });
 
     context('#connect', () => {
-        // it('transport-connect', (done) => {
-        //     c = new udp.createSocket('udp4');
-        //     c.on('connect', () => { assert.isOk(true); done() });
-        //     c.connect(54321, 'localhost');
-        // });
-        it('close-on-invalid-jsonheader', (done) => {
-            c = new udp.createSocket('udp4');
+        beforeEach(() => { c = new udp.createSocket('udp4')});
+        afterEach(() => { c.unref(); });
+        it('close-on-invalid-jsonheader-invalid-json', (done) => {
             c.on('connect', () => { c.send('dummy'); });
-            c.on('error', (e) => { c.unref(); assert.fail(); done(); });
-            c.on('close', () => { c.unref(); assert.fail(); done(); });
+            c.on('error', (e) => { assert.fail(); });
+            c.on('close', () => { assert.fail();});
             c.on('message', (msg) => {
                 let header = JSON.parse(msg);
                 if(header['JSONSocketVersion'] === 1 && header['JSONSocketStatus'] === 400){
-                    c.unref(); assert.isOk(true); done();
-                } else {
-                    c.unref(); assert.fail(); done();
-                }
+                    assert.isOk(true); done();
+                } else { assert.fail(); }
+            });
+            c.connect(54321, 'localhost');
+        });
+        it('close-on-invalid-jsonheader-no-version', (done) => {
+            c.on('connect', () => { c.send(JSON.stringify({dummy: 1})); });
+            c.on('error', (e) => { assert.fail();});
+            c.on('close', () => { assert.fail();});
+            c.on('message', (msg) => {
+                let header = JSON.parse(msg);
+                if(header['JSONSocketVersion'] === 1 && header['JSONSocketStatus'] === 400){
+                    assert.isOk(true); done();
+                } else {assert.fail();}
+            });
+            c.connect(54321, 'localhost');
+        });
+        it('close-on-invalid-jsonheader-bad-version-1', (done) => {
+            c.on('connect', () => { c.send(JSON.stringify({JSONSocketVersion: 'a'}));});
+            c.on('error', (e) => { assert.fail(); });
+            c.on('close', () => { assert.fail();});
+            c.on('message', (msg) => {
+                let header = JSON.parse(msg);
+                if(header['JSONSocketVersion'] === 1 && header['JSONSocketStatus'] === 400){
+                    assert.isOk(true); done();
+                } else {assert.fail();}
+            });
+            c.connect(54321, 'localhost');
+        });
+        it('close-on-invalid-jsonheader-bad-version-2', (done) => {
+            c.on('connect', () => { c.send(JSON.stringify({JSONSocketVersion: 0.4}));});
+            c.on('error', (e) => { assert.fail();});
+            c.on('close', () => { assert.fail();});
+            c.on('message', (msg) => {
+                let header = JSON.parse(msg);
+                if(header['JSONSocketVersion'] === 1 && header['JSONSocketStatus'] === 400){
+                    assert.isOk(true); done();
+                } else {assert.fail();}
+            });
+            c.connect(54321, 'localhost');
+        });
+        it('close-on-invalid-jsonheader-bad-version-3', (done) => {
+            c.on('connect', () => { c.send(JSON.stringify({JSONSocketVersion: 2}));});
+            c.on('error', (e) => { assert.fail();});
+            c.on('close', () => { assert.fail(); });
+            c.on('message', (msg) => {
+                let header = JSON.parse(msg);
+                if(header['JSONSocketVersion'] === 1 && header['JSONSocketStatus'] === 505){
+                    assert.isOk(true); done();
+                } else {assert.fail();}
+            });
+            c.connect(54321, 'localhost');
+        });
+        it('connect-ok', (done) => {
+            c.on('connect', () => { c.send(JSON.stringify({JSONSocketVersion: 1, some:{nested:{meta:'data'}}}));});
+            c.on('error', (e) => { assert.fail(); });
+            c.on('close', () => { assert.fail(); });
+            c.on('message', (msg) => {
+                let header = JSON.parse(msg);
+                if(header['JSONSocketVersion'] === 1 && header['JSONSocketStatus'] === 200){
+                    assert.isOk(true); done();
+                } else { assert.fail();}
             });
             c.connect(54321, 'localhost');
         });
     });
 
-    // context('emits session', () => {
-    //     it('emits',  () => { assert.isOk(s); });
-    //     it('session-metadata', () => { assert.property(s, 'metadata'); });
-    //     it('session-metadata-name', () => { assert.nestedProperty(s, 'metadata.name'); });
-    //     it('session-metadata-IP', () => { assert.nestedProperty(s, 'metadata.IP'); });
-    //     it('session-metadata-src-addr', () => { assert.nestedProperty(s, 'metadata.IP.src_addr'); });
-    //     it('session-metadata-src-addr', () => { assert.match(s.metadata.IP.src_addr, /127.0.0.1/); });
-    //     it('session-metadata-dst-addr', () => { assert.nestedProperty(s, 'metadata.IP.dst_addr'); });
-    //     it('session-metadata-dst-addr', () => { assert.match(s.metadata.IP.dst_addr, /127.0.0.1/); });
-    //     it('session-metadata-TCP', () => { assert.nestedProperty(s, 'metadata.TCP'); });
-    //     it('session-metadata-src-port', () => { assert.nestedProperty(s, 'metadata.TCP.src_port'); });
-    //     it('session-metadata-dst-port', () => { assert.nestedPropertyVal(s, 'metadata.TCP.dst_port', 54321); });
-    //     it('session-listener', () => { assert.nestedPropertyVal(s, 'listener.origin', 'TCP'); });
-    //     it('session-stream', () => { assert.nestedProperty(s, 'listener.stream'); });
-    //     it('session-stream', () => { assert.nestedProperty(s, 'listener.origin', 'TCP'); });
-    //     it('session-stream', () => { assert.instanceOf(s.listener.stream, Stream) });
-    //     it('session-stream-readable',   () => { assert.isOk(s.listener.stream.readable); });
-    //     it('session-stream-writeable',  () => { assert.isOk(s.listener.stream.writable); });
-    // });
+    context('emits session', () => {
+        it('emits',                     () => { assert.isOk(s); });
+        it('session-metadata',          () => { assert.property(s, 'metadata'); });
+        it('session-metadata-name',     () => { assert.nestedProperty(s, 'metadata.name'); });
+        it('session-metadata-IP',       () => { assert.nestedProperty(s, 'metadata.IP'); });
+        it('session-metadata-src-addr', () => { assert.nestedProperty(s, 'metadata.IP.src_addr'); });
+        it('session-metadata-src-addr', () => { assert.match(s.metadata.IP.src_addr, /127.0.0.1/); });
+        it('session-metadata-dst-addr', () => { assert.nestedProperty(s, 'metadata.IP.dst_addr'); });
+        // it('session-metadata-dst-addr', () => { dump(s.metadata,4);assert.match(s.metadata.IP.dst_addr, /127.0.0.1/); });
+        it('session-metadata-UDP',      () => { assert.nestedProperty(s, 'metadata.UDP'); });
+        it('session-metadata-src-port', () => { assert.nestedProperty(s, 'metadata.UDP.src_port'); });
+        it('session-metadata-dst-port', () => { assert.nestedPropertyVal(s, 'metadata.UDP.dst_port', 54321); });
+        it('session-meta-jsonsocket-1', () => { assert.nestedProperty(s, 'metadata.JSONSocket'); });
+        it('session-meta-jsonsocket-2', () => { assert.nestedProperty(s, 'metadata.JSONSocket.JSONSocketVersion'); });
+        it('session-meta-jsonsocket-3', () => { assert.nestedPropertyVal(s, 'metadata.JSONSocket.JSONSocketVersion', 1); });
+        it('session-meta-jsonsocket-4', () => { assert.nestedProperty(s, 'metadata.JSONSocket.some'); });
+        it('session-meta-jsonsocket-5', () => { assert.nestedProperty(s, 'metadata.JSONSocket.some.nested'); });
+        it('session-meta-jsonsocket-6', () => { assert.nestedProperty(s, 'metadata.JSONSocket.some.nested.meta'); });
+        it('session-meta-jsonsocket-7', () => { assert.nestedPropertyVal(s, 'metadata.JSONSocket.some.nested.meta', 'data'); });
+        it('session-listener',          () => { assert.nestedPropertyVal(s, 'listener.origin', 'JSONSocket'); });
+        it('session-stream',            () => { assert.nestedProperty(s, 'listener.stream'); });
+        it('session-stream',            () => { assert.instanceOf(s.listener.stream, Stream) });
+        it('session-stream-readable',   () => { assert.isOk(s.listener.stream.readable); });
+        it('session-stream-writeable',  () => { assert.isOk(s.listener.stream.writable); });
+        it('close-ok',              (done) => {
+            if(s && s.listener.stream){
+                s.listener.stream.destroy();
+                assert.isOk(true);
+                done();
+            }
+        });
+    });
 
-    // context('I/O', () => {
-    //     it('read',  (done) => {
-    //         s.listener.stream.on('readable', () => {
-    //             let data = ''; let chunk;
-    //             while (null !== (chunk = s.listener.stream.read())) {
-    //                 data += chunk;
-    //             }
-    //             assert.equal(data, 'test');
-    //             done();
-    //         });
-    //         c.write('test');
-    //     });
-    //     it('write',  (done) => {
-    //         c.on('readable', () => {
-    //             let data = ''; let chunk;
-    //             while (null !== (chunk = c.read())) {
-    //                 data += chunk;
-    //             }
-    //             assert.equal(data, 'test');
-    //             done();
-    //         });
-    //         s.listener.stream.write('test');
-    //     });
-    //     it('server-stream-end',  () => {
-    //         s.listener.stream.removeAllListeners();
-    //         c.removeAllListeners();
-    //         s.listener.stream.destroy();
-    //         assert.isOk(true);
-    //     });
-    //     it('client-stream-end',  () => { c.destroy(); assert.isOk(true); });
-    // });
+    context('I/O', () => {
+        beforeEach((done) => {
+            l.removeAllListeners();
+            l.on('emit', (x) => { s = x; done(); });
+            c = new udp.createSocket('udp4');
+            c.on('connect', () => { c.send(JSON.stringify({JSONSocketVersion: 1}));});
+            c.connect(54321, 'localhost');
+        });
+        afterEach(() => { if(c) c.unref(); if(s && s.listener.stream)s.listener.stream.destroy(); });
 
-    context('stop', () => {
-        it('stop-server',  () => {
+        it('read',  (done) => {
+            s.listener.stream.on('readable', () => {
+                let data = ''; let chunk;
+                while (null !== (chunk = s.listener.stream.read())) {
+                    data += chunk;
+                }
+                assert.equal(data, 'test');
+                done();
+            });
+            c.send('test');
+        });
+        it('write',  (done) => {
+            var header_ok = false;
+            c.on('message', (msg) => {
+                try { let header = JSON.parse(msg); if(header['JSONSocketVersion'] === 1 && header['JSONSocketStatus'] === 200) header_ok = true }
+                catch(e){ if(header_ok) { assert.equal(msg, 'test'); done(); }}
+            });
+            s.listener.stream.write('test');
+        });
+    });
+
+    context('close', () => {
+        it('close-listener',  () => {
             l.close();
             assert.isOk(true);
         });
