@@ -115,7 +115,7 @@ class DatagramStream extends Duplex {
 
     end(msg){
         setImmediate( () => {
-            this.socket.send(msg);
+            if(msg)this.socket.send(msg);
             this.socket.emit('end');
             try{this.socket.close()}catch(e){/*nop*/};
         });
