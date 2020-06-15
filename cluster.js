@@ -153,11 +153,11 @@ LoadBalancer.create = (l) => {
     case 'ConsistentHash':  return new HashRingLoadBalancer(l);
     default:
         if(l.policy)
-            log.error('LoadBalancer.create',
-                      `TODO: Policy "${l.policy}" unimplemented`);
+            var err = 'LoadBalancer.create: '+`TODO: Policy "${l.policy}" unimplemented`;
         else
-            log.error('LoadBalancer.create',
-                      `TODO: Policy undefined`);
+            var err = 'LoadBalancer.create: '+`TODO: Policy undefined`;
+        log.warn(err);
+        throw new Error(err);
     }
 };
 
@@ -404,8 +404,9 @@ EndPoint.create = (c, e) => {
     case 'Test':             return new TestEndPoint(c, e);
     case 'JSONSocket':       return new JSONSocketEndPoint(c, e);
     default:
-        log.error('EndPoint.create',
-                  `TODO: Protocol "${c.protocol}" unimplemented`);
+        let err = 'EndPoint.create: '+`TODO: Protocol "${c.protocol}" unimplemented`;
+        log.warn(err);
+        throw new Error(err);
     }
 }
 
@@ -1027,8 +1028,9 @@ Cluster.create = (c) => {
     case 'Sync':             return new SyncCluster(c);
     case 'L7mpController':   return new L7mpControllerCluster(c);
     default:
-        log.error('Cluster.create',
-                  `TODO: Protocol "${c.spec.protocol}" unimplemented`);
+        let err='Cluster.create: '+`TODO: Protocol "${c.spec.protocol}" unimplemented`;
+        log.warn(err);
+        throw new Error(err);
     }
 }
 

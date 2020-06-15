@@ -760,8 +760,10 @@ Listener.create = (l) => {
     case 'UnixDomainSocket': return new NetServerListener(l);
     case 'JSONSocket':       return new JSONSocketListener(l);
     case 'Test':             return new TestListener(l);
-    default:  log.error('Listener.create',
-                        `Unknown protocol: "${protocol}"`);
+    default:
+        let err = 'Listener.create:'+ `Unknown protocol: "${protocol}"`;
+        log.warn(err);
+        throw new Error(err);
     }
 }
 
