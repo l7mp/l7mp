@@ -1,6 +1,6 @@
 # docker build -t retvari/l7mp .
 
-FROM node:12-alpine
+FROM node:14-alpine
 
 # Create app directory
 WORKDIR /app
