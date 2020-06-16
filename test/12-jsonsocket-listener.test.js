@@ -36,7 +36,7 @@ describe('JSONSocketListener', ()  => {
             l = Listener.create( {
                 name: 'JSONSocket',
                 spec: { protocol: 'JSONSocket',
-                        transport_spec: { protocol: 'UDP', port: 54321 }
+                        transport: { protocol: 'UDP', port: 54321 }
                       }
             });
             assert.exists(l);
