@@ -317,8 +317,7 @@ class UDPListener extends Listener {
         // for singleton mode, we need both remote addr and port
         if(l.spec.connect && l.spec.connect.address && l.spec.connect.port){
             this.mode       = 'singleton';
-            this.reuseaddr  = this.spec.options && this.spec.options.reuseaddr ?
-                this.spec.options.reuseaddr : true;
+            this.reuseaddr  = this.spec.options ? this.spec.options.reuseaddr : false;
             this.connection = this.reuseaddr ? 'immediate' :
                 (this.spec.options.connection || 'immediate');
             log.info('UDPListener:', 'Singleton/Connected mode: remote:',
