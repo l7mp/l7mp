@@ -263,7 +263,7 @@ class L7mp {
         if(Array.isArray(l.rules)){
             let rl = {};
             rl.rules = l.rules;
-            rl.name = this.newName(`RuleList_${RuleList.index++}`,
+            rl.name = this.newName(`${this.name}-RuleList:${RuleList.index++}`,
                                    this.getRuleList);
             this.addRuleList(rl);
             li.rules = rl.name;
@@ -419,7 +419,7 @@ class L7mp {
             if(typeof route === 'object'){
                 // inline route: create
                 route.name = route.name ||
-                    this.newName(`Route_${Route.index++}`, this.getRoute);
+                    this.newName(`${this.name}-Route:${Route.index++}`, this.getRoute);
                 this.addRoute(route);
                 r.action.route = route.name;
             }
@@ -491,7 +491,7 @@ class L7mp {
             if(typeof rule === 'object'){
                 // inline rule: create
                 rule.name = rule.name ||
-                    this.newName(`Rule_${Rule.index++}`, this.getRule);
+                    this.newName(`${this.name}-Rule:${Rule.index++}`, this.getRule);
                 this.addRule(rule);
                 r.rules[i] = rule.name;
             }
@@ -568,7 +568,7 @@ class L7mp {
         if(typeof r.destination === 'object'){
             // inline cluster: create
             r.destination.name = r.destination.name ||
-                this.newName(`Cluster_${Cluster.index++}`, this.getCluster);
+                this.newName(`${this.name}-Cluster:${Cluster.index++}`, this.getCluster);
             this.addCluster(r.destination);
             r.destination = r.destination.name;
         }
@@ -587,7 +587,7 @@ class L7mp {
                 if(typeof c === 'object'){
                     // inline cluster: create
                     c.name = c.name ||
-                        this.newName(`Cluster_${Cluster.index++}`, this.getCluster);
+                        this.newName(`${this.name}-${dir}-Cluster:${Cluster.index++}`, this.getCluster);
                     this.addCluster(c);
                     r[dir][i] = c.name;
                 }
