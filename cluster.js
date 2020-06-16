@@ -170,7 +170,7 @@ LoadBalancer.create = (l) => {
 //------------------------------------
 class EndPoint {
     constructor(c, e){
-        this.name      = e.name ? e.name + `${c.name}-EndPoint-${EndPoint.index++}`;
+        this.name      = e.name ? e.name : `${c.name}-EndPoint-${EndPoint.index++}`;
         this.cluster   = c;
         this.protocol  = c.protocol;
         this.full_name = `Cluster:${c.name}-${this.name}`;
