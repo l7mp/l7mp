@@ -263,7 +263,7 @@ class L7mp {
         if(Array.isArray(l.rules)){
             let rl = {};
             rl.rules = l.rules;
-            rl.name = this.newName(`${this.name}-RuleList-${RuleList.index++}`,
+            rl.name = this.newName(`${li.name}-RuleList-${RuleList.index++}`,
                                    this.getRuleList);
             this.addRuleList(rl);
             li.rules = rl.name;
@@ -419,7 +419,7 @@ class L7mp {
             if(typeof route === 'object'){
                 // inline route: create
                 route.name = route.name ||
-                    this.newName(`${this.name}-Route-${Route.index++}`, this.getRoute);
+                    this.newName(`${r.name}-Route-${Route.index++}`, this.getRoute);
                 this.addRoute(route);
                 r.action.route = route.name;
             }
@@ -491,7 +491,7 @@ class L7mp {
             if(typeof rule === 'object'){
                 // inline rule: create
                 rule.name = rule.name ||
-                    this.newName(`${this.name}-Rule-${Rule.index++}`, this.getRule);
+                    this.newName(`${r.name}-Rule-${Rule.index++}`, this.getRule);
                 this.addRule(rule);
                 r.rules[i] = rule.name;
             }
