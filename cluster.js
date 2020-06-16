@@ -384,7 +384,7 @@ class JSONSocketEndPoint extends EndPoint {
     constructor(c, e) {
         super(c, e);
         e.name = e.name + '-transport-endpoint';
-        if(!this.cluster.transport)console.trace(dumper(this, 5));
+        if(!this.cluster.transport){console.trace(dumper(this.cluster, 5));console.trace(dumper(this.cluster.transport, 5))}
         this.cluster.transport.addEndPoint(e);
     }
 
