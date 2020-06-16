@@ -619,8 +619,8 @@ class JSONSocketListener extends Listener {
 
         // 1. create transport
         let li = {
-            name: this.name + '-transport-listener',
-            spec: l.spec.transport_spec,
+            name: this.name + ':transport-listener',
+            spec: l.spec.transport_spec || l.spec.transport,
         };
         if(!li.spec){
             let e = 'JSONSocketListener: No transport specified';
