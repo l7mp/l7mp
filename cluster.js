@@ -614,12 +614,12 @@ class JSONSocketCluster extends Cluster {
         // 1. create transport
         let cu = {
             name: this.name + ':transport-cluster',
-            spec: c.spec.transport_spec,
+            spec: c.spec.transport_spec || c.spec.transport,
             loadbalancer: c.loadbalancer || { policy: 'Trivial' },
         };
         if(!cu.spec){
             let e = 'JSONSocketCluster: No transport specified';
-            log.warning(e);
+            log.warn(e);
             throw new Error(e);
         }
         this.transport = Cluster.create(cu);

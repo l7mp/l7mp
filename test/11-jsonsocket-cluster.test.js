@@ -15,12 +15,12 @@ describe('JSONSocketCluster', ()  => {
         l7mp.run();
     });
 
-    context('create', () => {
+    context('create - UDP', () => {
         it('runs',         () => {
             c = Cluster.create({
                 name: 'JSONSocket',
                 spec: {protocol: 'JSONSocket',
-                       transport_spec: { protocol: 'UDP', port: 54321 }
+                       transport: { protocol: 'UDP', port: 54321 }
                       },
             });
             assert.exists(c);
@@ -146,5 +146,4 @@ describe('JSONSocketCluster', ()  => {
             s_ok.end();
         });
     });
-
 });
