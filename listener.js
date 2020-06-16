@@ -454,7 +454,19 @@ class UDPListener extends Listener {
                                 `Could not bind to `+
                                 `${this.local_address}:${this.local_port}`);
             }
+        }
 
+        let connection = {
+            socket:         socket,
+            local_address:  this.local_address,
+            local_port:     this.local_port,
+            remote_address: rinfo.address,
+            remote_port:    rinfo.port,
+            msg:            msg,
+            rinfo:          rinfo,
+        };
+
+        if(this.mode === 'server'){
             try{
                 connection.socket.connect(connection.remote_port,
                                           connection.remote_address);
@@ -475,16 +487,6 @@ class UDPListener extends Listener {
                                 `${connection.remote_port}`);
             }
         }
-
-        let connection = {
-            socket:         socket,
-            local_address:  this.local_address,
-            local_port:     this.local_port,
-            remote_address: rinfo.address,
-            remote_port:    rinfo.port,
-            msg:            msg,
-            rinfo:          rinfo,
-        };
 
         return this.onRequest(connection);
     }
