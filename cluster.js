@@ -170,7 +170,7 @@ LoadBalancer.create = (l) => {
 //------------------------------------
 class EndPoint {
     constructor(c, e){
-        this.name      = e.name || `EndPoint_${EndPoint.index++}`;
+        this.name      = e.name ? e.name + `${c.name}-EndPoint-${EndPoint.index++}`;
         this.cluster   = c;
         this.protocol  = c.protocol;
         this.full_name = `Cluster:${c.name}-${this.name}`;
@@ -382,8 +382,8 @@ class NetSocketEndPoint extends EndPoint {
 
 class JSONSocketEndPoint extends EndPoint {
     constructor(c, e) {
+        e.name = e.name ? e.name : c.name + '-transport-endpoint';
         super(c, e);
-        e.name = e.name + '-transport-endpoint';
         this.cluster.transport.addEndPoint(e);
     }
 
