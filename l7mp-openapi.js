@@ -359,6 +359,7 @@ class L7mpOpenAPI {
             // setImmediate(() => s.emit('end'));
         } catch(res) {
             // should receive a status/msg pair
+            if(log.level === 'silly') dump(res, 4);
             if(!res) res = { status: 500, content: { message: 'Internal server error' }};
             s.end(res);
         }
