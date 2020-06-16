@@ -10,7 +10,7 @@
 *** TODO UDP
 *** TODO TCP
 *** TODO JSONSocket
-*** TODO Test
+*** DONE Test
 
 ** Cluster: 11-*
 *** TODO HTTP
@@ -23,13 +23,14 @@
 *** DONE JSONEncap
 *** TODO JSONDecap
 *** TODO Sync
-*** TODO Test
+*** DONE Test
 
 ** Listener: 12-*
 *** TODO HTTP
 *** TODO WebSocket
 *** TODO UDP
 *** DONE TCP
+*** DONE JSONSocket
 *** TODO UnixDomainSocket
 *** TODO Test
 
@@ -41,5 +42,5 @@
 ** Session: routing, retry, load-balancing: 14-*
 *** TODO Session
 *** TODO Routing
-*** TODO Retry
+*** DONE Retry
 *** TODO LoadBalancing
