@@ -384,7 +384,6 @@ class JSONSocketEndPoint extends EndPoint {
     constructor(c, e) {
         super(c, e);
         e.name = e.name + '-transport-endpoint';
-        if(!this.cluster.transport){console.trace(dumper(this.cluster, 5));console.trace(dumper(this.cluster.transport, 5))}
         this.cluster.transport.addEndPoint(e);
     }
 
@@ -609,12 +608,14 @@ class UDPCluster extends Cluster {
 
 class JSONSocketCluster extends Cluster {
     constructor(c) {
+        // do not add endpoints, transport is not initialized yet
+        let es = c.endpoints;
+        c.endpoints = [];
         super(c);
 
-        // crate a dummy transport cluster with no endpoints
         // 1. create transport
         let cu = {
-            name: this.name + '-transport-cluster',
+            name: c.name + '-transport-cluster',
             spec: c.spec.transport_spec || c.spec.transport,
             loadbalancer: c.loadbalancer || { policy: 'Trivial' },
         };
@@ -625,6 +626,9 @@ class JSONSocketCluster extends Cluster {
         }
         this.transport = Cluster.create(cu);
         this.type = this.transport.type;
+
+        if(es)
+            es.forEach( (e) => this.addEndPoint(e) );
 
         log.info('JSONSocketCluster:', `${this.name} initialized, using transport:`,
                  dumper(this.transport, 2));
