@@ -568,7 +568,7 @@ class L7mp {
         if(typeof r.destination === 'object'){
             // inline cluster: create
             r.destination.name = r.destination.name ||
-                this.newName(`${this.name}-Cluster-${Cluster.index++}`, this.getCluster);
+                this.newName(`${r.name}-Cluster-${Cluster.index++}`, this.getCluster);
             this.addCluster(r.destination);
             r.destination = r.destination.name;
         }
@@ -587,7 +587,7 @@ class L7mp {
                 if(typeof c === 'object'){
                     // inline cluster: create
                     c.name = c.name ||
-                        this.newName(`${this.name}-${dir}-Cluster-${Cluster.index++}`, this.getCluster);
+                        this.newName(`${r.name}-${dir}-Cluster-${Cluster.index++}`, this.getCluster);
                     this.addCluster(c);
                     r[dir][i] = c.name;
                 }
