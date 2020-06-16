@@ -317,8 +317,8 @@ class UDPListener extends Listener {
         // for singleton mode, we need both remote addr and port
         if(l.spec.connect && l.spec.connect.address && l.spec.connect.port){
             this.mode       = 'singleton';
-            this.connection = l.options && l.options.connection ?
-                l.options.connection : 'immediate';
+            this.connection = l.spec.options && l.spec.options.connection ?
+                l.spec.options.connection : 'immediate';
             this.reuseaddr  = this.connection === 'ondemand';
             log.info('UDPListener:', 'Singleton/Connected mode: remote:',
                      `${this.spec.connect.address}:${this.spec.connect.port},`,
@@ -364,10 +364,6 @@ class UDPListener extends Listener {
         log.verbose('UDPListener:run_singleton', `"${this.name}:"`,
                     `bound to ${this.local_address}:${this.local_port}`);
 
-        if(this.connection === 'ondemand'){
-            this.socket.on('message', this.onConn);
-        }
-
         // immediate: piggyback on the listener's socket
         let connection = {
             socket:         this.socket,
@@ -383,20 +379,24 @@ class UDPListener extends Listener {
             await pEvent(this.socket, 'connect',
                          { rejectionEvents: ['close', 'error'] });
         } catch(e){
-            throw new Error(`UDPListener.run_singleton: "${this.name}": `+
+            throw new Error(`UDPListener.run_singleton: "${this.name}"/${this.connection}: `+
                             `Could not connect to `+
                             `${connection.remote_address}:`+
                             `${connection.remote_port}`);
         }
 
-        log.verbose(`UDPListener.run_singleton: "${this.name}"/immediate`,
+        log.verbose(`UDPListener.run_singleton: "${this.name}"/${this.connection}`,
                     `connected to remote`,
                     `${connection.remote_address}:`+
                     `${connection.remote_port} on`,
                     `${connection.local_address}:`+
                     `${connection.local_port}`);
 
-        return this.onRequest(connection);
+        if(this.connection === 'ondemand'){
+            this.socket.on('message', this.onConn);
+        } else {
+            return this.onRequest(connection);
+        }
     }
 
     async run_server(){
@@ -422,7 +422,7 @@ class UDPListener extends Listener {
 
     // ondemand!
     async onConnect(msg, rinfo){
-        if(rinfo && this.spec.connect && (
+        if(rinfo && this.mode === 'singleton' && (
             rinfo.address !== this.spec.connect.address ||
                 rinfo.port !== this.spec.connect.port)){
             let e = 'UDPListener:onConnect: Singleton/connected mode: '+
@@ -454,9 +454,28 @@ class UDPListener extends Listener {
                                 `Could not bind to `+
                                 `${this.local_address}:${this.local_port}`);
             }
+
+            try{
+                connection.socket.connect(connection.remote_port,
+                                          connection.remote_address);
+                await pEvent(connection.socket, 'connect',
+                             { rejectionEvents: ['close', 'error'] });
+
+                log.verbose(`UDPListener.onConnect: "${this.name}"`,
+                            `connected to remote`,
+                            `${connection.remote_address}:`+
+                            `${connection.remote_port} on`,
+                            `${connection.local_address}:`+
+                            `${connection.local_port}`);
+            } catch(e){
+                throw new Error('UDPListener.onConnect: '+
+                                `"${this.name}:" `+
+                                `Could not connect to `+
+                                `${connection.remote_address}:`+
+                                `${connection.remote_port}`);
+            }
         }
 
-        // piggyback on the listener's socket
         let connection = {
             socket:         socket,
             local_address:  this.local_address,
@@ -466,26 +485,6 @@ class UDPListener extends Listener {
             msg:            msg,
             rinfo:          rinfo,
         };
-
-        try{
-            connection.socket.connect(connection.remote_port,
-                                      connection.remote_address);
-            await pEvent(connection.socket, 'connect',
-                         { rejectionEvents: ['close', 'error'] });
-        } catch(e){
-            throw new Error('UDPListener.onConnect: '+
-                            `"${this.name}:" `+
-                            `Could not connect to `+
-                            `${connection.remote_address}:`+
-                            `${connection.remote_port}`);
-        }
-
-        log.verbose(`UDPListener.onConnect: "${this.name}"`,
-                    `connected to remote`,
-                    `${connection.remote_address}:`+
-                    `${connection.remote_port} on`,
-                    `${connection.local_address}:`+
-                    `${connection.local_port}`);
 
         return this.onRequest(connection);
     }
