@@ -383,7 +383,8 @@ class NetSocketEndPoint extends EndPoint {
 class JSONSocketEndPoint extends EndPoint {
     constructor(c, e) {
         super(c, e);
-        e.name = e.name + ':transport-endpoint';
+        e.name = e.name + '-transport-endpoint';
+        if(!this.cluster.transport)console.trace(dumper(this));
         this.cluster.transport.addEndPoint(e);
     }
 
@@ -613,7 +614,7 @@ class JSONSocketCluster extends Cluster {
         // crate a dummy transport cluster with no endpoints
         // 1. create transport
         let cu = {
-            name: this.name + ':transport-cluster',
+            name: this.name + '-transport-cluster',
             spec: c.spec.transport_spec || c.spec.transport,
             loadbalancer: c.loadbalancer || { policy: 'Trivial' },
         };
