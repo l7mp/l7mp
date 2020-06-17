@@ -1,0 +1,127 @@
+#+LaTeX_HEADER:\usepackage[margin=2cm]{geometry}
+#+LaTeX_HEADER:\usepackage{enumitem}
+#+LaTeX_HEADER:\renewcommand{\ttdefault}{pcr}
+#+LaTeX_HEADER:\lstdefinelanguage{yaml}{basicstyle=\ttfamily\scriptsize,frame=lrtb,framerule=1pt,framexleftmargin=1pt,showstringspaces=false}
+#+LaTeX_HEADER:\usepackage{etoolbox}
+#+LaTeX_HEADER:\makeatletter\patchcmd{\@verbatim}{\verbatim@font}{\verbatim@font\scriptsize}{}{}\makeatother
+#+LATEX:\setitemize{noitemsep,topsep=0pt,parsep=0pt,partopsep=0pt}
+#+OPTIONS: toc:nil author:nil ^:nil
+
+#+TITLE: JSONSocket.v1: Protocol Spec
+
+JSONSocket is a generic client-server datagram-streaming protocol, intended to be the
+"transport-agnostic equivalent of WebSocket/TCP", which is considered as a poor match for
+message-oriented media transport.
+
+JSONSocket implements the "HTTP header" semantics on top of an unreliable datagram transport
+service. The actual packet exchange is preceded by a reliable exchange of JSON-encoded request and
+response headers between the client and the server. The request header allows the client to enrich
+a plain datagram stream with essentially arbitrary metadata, while the response header is used by
+the server to acknowledge the reception of the request header or signal an error (e.g., version
+mismatch). Standard HTTP status codes are reused for this purpose.
+
+The main goal of JSONSocket is to be deployed as the streaming transport protocol in
+application-layer service meshes, where the JSONSocket headers attached to each stream can be used
+to communicate rich connection metadata/context across micro-services. This makes it possible to
+move out-of-band control channels to in-band signaling using JSONSocket, even when the underlying
+transport layer does not provide such a feature (e.g., UDP or UNIX domain sockets).
+
+* Description: Version 1
+
+Version 1 is the barebones specification of JSONSocket, basically implementing a 2-way handshake
+between the client and the server to exchange request and response JSON headers before the
+streaming phase, and nothing else.  There is no support for fragmentation and reassembly so the
+datagrams carrying the JSON headers MUST be at most as large as the MTU. There is no checking for
+possibly fragmented headers either. There is no encryption and key-exchange, and there is no ACK
+from the client back to the server as in TCP. Finally, JSONSocket.v1 relies on the underlying
+transport for error detection. These functions may be implemented in a later version of
+JSONSocket. JSONSocket.v1 is not recommended for untrusted network domains or where high
+reliability is a requirement.
+
+#+CAPTION: JSONSocket 2-way handshake process
+#+NAME: fig:2-way-proc
+:       +------+                        +------+
+:       |Client|                        |Server|
+:       +------+                        +------+
+:          |                               |
+:          |                               |
+:          |     JSON Request Header       |
+:          | ----------------------------> |
+:          |                               |
+:          |                               |
+:          |     JSON Response Header      |
+:          | <---------------------------- |
+:          |                               |
+:          |                               |
+:          |          Media Stream         |
+:          | <---------------------------> |
+:          |                               |
+:          V                               V
+
+All JSON paths below are specified as JSON pointers [https://tools.ietf.org/html/rfc6901].
+
+** Client protocol
+
+In order to initiate a new JSONSocket stream to the server, the client MUST create a new message
+transport connection using the underlying transport protocol and then perform the following steps.
+
+1) The first message sent to the server MUST be a valid JSON request header object as received from
+   the application on connection setup request. The request header MUST contain a key
+   =JSONSocketVersion= set to the JSONSocket version requested by the client. The client MUST
+   support at least JSONSocket.v1, as specified in this document. Clients conforming to this
+   specification must set the requested version to the (numeric) value =1=.
+2) The client MUST wait for the server to return a valid response header until a user-specified
+   timeout expires.  If either (1) an invalid JSON object is received from the server, or (2) a
+   valid JSON object is received but no =JSONSocketStatus= key is defined, (3) the response is
+   valid JSON but it contains an unknown HTTP status code under the status key =JSONSocketStatus=
+   or the status is not =2**=, or (4) a user-specified timeout expires, then the client must close
+   the transport socket and signal a connection setup error to the application.
+3) Otherwise, the client MUST consider the stream established, and it MAY return the received JSON
+   response header to the application.
+4) The client MAY terminate the client socket if no message is sent or received within a
+   user-specified inactivity timeout and it MAY signal an error to the application. No notification
+   of the disconnect event is sent to the server.
+
+** Server protocol
+
+The below description assumes that the server has established a new message transport socket with
+the client.
+
+1) In the connection setup phase, the server MUST check each received message whether it is a valid
+   JSONSocket header by (1) checking that the message contains a JSON object and (2) the JSON
+   object contains a key =JSONSocketVersion= key set to a numeric value. If the server detects an
+   invalid header, it MUST respond with a JSON response header with the =JSONSocketStatus= key set
+   to 400 (HTTP status code, "Bad Request") and an optional text description of the error in
+   =JSONSocketMessage= and then DROP the client connection. Otherwise, the received JSON object
+   MUST be considered the JSONSocket request header and the server MUST proceed to the next step.
+2) The numeric value provided in the =JSONSocketVersion= key specifies the JSONSocket version
+   requested by the client. If the requested version is greater than the maximum version supported
+   by the server, the server MUST respond with a JSON response header with the =JSONSocketStatus=
+   key set to 505 (HTTP status code, "Version not supported") and an optional text description of
+   the error in =JSONSocketMessage=.  The server MUST support at least JSONSocket.v1, as specified
+   in this document.
+3) The server MUST send a JSONSocket response header to the client. The server MUST set the
+   =JSONSocketStatus= key set to =200= (HTTP status code, "OK") and the =JSONSocketVersion= key to
+   the negotiated JSONSocket version in the response header. For JSONSocket.v1, the version MUST be
+   set to numeric =1=. The server MAY optionally include the status message at the key
+   =JSONSocketMessage=.
+4) The server MAY terminate the client socket if no message is sent or received within a
+   user-specified inactivity timeout and it MAY signal an error to the application. No notification
+   of the disconnect event is sent to the client.
+
+** Transport
+
+JSONSocket.v1 is intended to work over any datagram-stream transport; this document assumes UDP or
+UNIX domain socket with (the Linux-specific) =SOCK_SEQPACKET= socket type. The server MUST
+implement the standard "bind-listen-accept" server-side semantics so that JSONSocket communication
+with each client occur over separate per-client sockets. This is natural for UNIX domain sockets of
+the type =SOCK_SEQPACKET=, but for UDP transport the server MUST emulate this behavior as follows.
+
+Initially, the server MUST open a UDP socket, bind it to a local interface, and then start
+receiving packets on the socket. The socket option =SO_REUSEPORT= MUST be set for the socket. Upon
+receiving a message, the server (1) MUST check if the message payload is a valid JSONSokcet.v1
+header by using step (1) of the above server-side protocol, (2) create a new UDP socket for the
+client with the option =SO_REUSEPORT= set, (3) bind it to the IP address and UDP port at which the
+request header was received, and (4) connect the socket back to the client IP address and UDP port
+the header was received from. This socket MUST be used for all packet exchange with the client from
+this point.
