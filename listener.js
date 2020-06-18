@@ -82,9 +82,9 @@ class Listener {
     }
 
     emitSession(m, s, p){
-        return this.emitter({ metadata: m,
-                              source: { origin: this.name, stream: s },
-                              priv: p});
+        let sess = { metadata: m, source: { origin: this.name, stream: s }};
+        if(p) sess.priv = p
+        return this.emitter(sess);
     }
 }
 

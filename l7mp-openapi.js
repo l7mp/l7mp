@@ -186,7 +186,7 @@ class L7mpOpenAPI {
 
         this.api.register('postResponseHandler', (ctx, req, res) => {
             log.silly('l7mp.openapi: postResponseHandler');
-            dump(JSON.stringify(res.status));
+            // dump(JSON.stringify(res.status));
             // do not validate 'NotFound' (404) errors: ctx.operation
             // is unknown and this makes validator to croak
             // do not validate "input validation errors", these will also fail

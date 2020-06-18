@@ -693,8 +693,8 @@ class L7mp {
 
         let e = validate(s, schema);
         if(e){
-            log.warn('L7mp.addSession:', s);
-            throw new Error(`Cannot add sesson: ${e}`);
+            log.warn('L7mp.addSession:', `Cannot add sesson: ${e}`);
+            return;
         }
 
         s.metadata.name = this.newName(s.metadata.name, this.getSession);
