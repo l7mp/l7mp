@@ -50,7 +50,7 @@ global.dump = function dump(o, depth=5){
     console.log(dumper(o, depth));
 }
 
-// validate object schamas beyond OpenAPI validation
+// validate object schemas beyond OpenAPI validation
 const validate = (object, schema) => {
     if(object === null || !object ||
        !(object instanceof Object &&
