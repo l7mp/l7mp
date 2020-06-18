@@ -160,6 +160,8 @@ Rule.getAtPath = (data, path) => {
     var result, loc, locs = path.split('/');
     if(locs.length && locs[0] === '')
         locs.shift();
+    if(locs.length===1 && locs[0] === '')
+        return data;
     while(data && (loc = locs.shift())) {
         result = data = data[loc];
     }

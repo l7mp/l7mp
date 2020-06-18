@@ -4,10 +4,11 @@ const assert       = require('chai').assert;
 const L7mp         = require('../l7mp.js').L7mp;
 const EndPoint     = require('../cluster.js').EndPoint;
 const Cluster      = require('../cluster.js').Cluster;
+const Session      = require('../session.js').Session;
 const LoadBalancer = require('../cluster.js').LoadBalancer;
 
 describe('JSONSocketCluster', ()  => {
-    var e, c, s, s_ok;
+    var e, c, s, s_ok, session;
     before( () => {
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'warn' });
@@ -20,7 +21,8 @@ describe('JSONSocketCluster', ()  => {
             c = Cluster.create({
                 name: 'JSONSocket',
                 spec: {protocol: 'JSONSocket',
-                       transport: { protocol: 'UDP', port: 54321 }
+                       transport: { protocol: 'UDP', port: 54321 },
+                       header: [ { path: '/' } ]
                       },
             });
             assert.exists(c);
@@ -62,7 +64,10 @@ describe('JSONSocketCluster', ()  => {
 
         it('ok', async () => {
             s.on('error', (e) => { assert.fail(); });
-            s_ok = await c.stream({metadata:{some:{nested:{meta:'data'}}},route:{retry:{timeout:1000}}});
+            session = new Session({metadata:{some:{nested:{meta:'data'}}},source:{origin:'JSONSocket',stream:s}});
+            session.route = {retry:{timeout:1000}};
+            session.name = 'Test';
+            s_ok = await c.stream(session);
             assert.isOk(true);
         });
         it('exists',      () => { assert.isOk(s_ok); });
@@ -77,6 +82,9 @@ describe('JSONSocketCluster', ()  => {
             s = new udp.createSocket('udp4');
             s.bind(54321);
             // s.on('error', (e) => { assert.fail(); });
+            session = new Session({metadata:{some:{nested:{meta:'data'}}},source:{origin:'JSONSocket',stream:s}});
+            session.route = {retry:{timeout:1000}};
+            session.name = 'Test';
         });
         afterEach(() => { s.close();s.unref(); });
 
@@ -88,7 +96,7 @@ describe('JSONSocketCluster', ()  => {
                     return Promise.resolve();
                 }catch(x){assert.fail()}
             });
-            s_ok = await c.stream({metadata:{some:{nested:{meta:'data'}}},route:{retry:{timeout:1000}}});
+            s_ok = await c.stream(session);
             s_ok.end();
         });
         it('stream-header-ok', async () => {
@@ -102,7 +110,7 @@ describe('JSONSocketCluster', ()  => {
                     }
                 }catch(x){assert.fail()}
             });
-            s_ok = await c.stream({metadata:{some:{nested:{meta:'data'}}},route:{retry:{timeout:1000}}});
+            s_ok = await c.stream(session);
             s_ok.end();
         });
         it('stream-metadata-1', async () => {
@@ -112,7 +120,7 @@ describe('JSONSocketCluster', ()  => {
                 assert.property(header, 'some');
                 return Promise.resolve();
             });
-            s_ok = await c.stream({metadata:{some:{nested:{meta:'data'}}},route:{retry:{timeout:1000}}});
+            s_ok = await c.stream(session);
             s_ok.end();
         });
         it('stream-metadata-2', async () => {
@@ -122,7 +130,7 @@ describe('JSONSocketCluster', ()  => {
                 assert.nestedProperty(header, 'some.nested');
                 return Promise.resolve();
             });
-            s_ok = await c.stream({metadata:{some:{nested:{meta:'data'}}},route:{retry:{timeout:1000}}});
+            s_ok = await c.stream(session);
             s_ok.end();
         });
         it('stream-metadata-3', async () => {
@@ -132,7 +140,7 @@ describe('JSONSocketCluster', ()  => {
                 assert.nestedProperty(header, 'some.nested.meta');
                 return Promise.resolve();
             });
-            s_ok = await c.stream({metadata:{some:{nested:{meta:'data'}}},route:{retry:{timeout:1000}}});
+            s_ok = await c.stream(session);
             s_ok.end();
         });
         it('stream-metadata-4', async () => {
@@ -142,7 +150,7 @@ describe('JSONSocketCluster', ()  => {
                 assert.nestedPropertyVal(header, 'some.nested.meta', 'data');
                 return Promise.resolve();
             });
-            s_ok = await c.stream({metadata:{some:{nested:{meta:'data'}}},route:{retry:{timeout:1000}}});
+            s_ok = await c.stream(session);
             s_ok.end();
         });
     });

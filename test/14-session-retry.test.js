@@ -20,6 +20,7 @@ describe('Rerty', ()  => {
         // l7mp.applyAdmin({ log_level: 'silly' });
         l7mp.run(); // should return
         l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
+
         l7mp.listeners.push(l);
         c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'},
                              endpoints: [{ name: 'Test-e', spec: {}}]});
@@ -48,8 +49,9 @@ describe('Rerty', ()  => {
             assert.isOk(r);
         });
         it('new-session', () => {
-            let m = l.getSession( {name: 'Test-s'}, du.right);
-            s = new Session(m);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
             l7mp.sessions.push(s);
             assert.isOk(s);
         });
@@ -83,8 +85,9 @@ describe('Rerty', ()  => {
     context('no-retry-fail', () => {
         var du = new DuplexPassthrough();
         it('new-session', () => {
-            let m = l.getSession( {name: 'Test-s'}, du.right);
-            s = new Session(m);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
             l7mp.sessions.push(s);
             assert.isOk(s);
         });
@@ -121,8 +124,9 @@ describe('Rerty', ()  => {
             assert.isOk(r);
         });
         it('new-session', () => {
-            let m = l.getSession( {name: 'Test-s'}, du.right);
-            s = new Session(m);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
             l7mp.sessions.push(s);
             assert.isOk(s);
         });
@@ -171,8 +175,9 @@ describe('Rerty', ()  => {
             assert.isOk(r);
         });
         it('new-session', () => {
-            let m = l.getSession( {name: 'Test-s'}, du.right);
-            s = new Session(m);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
             l7mp.sessions.push(s);
             assert.isOk(s);
         });
@@ -207,8 +212,9 @@ describe('Rerty', ()  => {
     context('1-retry-fail', () => {
         var du = new DuplexPassthrough();
         it('new-session', () => {
-            let m = l.getSession( {name: 'Test-s'}, du.right);
-            s = new Session(m);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
             l7mp.sessions.push(s);
             assert.isOk(s);
         });
@@ -231,8 +237,9 @@ describe('Rerty', ()  => {
     context('1-retry-fail-timeout', () => {
         var du = new DuplexPassthrough();
         it('new-session', () => {
-            let m = l.getSession( {name: 'Test-s'}, du.right);
-            s = new Session(m);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
             l7mp.sessions.push(s);
             assert.isOk(s);
         });
@@ -269,8 +276,9 @@ describe('Rerty', ()  => {
             assert.isOk(r);
         });
         it('new-session', () => {
-            let m = l.getSession( {name: 'Test-s'}, du.right);
-            s = new Session(m);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
             l7mp.sessions.push(s);
             assert.isOk(s);
         });
@@ -319,8 +327,9 @@ describe('Rerty', ()  => {
             assert.isOk(r);
         });
         it('new-session', () => {
-            let m = l.getSession( {name: 'Test-s'}, du.right);
-            s = new Session(m);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
             l7mp.sessions.push(s);
             assert.isOk(s);
         });
@@ -355,8 +364,9 @@ describe('Rerty', ()  => {
     context('2-retry-fail', () => {
         var du = new DuplexPassthrough();
         it('new-session', () => {
-            let m = l.getSession( {name: 'Test-s'}, du.right);
-            s = new Session(m);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
             l7mp.sessions.push(s);
             assert.isOk(s);
         });
@@ -379,8 +389,9 @@ describe('Rerty', ()  => {
     context('2-retry-fail-timeout', () => {
         var du = new DuplexPassthrough();
         it('new-session', () => {
-            let m = l.getSession( {name: 'Test-s'}, du.right);
-            s = new Session(m);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
             l7mp.sessions.push(s);
             assert.isOk(s);
         });
@@ -414,8 +425,9 @@ describe('Rerty', ()  => {
                 }
             });
             l7mp.routes.push(r);
-            let m = l.getSession( {name: 'Test-s'}, du.right);
-            s = new Session(m);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
             l7mp.sessions.push(s);
             s.create();
             e.mode = ['ok']; e.round = 0; e.timeout=0;
@@ -460,8 +472,9 @@ describe('Rerty', ()  => {
                 }
             });
             l7mp.routes.push(r);
-            let m = l.getSession( {name: 'Test-s'}, du.right);
-            s = new Session(m);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
             l7mp.sessions.push(s);
             s.create();
             e.mode = ['ok']; e.round = 0; e.timeout=0;
@@ -495,8 +508,9 @@ describe('Rerty', ()  => {
     context('1-retry-disconnect-fail', () => {
         var du = new DuplexPassthrough();
         it('route', (done) => {
-            let m = l.getSession( {name: 'Test-s'}, du.right);
-            s = new Session(m);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
             l7mp.sessions.push(s);
             s.create();
             e.mode = ['ok', 'fail']; e.round = 0; e.timeout=0;
@@ -529,8 +543,9 @@ describe('Rerty', ()  => {
                 }
             });
             l7mp.routes.push(r);
-            let m = l.getSession( {name: 'Test-s'}, du.right);
-            s = new Session(m);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
             l7mp.sessions.push(s);
             s.create();
             e.mode = ['ok', 'fail', 'ok']; e.round = 0; e.timeout=0;
@@ -575,8 +590,9 @@ describe('Rerty', ()  => {
                 }
             });
             l7mp.routes.push(r);
-            let m = l.getSession( {name: 'Test-s'}, du.right);
-            s = new Session(m);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
             l7mp.sessions.push(s);
             s.create();
             e.mode = ['ok', 'fail', 'ok']; e.round = 0; e.timeout=0;
@@ -610,8 +626,9 @@ describe('Rerty', ()  => {
     context('2-retry-disconnect-fail', () => {
         var du = new DuplexPassthrough();
         it('route', (done) => {
-            let m = l.getSession( {name: 'Test-s'}, du.right);
-            s = new Session(m);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
             l7mp.sessions.push(s);
             s.create();
             e.mode = ['ok', 'fail', 'fail']; e.round = 0; e.timeout=0;

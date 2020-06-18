@@ -29,6 +29,8 @@ const YAML           = require('yamljs');
 const Ajv            = require('ajv');
 const OpenAPIBackend = require('openapi-backend').default;
 
+const {L7mpError, Ok, InternalError, BadRequestError, NotFoundError, GeneralError} = require('./error.js');
+
 const json_indent  = 4;
 // for no indentation:
 // const json_indent  = null;
@@ -50,8 +52,7 @@ class L7mpOpenAPI {
 
         this.api.registerHandler('getConf', (ctx, req, res) => {
             log.verbose("L7mp.api.getConf");
-            res.status = 200;
-            res.content = l7mp;
+            res.status = new Ok(l7mp);
         });
 
         this.api.registerHandler('setConf', (ctx, req, res) => {
@@ -59,41 +60,29 @@ class L7mpOpenAPI {
             try {
                 l7mp.static_config = req.body;
                 let result = l7mp.run();
-                res.status = 200;
-                res.content = { message : 'OK' };
+                res.status = new Ok();
             } catch(e) {
-                res.status = 400;
-                res.content = {
-                    message: 'Bad request',
-                    error: e.message,
-                };
+                res.status = new BadRequestError(e.message);
             }
         });
 
         this.api.registerHandler('getAdmin', (ctx, req, res) => {
             log.verbose("L7mp.api.getAdmin");
-            res.status = 200;
-            res.content = l7mp.getAdmin();
+            res.status = new Ok(l7mp.getAdmin());
         });
 
         this.api.registerHandler('getListeners', (ctx, req, res) => {
             log.verbose("L7mp.api.getListeners");
-            res.status = 200;
-            res.content = l7mp.listeners;
+            res.status = new Ok(l7mp.listeners);
         });
 
         this.api.registerHandler('getListener', (ctx, req, res) => {
             log.verbose("L7mp.api.getListener");
             let result = l7mp.getListener(ctx.request.params.name);
             if(result){
-                res.status = 200;
-                res.content = result;
+                res.status = new Ok(result);
             } else {
-                res.status = 400;
-                res.content = {
-                    message: 'Bad request',
-                    error: 'No such listener',
-                };
+                res.status = new BadRequestError('No such listener');
             }
         });
 
@@ -101,14 +90,9 @@ class L7mpOpenAPI {
             log.verbose("L7mp.api.addListener");
             try {
                 let result = await l7mp.addListener(req.body.listener);
-                res.status = 200;
-                res.content = { message: 'OK' };
+                res.status = new Ok();
             } catch(e) {
-                res.status = 400;
-                res.content = {
-                    message: 'Bad request',
-                    error: e.message,
-                };
+                res.status = new BadRequestError(e.message);
             }
         });
 
@@ -117,35 +101,24 @@ class L7mpOpenAPI {
             try {
                 let result =
                     l7mp.deleteListener(ctx.request.params.name);
-                res.status = 200;
-                res.content = { message: 'OK' };
+                res.status = new Ok();
             } catch(e) {
-                res.status = 400;
-                res.content = {
-                    message: 'Bad request',
-                    error: e.message,
-                };
+                res.status = new BadRequestError(e.message);
             }
         });
 
         this.api.registerHandler('getClusters', (ctx, req, res) => {
             log.verbose("L7mp.api.getClusters");
-            res.status = 200;
-            res.content = l7mp.clusters;
+            res.status = new Ok(l7mp.clusters);
         });
 
         this.api.registerHandler('getCluster', (ctx, req, res) => {
             log.verbose("L7mp.api.getCluster");
             let result = l7mp.getCluster(ctx.request.params.name);
             if(result){
-                res.status = 200;
-                res.content = result;
+                res.status = new Ok(result);
             } else {
-                res.status = 400;
-                res.content = {
-                    message: 'Bad request',
-                    error: 'No such cluster',
-                };
+                res.status = new BadRequestError('No such cluster');
             }
         });
 
@@ -153,14 +126,9 @@ class L7mpOpenAPI {
             log.verbose("L7mp.api.addCluster");
             try {
                 let result = l7mp.addCluster(req.body.cluster);
-                res.status = 200;
-                res.content = { message: 'OK' };
+                res.status = new Ok();
             } catch(e) {
-                res.status = 400;
-                res.content = {
-                    message: 'Bad request',
-                    error: e.message,
-                };
+                res.status = new BadRequestError(e.message);
             }
         });
 
@@ -169,35 +137,24 @@ class L7mpOpenAPI {
             try {
                 let result =
                     l7mp.deleteCluster(ctx.request.params.name);
-                res.status = 200;
-                res.content = { message: 'OK' };
+                res.status = new Ok(result);
             } catch(e) {
-                res.status = 400;
-                res.content = {
-                    message: 'Bad request',
-                    error: e.message,
-                };
+                res.status = new BadRequestError(e.message);
             }
         });
 
         this.api.registerHandler('getSessions', (ctx, req, res) => {
             log.verbose("L7mp.api.getSessions");
-            res.status = 200;
-            res.content = l7mp.sessions;
+            res.status = new Ok(l7mp.sessions);
         });
 
         this.api.registerHandler('getSession', (ctx, req, res) => {
             log.verbose("L7mp.api.getSession");
             let result = l7mp.getSession(ctx.request.params.name);
             if(result){
-                res.status = 200;
-                res.content = result;
+                res.status = new Ok(result);
             } else {
-                res.status = 400;
-                res.content = {
-                    message: 'Bad request',
-                    error: 'No such session',
-                };
+                res.status = new BadRequestError('No such session');
             }
         });
 
@@ -205,37 +162,27 @@ class L7mpOpenAPI {
             log.verbose("L7mp.api.deleteSession");
             try {
                 l7mp.deleteSession(ctx.request.params.name);
-                res.status = 200;
-                res.content = { message: 'OK' };
+                res.status = new Ok();
             } catch(e) {
-                res.status = 400;
-                res.content = {
-                    message: 'Bad request',
-                    error: e.message,
-                };
+                res.status = new BadRequestError(e.message);
             }
         });
 
         this.api.register('validationFail', (ctx, req, res) => {
             log.verbose("L7mp.api.validationFail");
-            res.status = 400;
-            res.content = {
-                message: 'Bad request: Input validation failed',
-                error: ctx.validation.errors,
-            };
+            res.status = new BadRequestError(ctx.validation.errors);
+            res.status.message = 'Bad Request: Input validation failed';
         });
 
         this.api.register('notFound', (ctx, req, res) => {
             log.verbose("L7mp.api.notFound");
-            res.status = 404;
-            res.content = { message: 'Not found',
-                            error: 'Unknown API operation' };
+            res.status = new NotFoundError('Unknown API operation');
         });
 
         this.api.register('notImplemented', (ctx, req, res) => {
             log.verbose("L7mp.api.notImplemented");
-            res.status = 501;
-            res.content = { message: 'No handler registered for operation' };
+            res.status = new GeneralError(501, 'Not Implemented',
+                                   'No handler registered for operation');
         });
 
         this.api.register('postResponseHandler', (ctx, req, res) => {
@@ -243,19 +190,16 @@ class L7mpOpenAPI {
             // dump(res,3);
             // do not validate 'NotFound' (404) errors: ctx.operation
             // is unknown and this makes validator to croak
-            if(l7mp.admin.strict && res.status && res.status !== 404) {
+            if(l7mp.admin.strict && res.status && res.status.status !== 404) {
                 log.silly('l7mp.openapi:',
                           'postResponseHandler: Validating response');
-                let valid = ctx.api.validateResponse(res.content,
-                                                     ctx.operation, res.status);
+                let valid = ctx.api.validateResponse(res.status.content,
+                                                     ctx.operation, res.status.status);
                 if (valid.errors) {
                     log.silly('l7mp.openapi: postResponseHandler failed:',
                              `Response: ${dumper(res.content,2)}`);
-                    res.status = 500;
-                    res.content = {
-                        message: 'Internal server error: Response validation failed',
-                        error: valid.errors,
-                    };
+                    res.status = new InternalError(valid.errors);
+                    res.status.message = 'Internal Server Error: Response validation failed';
                 }
             }
         });
@@ -265,10 +209,9 @@ class L7mpOpenAPI {
         log.silly('l7mp.openapi: handleRequest');
 
         // prepare
-        if(!(s.metadata.HTTP && s.metadata.HTTP.method &&
-             s.metadata.HTTP.url.path)){
-            log.error('L7mpOpenAPI.handleRequest:',
-                      'Error: Request HTTP metadata missing');
+        if(!(s.metadata.HTTP && s.metadata.HTTP.method && s.metadata.HTTP.url.path)){
+            s.error(new InternalError('L7mpOpenAPI.handleRequest: '+
+                                      'Error: Request HTTP metadata missing'));
             return;
         }
 
@@ -276,94 +219,106 @@ class L7mpOpenAPI {
         let res = {};
         var e;
 
-        try {
-            switch(req.headers['content-type']){
-            case 'application/json':
-            case 'application/x-json':
-            case 'text/json':
-            case 'text/x-json':
-                log.silly('l7mp.openapi: handleRequest',
-                          'Received JSON request');
+        switch(req.headers['content-type']){
+        case 'application/json':
+        case 'application/x-json':
+        case 'text/json':
+        case 'text/x-json':
+            log.silly('l7mp.openapi: handleRequest',
+                      'Received JSON request');
 
-                // special casing for API clients that set
-                // content-type to JSON on GET/DELETE calls and send
-                // an empty body
-                if((req.method === 'GET' || req.method === 'DELETE' ) && body === '')
-                    req.body = '';
-                else
-                    try {
-                        req.body = JSON.parse(body);
-                    } catch(e){
-                        log.warn('l7mp.openapi: handleRequest:',
-                                 'Invalid JSON request: ', e);
-                        res.status = 400;
-                        res.content = { message: 'Bad request'};
-                        if (e instanceof SyntaxError){
-                            res.content.error =
-                                'Invalid JSON format in request: ' + e.message;
-                        } else {
-                            res.content.error =
-                                'Invalid JSON format in request: ' + e;
-                        }
-                        throw res;
-                    }
-                req.content_type = 'JSON';
-                break;
-            case 'text/yaml':
-            case 'text/x-yaml':
-            case 'application/yaml':
-            case 'application/x-yaml':
-                log.silly('l7mp.openapi: handleRequest',
-                          'Received YAML request');
+            // special casing for API clients that set
+            // content-type to JSON on GET/DELETE calls and send
+            // an empty body
+            if((req.method === 'GET' || req.method === 'DELETE' ) && body === '')
+                req.body = '';
+            else
                 try {
-                    req.body = YAML.parse(body);
-                } catch(e) {
-                    log.warn('l7mp.openapi: handleRequest: Invalid YAML request: ', e);
-                    res.status = 400;
-                    res.content = { message: 'Bad request',
-                                    error: 'Invalid YAML format in request: ' + e};
-                    throw res;
+                    req.body = JSON.parse(body);
+                } catch(e){
+                    log.warn('l7mp.openapi: handleRequest:',
+                             'Invalid JSON request: ', e);
+                    s.error(new BadRequestError('Invalid JSON format in request: ' +
+                                                e instanceof SyntaxError ? e.message : e));
+                    return;
                 }
-                req.content_type = 'YAML';
-                break;
-            default:
-                if(req.method === 'POST' || req.method === 'PUT'){
-                    // we request a known payload
-                    log.warn('l7mp.openapi: handleRequest: Unknown content type');
-                    res.status = 415;
-                    res.content = { message: 'Unsupported Media Type',
-                                    error: 'Unknown content type: ' +
-                                    (req.headers['content-type'] || 'N/A') };
-                    throw res;
-                }
+            req.content_type = 'JSON';
+            break;
+        case 'text/yaml':
+        case 'text/x-yaml':
+        case 'application/yaml':
+        case 'application/x-yaml':
+            log.silly('l7mp.openapi: handleRequest',
+                      'Received YAML request');
+            try {
+                req.body = YAML.parse(body);
+            } catch(e) {
+                log.warn('l7mp.openapi: handleRequest: Invalid YAML request: ', e);
+                s.error(new BadRequestError('Invalid YAML format in request: ' + e));
+                return;
             }
-
-            let ctx = {
-                method:  req.method,
-                path:    req.url.path,
-                query:   req.url.query,
-                headers: req.headers,
-                body:    req.body,
-            };
-
-            await this.api.handleRequest(ctx, req, res);
-
-            s.end(res);
-
-            // if(res.status && res.status === 200){
-            //     s.emit('end', res);
-            // } else {
-            //     s.emit('error', res);
-            // }
-            // make sure we never retry this, even if policy requires
-            // setImmediate(() => s.emit('end'));
-        } catch(res) {
-            // should receive a status/msg pair
-            if(log.level === 'silly') dump(res, 4);
-            if(!res) res = { status: 500, content: { message: 'Internal server error' }};
-            s.end(res);
+            req.content_type = 'YAML';
+            break;
+        default:
+            if(req.method === 'POST' || req.method === 'PUT'){
+                // we request a known payload
+                log.warn('l7mp.openapi: handleRequest: Unknown content type');
+                let err = new GeneralError(415, 'Unsupported Media Type',
+                                           'Unknown content type: ' +
+                                           (req.headers['content-type'] || 'N/A'));
+                s.error(err);
+                return;
+            }
         }
+
+        let ctx = {
+            method:  req.method,
+            path:    req.url.path,
+            query:   req.url.query,
+            headers: req.headers,
+            body:    req.body,
+        };
+
+        await this.api.handleRequest(ctx, req, res);
+
+        if(res.status instanceof Ok){
+            // normal path
+            // let response = {
+            //     status:  res.status.status,
+            //     message: res.status.message,
+            // };
+            // if(res.status.content) response.content = res.status.content;
+            stream.end(JSON.stringify(res.status.content, null, 4));
+            setImmediate(() => s.end());
+        } else {
+            // error path, will set the status automatically
+            s.error(res.status)
+        }
+
+        return;
     }
+
+    // end(s, res){
+    //     let status = res.status;
+    //     log.silly('l7mp.openapi.end:', `response ready for stream ${s.name}`);
+    //               // dumper(status,3));
+    //     let header = {
+    //         status:  status.status,
+    //         message: status.message,
+    //     };
+    //     let json = status instanceof Ok ?
+    //         // content is to be sent as is
+    //         status.content :
+    //         { status: status.status,
+    //           message: status.message,
+    //           content: status.content
+    //         };
+    //     json = JSON.stringify(json, null, 4);
+    //     header['Content-Length'] = json.length;
+    //     header['Content-Type'] = 'application/json';
+    //     s.setResponseHeader(header, json);
+    //     return;
+    // }
 };
 
 module.exports.L7mpOpenAPI = L7mpOpenAPI;

@@ -31,7 +31,6 @@ const duplex3     = require("duplexer2");
 const miss        = require('mississippi');
 const eventDebug  = require('event-debug');
 
-
 class DatagramStream extends Duplex {
     constructor(socket, options){
         super({
@@ -288,6 +287,7 @@ var MergeStream = function (/*streams...*/) {
 }
 
 // module.exports.socket2dgramstream = socket2dgramstream;
+// module.exports.Status            = Status;
 module.exports.DatagramStream    = DatagramStream;
 module.exports.BroadcastStream   = BroadcastStream;
 module.exports.DuplexPassthrough = DuplexPassthrough;
