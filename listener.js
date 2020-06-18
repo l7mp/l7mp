@@ -796,8 +796,8 @@ class JSONSocketListener extends Listener {
             return;
         }
 
-        log.silly('JSONSocketListener:', `${this.name}:`,
-                  `Accepting connection with JSONSocket header`, dumper(header,5));
+        log.info('JSONSocketListener:', `${this.name}:`,
+                  `New connection: JSONSocket request header`, dumper(header,5));
 
         // 4. accept header, send response, emit a new session, set metadata from the
         // JSONSocket header
