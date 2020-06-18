@@ -51,6 +51,8 @@ class L7mpError extends Error {
 // reuse error object for successfull operations as well
 class Ok extends L7mpError {
     constructor(content) {
+        if(typeof content === 'undefined')
+            content = { status: 200, message: 'OK' };
         super(200, 'OK', content);
         this.name = this.constructor.name;
     }
@@ -68,6 +70,14 @@ class InternalError extends L7mpError {
 class BadRequestError extends L7mpError {
     constructor(content) {
         super(400, 'Bad Request', content);
+        this.name = this.constructor.name;
+    }
+}
+
+// Input validation errors from the API
+class ValidationError extends L7mpError {
+    constructor(content) {
+        super(422, 'Unprocessable Entity: Input validation failed', content);
         this.name = this.constructor.name;
     }
 }
@@ -92,4 +102,5 @@ module.exports.Ok              = Ok;
 module.exports.InternalError   = InternalError;
 module.exports.BadRequestError = BadRequestError;
 module.exports.NotFoundError   = NotFoundError;
+module.exports.ValidationError = ValidationError;
 module.exports.GeneralError    = GeneralError;

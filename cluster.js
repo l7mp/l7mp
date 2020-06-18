@@ -670,8 +670,8 @@ class JSONSocketCluster extends Cluster {
                         Object.assign(req_header, value);
                     }
                 } else if(h.set &&
-                          typeof h.set.key !== undefined &&
-                          typeof h.set.value !== undefined ){
+                          typeof h.set.key !== "undefined" &&
+                          typeof h.set.value !== "undefined" ){
                     log.silly('JSONSocketCluster.stream:', `${this.name}:`,
                               `Adding "${h.set.key}: ${dumper(h.set.value,4)} to the header`);
                     req_header[h.set.key] = h.set.value;

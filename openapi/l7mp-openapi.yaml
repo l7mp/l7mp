@@ -701,11 +701,14 @@ components:
       required:
         - message
       properties:
+        status:
+          description: HTTP Status code.
+          type: integer
         message:
           description: Message.
           type: string
-        error:
-          description: Error (optional).
+        # content:
+        #   description: Error (optional).
 
     io.l7mp.api.v1.Parameter.Address:
       description: A network layer (IP/IPv6) address or domain name.

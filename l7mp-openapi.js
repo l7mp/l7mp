@@ -29,7 +29,7 @@ const YAML           = require('yamljs');
 const Ajv            = require('ajv');
 const OpenAPIBackend = require('openapi-backend').default;
 
-const {L7mpError, Ok, InternalError, BadRequestError, NotFoundError, GeneralError} = require('./error.js');
+const {L7mpError, Ok, InternalError, BadRequestError, NotFoundError, ValidationError, GeneralError} = require('./error.js');
 
 const json_indent  = 4;
 // for no indentation:
@@ -43,8 +43,8 @@ class L7mpOpenAPI {
             strict: true,
             validate: l7mp.admin.strict,
             withContext: true,
+            // ajvOpts: { unknownFormats: true, verbose: true },
             ajvOpts: { unknownFormats: true },
-            customizeAjv: () => new Ajv(),
             handlers: {},
         });
 
@@ -170,8 +170,7 @@ class L7mpOpenAPI {
 
         this.api.register('validationFail', (ctx, req, res) => {
             log.verbose("L7mp.api.validationFail");
-            res.status = new BadRequestError(ctx.validation.errors);
-            res.status.message = 'Bad Request: Input validation failed';
+            res.status = new ValidationError(ctx.validation.errors);
         });
 
         this.api.register('notFound', (ctx, req, res) => {
@@ -187,17 +186,18 @@ class L7mpOpenAPI {
 
         this.api.register('postResponseHandler', (ctx, req, res) => {
             log.silly('l7mp.openapi: postResponseHandler');
-            // dump(res,3);
+            dump(JSON.stringify(res.status));
             // do not validate 'NotFound' (404) errors: ctx.operation
             // is unknown and this makes validator to croak
-            if(l7mp.admin.strict && res.status && res.status.status !== 404) {
+            // do not validate "input validation errors", these will also fail
+            if(l7mp.admin.strict && res.status && res.status.status !== 404  && res.status.status !== 422) {
                 log.silly('l7mp.openapi:',
                           'postResponseHandler: Validating response');
                 let valid = ctx.api.validateResponse(res.status.content,
                                                      ctx.operation, res.status.status);
                 if (valid.errors) {
                     log.silly('l7mp.openapi: postResponseHandler failed:',
-                             `Response: ${dumper(res.content,2)}`);
+                             `Response: ${dumper(res.status.content,2)}`);
                     res.status = new InternalError(valid.errors);
                     res.status.message = 'Internal Server Error: Response validation failed';
                 }
