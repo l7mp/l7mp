@@ -664,10 +664,17 @@ class JSONSocketCluster extends Cluster {
             for(let h of this.header){
                 if(h.path) {
                     let value = Rule.getAtPath(s.metadata, h.path);
-                    if(value && typeof value === 'object'){
+                    // if(value && typeof value === 'object'){
+                    //     log.silly('JSONSocketCluster.stream:', `${this.name}:`,
+                    //               `Adding ${dumper(value,4)} to the header`);
+                    //     Object.assign(req_header, value);
+                    if(value){
                         log.silly('JSONSocketCluster.stream:', `${this.name}:`,
-                                  `Adding ${dumper(value,4)} to the header`);
-                        Object.assign(req_header, value);
+                                  `Adding ${dumper(value,4)} at path "${h.path} to the header`);
+                        Rule.setAtPath(req_header, h.path, value);
+                    } else {
+                        log.warn('JSONSocketCluster.stream:', `${this.name}:`,
+                                 `Cannot find path "${h.path} in metadata`);
                     }
                 } else if(h.set &&
                           typeof h.set.key !== "undefined" &&

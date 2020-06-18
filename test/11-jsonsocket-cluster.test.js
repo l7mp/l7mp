@@ -153,6 +153,51 @@ describe('JSONSocketCluster', ()  => {
             s_ok = await c.stream(session);
             s_ok.end();
         });
+        it('stream-metadata-5', async () => {
+            c.header = '/some';
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+                let header = JSON.parse(msg);
+                assert.nestedPropertyVal(header, 'nested.meta', 'data');
+                return Promise.resolve();
+            });
+            s_ok = await c.stream(session);
+            s_ok.end();
+        });
+        it('stream-metadata-6', async () => {
+            c.header = '/some/nested';
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+                let header = JSON.parse(msg);
+                assert.propertyVal(header, 'meta', 'data');
+                return Promise.resolve();
+            });
+            s_ok = await c.stream(session);
+            s_ok.end();
+        });
+        it('stream-metadata-7', async () => {
+            c.header = '/some/nested/';  // trailing /
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+                let header = JSON.parse(msg);
+                assert.propertyVal(header, 'meta', 'data');
+                return Promise.resolve();
+            });
+            s_ok = await c.stream(session);
+            s_ok.end();
+        });
+        it('stream-metadata-8', async () => {
+            c.header = '/non-existent-path/';
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+                let header = JSON.parse(msg);
+                assert.deepEqual(header, {JSONSocketVersion: 1});
+                return Promise.resolve();
+            });
+            s_ok = await c.stream(session);
+            s_ok.end();
+        });
+
     });
 
     context('create - UDP - inline endpoints', () => {
