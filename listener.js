@@ -82,7 +82,9 @@ class Listener {
     }
 
     emitSession(m, s, p){
-        let sess = { metadata: m, source: { origin: this.name, stream: s }};
+        let sess = { metadata: m,
+                     source: { origin: this.name,
+                               stream: s }};
         if(p) sess.priv = p
         return this.emitter(sess);
     }
@@ -138,7 +140,7 @@ class HTTPListener extends Listener {
         log.silly('HTTPListener.onRequest:', `Listener: ${this.name}`);
         let name =
             `HTTP:${req.connection.remoteAddress}:` +
-            `${req.connection.remotePort}::` +
+            `${req.connection.remotePort}-` +
             `${req.connection.localAddress}:` +
             `${req.connection.localPort}-` +
             this.getNewSessionId();
@@ -316,7 +318,7 @@ class WebSocketListener extends Listener {
         log.silly('WebSocketListener.onRequest', `Listener: ${this.name}`);
         var name =
             `WS:${req.connection.remoteAddress}:` +
-            `${req.connection.remotePort}::` +
+            `${req.connection.remotePort}-` +
             `${req.connection.localAddress}:` +
             `${req.connection.localPort}-` +
             this.getNewSessionId();
@@ -568,7 +570,7 @@ class UDPListener extends Listener {
         log.silly('UDPListener.onRequest', `Listener: ${this.name}`);
 
         var name =
-            `UDP:${conn.remote_address}:${conn.remote_port}::` +
+            `UDP:${conn.remote_address}:${conn.remote_port}-` +
             `${conn.local_address}:${conn.local_port}-` +
             this.getNewSessionId();
 
@@ -646,7 +648,7 @@ class NetServerListener extends Listener {
 
         var name = this.protocol === 'TCP' ?
             `TCP:${socket.remoteAddress}:` +
-            `${socket.remotePort}::` +
+            `${socket.remotePort}-` +
             `${socket.address().address}:` +
             `${socket.address().port}` :
             `UNIX:${this.name}-` + this.getNewSessionId();

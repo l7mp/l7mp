@@ -12,6 +12,8 @@ const RuleList     = require('../rule.js').RuleList;
 const Route        = require('../route.js').Route;
 const DuplexPassthrough = require('../stream.js').DuplexPassthrough;
 
+// TODO: killing session during retry, killing cluster/lisener under session
+
 describe('Rerty', ()  => {
     var l, e, c, s, r, ru, rl;
     before( () => {
@@ -639,6 +641,82 @@ describe('Rerty', ()  => {
             s.removeAllListeners();
             s.on('error', () => { assert.isOk(true); done()});
             s.destination.stream.destroy();
+        });
+        it('delete-session', () => {
+            s.end();
+            l7mp.sessions.splice(0, 1);
+            l7mp.routes.splice(0, 1);
+            assert.isOk(true);
+        });
+    });
+
+    context('2-retry-disconnect-fail-kill-cluster', () => {
+        var du = new DuplexPassthrough();
+        it('route', (done) => {
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'always',
+                    num_retries: 2,
+                    timeout: 100,
+                }
+            });
+            l7mp.routes.push(r);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
+            l7mp.sessions.push(s);
+            s.create();
+            e.mode = ['ok', 'fail', 'fail']; e.round = 0; e.timeout=0;
+            s.on('connect', () => { assert.isOk(true); done()});
+            s.router();
+        });
+        it('re-connect-fail', (done) => {
+            s.removeAllListeners();
+            s.on('error', () => { assert.isOk(true); done()});
+            s.destination.stream.destroy();
+            setTimeout(() => l7mp.clusters.splice(0, 1), 20);
+        });
+        it('delete-session', () => {
+            s.end();
+            l7mp.sessions.splice(0, 1);
+            l7mp.routes.splice(0, 1);
+            assert.isOk(true);
+        });
+    });
+
+    context('2-retry-disconnect-fail-kill-session', () => {
+        var du = new DuplexPassthrough();
+        it('route', (done) => {
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'},
+                                 endpoints: [{ name: 'Test-e', spec: {}}]});
+            e = c.endpoints[0];
+            l7mp.clusters.push(c);
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'always',
+                    num_retries: 2,
+                    timeout: 100,
+                }
+            });
+            l7mp.routes.push(r);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
+            l7mp.sessions.push(s);
+            s.create();
+            e.mode = ['ok', 'fail', 'fail']; e.round = 0; e.timeout=0;
+            s.on('connect', () => { assert.isOk(true); done()});
+            s.router();
+        });
+        it('re-connect-fail', (done) => {
+            s.removeAllListeners();
+            s.on('error', () => { assert.isOk(true); done()});
+            s.destination.stream.destroy();
+            setTimeout(() => s.destroy(Error('')), 20);
         });
         it('delete-session', () => {
             s.end();

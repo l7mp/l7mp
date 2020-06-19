@@ -36,6 +36,8 @@ const Rule       = require('./rule.js').Rule;
 const RuleList   = require('./rule.js').RuleList;
 const Route      = require('./route.js').Route;
 
+const {L7mpError, Ok, InternalError, BadRequestError, NotFoundError, ValidationError, GeneralError} = require('./error.js');
+
 const MAX_NAME_ATTEMPTS = 20;
 
 // WARNING: these dumpers are needed for development and testing only,
@@ -122,9 +124,9 @@ class L7mp {
                 this.static_config = JSON.parse(fs.readFileSync(config));
             this.static_config = this.static_config || {};
             this.applyAdmin(this.static_config.admin || {});
-        } catch(e) {
+        } catch(err) {
             log.error(`Could not read static configuration ${config}:`,
-                      e.code ? `${e.code}: ${e.message}` : e.message);
+                      err.code ? `${err.code}: ${err.message}` : err.message);
         }
     }
 
@@ -654,7 +656,7 @@ class L7mp {
 
     getEndPoint(n){
         log.silly('L7mp.getEndPoint:', n);
-        return this.endponts.find( ({name}) => name === n );
+        return this.endpoints.find( ({name}) => name === n );
     }
 
     // internal, not to be called from the API
@@ -707,13 +709,14 @@ class L7mp {
 
         s.on('disconnect', (origin, error) => {
             log.info(`Session "${s.name}":`,
-                     `temporarily disconnected at stream "${origin}":`,
+                     `temporarily disconnected at stage "${origin}":`,
                      `reason: ${error ? error.message : 'unknown'}`);
         });
 
-        s.on('error', (e) => {
+        s.on('error', (err) => {
             // if(log.level === 'silly') dump(e);
-            log.warn(`Session "${s.name}": fatal error:`, e.message);
+            log.warn(`Session "${s.name}": fatal error: ${err.message}` +
+                     (err.content ? `: ${err.content}`: ""));
         });
 
         // normal end

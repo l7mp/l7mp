@@ -51,8 +51,6 @@ class L7mpError extends Error {
 // reuse error object for successfull operations as well
 class Ok extends L7mpError {
     constructor(content) {
-        if(typeof content === 'undefined')
-            content = { status: 200, message: 'OK' };
         super(200, 'OK', content);
         this.name = this.constructor.name;
     }
@@ -91,8 +89,8 @@ class NotFoundError extends L7mpError {
 }
 
 class GeneralError extends L7mpError {
-    constructor(status, message, content) {
-        super(status, message, content); // service unavailable
+    constructor(content) {
+        super(500, 'General Server Error', content); // service unavailable
         this.name = this.constructor.name;
     }
 }
