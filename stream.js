@@ -85,7 +85,6 @@ class DatagramStream extends Duplex {
         });
 
         this.socket = socket;
-
     }
 
     _read() {

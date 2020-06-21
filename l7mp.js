@@ -131,8 +131,10 @@ class L7mp {
     }
 
     run(){
-        log.info('Starting l7mp version:', this.admin.version,
+        log.info(`Starting l7mp version: ${this.admin.version} Log-level: ${log.level}`,
                  'Strict mode:', l7mp.admin.strict ? 'enabled' : 'disabled');
+
+        dump(this.static_config, 10);
 
         try {
             if('clusters' in this.static_config){
@@ -171,7 +173,7 @@ class L7mp {
             }
         } catch(e) {
             console.log(dumper(e, 6));
-            log.error(`Could not initialize static configuration ${config}:`,
+            log.error(`Could not initialize static configuration:`,
                       e.code ? `${e.code}: ${e.message}` : e.message);
         }
     }
