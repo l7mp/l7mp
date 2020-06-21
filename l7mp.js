@@ -704,8 +704,8 @@ class L7mp {
         this.sessions.push(s);
 
         s.on('init', () => log.silly(`Session "${s.name}: initializing"`));
-        s.on('connect', () => log.silly(`Session "${s.name}:`,
-                                        `successfully (re)connected"`));
+        s.on('connect', () => log.info(`Session "${s.name}: successfully (re)connected"`,
+                                       dumper(s.metadata, 10)));
 
         s.on('disconnect', (origin, error) => {
             log.info(`Session "${s.name}":`,
@@ -725,7 +725,7 @@ class L7mp {
         });
 
         s.on('destroy', () => {
-            log.silly(`Session "${s.name}": destroyed`);
+            log.info(`Session "${s.name}": destroyed`);
             setImmediate(() => this.deleteSession(s.name));
         });
 
