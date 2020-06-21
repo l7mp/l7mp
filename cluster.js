@@ -106,7 +106,7 @@ class HashRingLoadBalancer extends LoadBalancer {
         this.keys = {};
         es.forEach( (e) => {
             // this.keys[e.name] = { weight: e.weight, endpoint: e };
-            this.keys[e.address] = { weight: e.weight, endpoint: e.spec };
+            this.keys[e.spec.address] = { weight: e.weight, endpoint: e };
         });
         // dump(this.keys, 2);
 
@@ -119,8 +119,9 @@ class HashRingLoadBalancer extends LoadBalancer {
         log.silly('HashRingLoadBalancer.apply:', `Session: ${s.name}`);
 
         if(Object.keys(this.keys).length === 0){
-            log.error('HashRingLoadBalancer.apply: No endpoint in cluster');
-            process.exit();
+            let err = 'HashRingLoadBalancer.apply: No endpoint in cluster';
+            log.warn(err);
+            throw new GeneralError(err);
         }
 
         let key;
