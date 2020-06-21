@@ -826,7 +826,7 @@ class JSONSocketListener extends Listener {
         priv.res.write(JSON.stringify({
             JSONSocketVersion: 1,
             JSONSocketStatus: err.status,
-            JSONSocketMessage: err.message + (err.content ? `: err.content` : '')
+            JSONSocketMessage: err.message + (err.content ? `: ${err.content}` : '')
         }));
     }
 
