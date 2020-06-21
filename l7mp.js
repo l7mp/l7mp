@@ -627,8 +627,7 @@ class L7mp {
     // EndPoint API
     //
     ////////////////////////////////////////////////////
-
-    addEndPoint(ep){
+    addEndPoint(c, ep){
         log.silly('L7mp.addEndPoint:', dumper(ep, 6));
 
         let schema = {
@@ -645,10 +644,17 @@ class L7mp {
         let e = validate(ep, schema);
         if(e){
             log.warn('L7mp.addEndPoint:', e);
-            throw new Error(`Cannot add route: ${e}`);
+            throw new Error(`Cannot add endpoint: ${e}`);
         }
 
-        ep = EndPoint.create(ep);
+        let cl = this.getCluster(c);
+        if(!cl){
+            let e = `Unknown cluster "${c}"`;
+            log.warn('L7mp.addEndPoint', e);
+            throw new NotFoundError(`Cannot add endpoint: ${e}`);
+        }
+
+        ep = EndPoint.creatcl, e(ep);
         this.endpoints.push(ep);
 
         return ep;
