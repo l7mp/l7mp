@@ -102,6 +102,7 @@ class TestListener extends Listener {
         this.mode = 'server';
     }
     run(){ }
+    close(){ }
     emitSession(m, s, p){ this.emit('emit', this.getSession(m,s,p))}
 }
 

@@ -190,7 +190,6 @@ describe('JSONSocketListener', ()  => {
             var header_ok = false;
             c.on('message', (msg) => {
                 msg = msg instanceof Buffer ? msg.toString() : msg;
-                console.log(msg);
                 try {
                     let header = JSON.parse(msg);
                     if(header['JSONSocketVersion'] === 1 && header['JSONSocketStatus'] === 200)

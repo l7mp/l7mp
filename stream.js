@@ -241,6 +241,9 @@ class DuplexPassthrough {
     lower() { return this.lower }
     left()  { return this.left }
     right() { return this.right }
+
+    destroy(e) { this.upper.destroy(e); this.lower.destroy(e); };
+    end(d,e,c) { this.upper.end(d,e,c); this.lower.end(d,e,c); };
 };
 
 // adopted from merge-streams:

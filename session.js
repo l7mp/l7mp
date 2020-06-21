@@ -131,7 +131,7 @@ class Stage {
                           `stage "${this.origin}"/${this.status}`,
                           `Attempt ${error.attemptNumber} failed`,
                           `(${error.retriesLeft} retries left):`,
-                          (error.errno ? `${error.errno}: ${error.address}:${error.port}` : error.message) +
+                          error.message,
                           (error.content ? `: ${error.content}` : ''));
 
                 // dump(error,10);
@@ -586,9 +586,9 @@ class Session {
     async disconnect(stage, error){
         let stream = stage.stream;
 
-        log.silly('Session.disconnect:', `Session ${this.name}:`,
-                  `stage: ${stage.origin}:`,
-                  (error ? `Error: ${error.message}` : 'Reason: unknown'));
+        log.verbose('Session.disconnect:', `Session ${this.name}:`,
+                    `stage: ${stage.origin}:`,
+                    (error ? `Error: ${error.message}` : 'Reason: unknown'));
 
         this.events.push({ event: 'DISCONNECT',
                            timestamp: new Date().toISOString(),
@@ -611,8 +611,15 @@ class Session {
 
         if(this.status === 'CONNECTED')
             this.emit('disconnect', stage.origin, error);
-        // if(this.active_streams === 0)
-        //     this.destroy();
+
+        // since we are going to reconnect the stream, we make sure that the old stream is properly
+        // closed, otherwise the stream may remain alive, e.g., adter a 'connection refused' for a
+        // connected UDP stream
+        if(stream){
+            stream.removeListener("close", stage.on_disc["close"]);
+            stream.removeListener("error", stage.on_disc["error"]);
+            stream.destroy();
+        }
 
         let retry = this.route.retry;
         switch(retry.retry_on){

@@ -1,3 +1,4 @@
+const udp          = require('dgram');
 const Stream       = require('stream');
 const assert       = require('chai').assert;
 const EventEmitter = require('events').EventEmitter;
@@ -11,15 +12,17 @@ const Rule         = require('../rule.js').Rule;
 const RuleList     = require('../rule.js').RuleList;
 const Route        = require('../route.js').Route;
 const DuplexPassthrough = require('../stream.js').DuplexPassthrough;
+const delay        = require('delay');
 
 // TODO: killing session during retry, killing cluster/lisener under session
 
 describe('Rerty', ()  => {
-    var l, e, c, s, r, ru, rl;
+    var l, e, c, s, r, ru, rl, u;
     before( () => {
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'error' });
         // l7mp.applyAdmin({ log_level: 'silly' });
+        // l7mp.applyAdmin({ log_level: 'verbose' });
         l7mp.run(); // should return
         l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
 
@@ -726,4 +729,207 @@ describe('Rerty', ()  => {
         });
     });
 
+    context('no-retry-ok', () => {
+        var du = new DuplexPassthrough();
+        it('route-create', () => {
+            e.mode = ['ok', 'fail', 'fail']; e.round = 0; e.timeout=0;
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'never',
+                    num_retries: 0,
+                    timeout: 2000,
+                }
+            });
+            l7mp.routes.push(r);
+            assert.isOk(r);
+        });
+        it('new-session', () => {
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
+            l7mp.sessions.push(s);
+            assert.isOk(s);
+        });
+        it('create-session', () => {
+            s.create();
+            assert.isOk(s);
+        });
+        it('route', (done) => {
+            s.on('connect', () => { assert.isOk(true); done()});
+            s.router();
+        });
+        it('echo',  (done) => {
+            du.left.on('readable', () => {
+                let data = ''; let chunk;
+                while (null !== (chunk = du.left.read())) {
+                    data += chunk;
+                }
+                assert.equal(data, 'test');
+                done();
+            });
+            du.left.write('test');
+        });
+        it('delete-session', () => {
+            du.left.removeAllListeners();
+            s.end();
+            l7mp.sessions.splice(0, 1);
+            assert.isOk(true);
+        });
+    });
+
+    context('no-retry-fail', () => {
+        var du = new DuplexPassthrough();
+        it('new-session', () => {
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
+            l7mp.sessions.push(s);
+            assert.isOk(s);
+        });
+        it('create-session', () => {
+            s.create();
+            assert.isOk(true);
+        });
+        it('route', (done) => {
+            e.mode = ['fail']; e.round = 0;
+            s.on('error', () => { assert.isOk(true); done()});
+            s.router();
+        });
+        it('delete-session', () => {
+            s.end();
+            l7mp.sessions.splice(0, 1);
+            l7mp.routes.splice(0, 1);
+            assert.isOk(true);
+        });
+    });
+
+    context('jsonsocket-retry', () => {
+        beforeEach((done) => {
+            if(s) s.end();
+            l7mp.clusters.splice(0, 1);
+            c = Cluster.create({
+                name: 'Test-c',
+                spec: {protocol: 'JSONSocket',
+                       transport: { protocol: 'UDP', port: 54321 },
+                       header: [ { path: '/' } ]
+                      },
+                endpoints: [{ name: 'Test-e', spec: {address: '127.0.0.1'}}],
+            });
+            e = c.endpoints[0];
+            l7mp.clusters.push(c);
+            l7mp.routes.splice(0, 1);
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'always',
+                    num_retries: 2,
+                    timeout: 100,
+                }
+            });
+            l7mp.routes.push(r);
+            u = new udp.createSocket('udp4');
+            u.bind(54321, async () => {
+                u.once('message', (msg, rinfo) => {
+                    u.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}),
+                           rinfo.port, rinfo.address);
+                    u.on('message', (msg, rinfo) => { u.send(msg, rinfo.port, rinfo.address); });
+                });
+                du = new DuplexPassthrough()
+                let x = { metadata: {name: 'Test-s'},
+                          source: { origin: l.name, stream: du.right }};
+                s = new Session(x);
+                l7mp.sessions.push(s);
+                s.create();
+                s.router().then(() => done());
+            });
+        });
+        afterEach(() => { u.close(); s.destroy(); l7mp.sessions.splice(0, 1); du.destroy(); });
+
+        it('connect-ok',  (done) => {
+            // send one packet
+            du.left.write('test');
+            assert.isOk(true);
+            done();
+        });
+        it('0-fail-re-connect-ok',  (done) => {
+            // send one packet
+            du.left.write('test');
+            // kill receiver
+            setImmediate(() => {
+                u.close();
+                setImmediate(() => {
+                    // send another packet so that cluster emits a disconnect
+                    du.left.write('test');
+                    // set up listeners to detect reconnect
+                    s.on('error', () => { assert.fail();  });
+                    s.on('connect', () => { assert.isOk(true); done()});
+                    // set up listener again
+                    setImmediate(() => {
+                        u = new udp.createSocket('udp4');
+                        u.bind(54321, () => {
+                            u.once('message', (msg, rinfo) => {
+                                u.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}),
+                                       rinfo.port, rinfo.address);
+                            });
+                        });
+                    }, 50);
+                }, 50);
+            }, 50);
+        });
+        it('1-fail-re-connect-ok',  (done) => {
+            // send one packet
+            du.left.write('test');
+            // kill receiver
+            setImmediate(() => {
+                e.mode = ['fail', 'true']; e.round = 0;
+                u.close();
+                setImmediate(() => {
+                    // send another packet so that cluster emits a disconnect
+                    du.left.write('test');
+                    // set up listeners to detect reconnect
+                    s.on('error', () => { assert.fail();  });
+                    s.on('connect', () => { assert.isOk(true); done()});
+                    // set up listener again
+                    setImmediate(() => {
+                        u = new udp.createSocket('udp4');
+                        u.bind(54321, () => {
+                            u.once('message', (msg, rinfo) => {
+                                u.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}),
+                                       rinfo.port, rinfo.address);
+                            });
+                        });
+                    }, 50);
+                }, 50);
+            }, 50);
+        });
+        it('2-fail-re-connect-error',  (done) => {
+            // send one packet
+            du.left.write('test');
+            // kill receiver
+            setImmediate(() => {
+                e.mode = ['fail', 'fail', 'true']; e.round = 0;
+                u.close();
+                setImmediate(() => {
+                    // send another packet so that cluster emits a disconnect
+                    du.left.write('test');
+                    // set up listeners to detect reconnect
+                    s.on('error', () => { assert.isOk(true); done();  });
+                    s.on('connect', () => { assert.fail()});
+                    // set up listener again
+                    setImmediate(() => {
+                        u = new udp.createSocket('udp4');
+                        u.bind(54321, () => {
+                            u.once('message', (msg, rinfo) => {
+                                u.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}),
+                                       rinfo.port, rinfo.address);
+                            });
+                        });
+                    }, 50);
+                }, 50);
+            }, 50);
+        });
+    });
 });
