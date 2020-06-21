@@ -647,16 +647,24 @@ class JSONSocketCluster extends Cluster {
             let req_header = {};
             for(let h of this.header){
                 if(h.path) {
-                    let value = Rule.getAtPath(s.metadata, h.path);
-                    // if(value && typeof value === 'object'){
-                    //     log.silly('JSONSocketCluster.stream:', `${this.name}:`,
-                    //               `Adding ${dumper(value,4)} to the header`);
-                    //     Object.assign(req_header, value);
+                    // default is to copy to the root
+                    if(typeof h.path !== 'object'){
+                        let path = h.path;
+                        h.path = {};
+                        h.path.from = path;
+                    }
+
+                    if(typeof h.path.to === 'undefined'){
+                        h.path.to = '/';
+                    }
+
+                    let value = Rule.getAtPath(s.metadata, h.path.from);
                     if(value){
                         log.silly('JSONSocketCluster.stream:', `${this.name}:`,
-                                  `Adding ${dumper(value,4)} at path "${h.path}" to the header`);
-                        // req_header = Rule.setAtPath(req_header, h.path, value);
-                        _.merge(req_header, value);
+                                  `Adding ${dumper(value,4)} at path "${h.path.from}"`,
+                                  `to the header under path "${h.path.to}"`);
+                        req_header = Rule.setAtPath(req_header, h.path.to, value);
+                        // _.merge(req_header, value);
                     } else {
                         log.warn('JSONSocketCluster.stream:', `${this.name}:`,
                                  `Cannot find path "${h.path} in metadata`);
