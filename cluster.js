@@ -139,7 +139,7 @@ class HashRingLoadBalancer extends LoadBalancer {
         let n = this.hashring.get(key.toString());
         let e = this.keys[n].endpoint;
 
-        if(!e)
+        if(typeof e === 'undefined')
             log.silly('endpoints:', dumper(this.keys, 6));
 
         log.silly('HashRingLoadBalancer.apply:',
@@ -528,7 +528,7 @@ class WebSocketCluster extends Cluster {
                   `Session: ${s.name}`);
 
         var e = this.loadbalancer.apply(s);
-        if(!e)
+        if(typeof e === 'undefined')
             return Promise.reject(new NotFoundError('Could not find suitable endpoint'));
 
         // Promisifies endpoint events: cancels the event listeners on
@@ -560,7 +560,7 @@ class NetSocketCluster extends Cluster {
         log.silly('NetSocketCluster.stream:', `Session: ${s.name}`);
 
         var e = this.loadbalancer.apply(s);
-        if(!e)
+        if(typeof e === 'undefined')
             return Promise.reject(new NotFoundError('Could not find suitable endpoint'));
 
         return pEvent(e.connect(s), 'open', {
@@ -584,7 +584,7 @@ class UDPCluster extends Cluster {
         log.silly('UDPCluster.stream', `Session: ${s.name}`);
 
         var e = this.loadbalancer.apply(s);
-        if(!e)
+        if(typeof e === 'undefined')
             return Promise.reject(new NotFoundError('Could not find suitable endpoint'));
 
         return pEvent(e.connect(s), 'open', {
