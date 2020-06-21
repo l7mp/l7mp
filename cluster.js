@@ -139,6 +139,9 @@ class HashRingLoadBalancer extends LoadBalancer {
         let n = this.hashring.get(key.toString());
         let e = this.keys[n].endpoint;
 
+        if(!e)
+            log.silly('endpoints:', dumper(this.keys, 6));
+
         log.silly('HashRingLoadBalancer.apply:',
                   `Choosing endpoint "${e.name}" for key "${key}"`);
 
@@ -575,6 +578,9 @@ class UDPCluster extends Cluster {
         log.silly('UDPCluster.stream', `Session: ${s.name}`);
 
         var e = this.loadbalancer.apply(s);
+        if(!e)
+            return Promise.reject(new NotFoundError('Could not find suitable endpoint'));
+
 
         return pEvent(e.connect(s), 'open', {
             rejectionEvents: ['close', 'error'],
