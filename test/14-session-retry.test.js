@@ -864,7 +864,7 @@ describe('Rerty', ()  => {
                     // send another packet so that cluster emits a disconnect
                     du.left.write('test');
                     // set up listeners to detect reconnect
-                    s.on('error', () => { assert.fail();  });
+                    s.on('error', () => { assert.fail(); });
                     s.on('connect', () => { assert.isOk(true); done()});
                     // set up listener again
                     setImmediate(() => {
@@ -875,9 +875,9 @@ describe('Rerty', ()  => {
                                        rinfo.port, rinfo.address);
                             });
                         });
-                    }, 50);
-                }, 50);
-            }, 50);
+                    }, 25);
+                }, 25);
+            }, 25);
         });
         it('1-fail-re-connect-ok',  (done) => {
             // send one packet

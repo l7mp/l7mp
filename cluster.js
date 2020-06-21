@@ -31,7 +31,6 @@ const udp           = require('dgram');
 const url           = require('url');
 const util          = require('util');
 const EventEmitter  = require('events');
-const pTimeout      = require('p-timeout');
 const pEvent        = require('p-event');
 const HashRing      = require('hashring');
 const stream        = require('stream');
@@ -686,13 +685,21 @@ class JSONSocketCluster extends Cluster {
 
             stream.write(JSON.stringify(req_header));
 
-            let data = await pEvent(stream, 'data', {
-                rejectionEvents: ['close', 'error'],
-                multiArgs: false, // TODO: support TIMEOUT: timeout: this.timeout
-            });
+            try {
+                var data = await pEvent(stream, 'data', {
+                    rejectionEvents: ['close', 'error'],
+                    multiArgs: false, timeout:  s.route.retry.timeout,
+                });
+            } catch(e){
+                let err = `Failed to receive JSONSocket in ${s.route.retry.timeout} msecs: `+
+                    e.message;
+                log.warn('JSONSocketCluster:', `${this.name}:`, err);
+                stream.destroy();
+                return Promise.reject(new GeneralError(err));
+            }
 
             log.silly('JSONSocketCluster:', `${this.name}:`,
-                      `Received packet, checking for JSON response header"`);
+                      `Received packet, checking for JSON response header`);
 
             try {
                 var header = JSON.parse(data);

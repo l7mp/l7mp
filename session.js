@@ -29,6 +29,7 @@ const util         = require('util');
 const miss         = require('mississippi');
 const delay        = require('delay');
 const pRetry       = require('p-retry');
+const pTimeout     = require('p-timeout');
 const _            = require('lodash');
 
 const StreamCounter = require('./stream-counter.js').StreamCounter;
@@ -48,7 +49,7 @@ class Stage {
         this.origin   = st.origin;  // name of cluster/listener
         this.stream   = st.stream;  // stream
         this.endpoint = undefined;  // if cluster, name of endpoint
-        this.status   = undefined;
+        this.status   = 'INIT';
         this.source   = typeof st.source !== 'undefined' ? st.source : false; // special-case source
         this.last_conn = null;
         this.retriable = !this.source;
@@ -111,8 +112,11 @@ class Stage {
                 fail(new NotFoundError(`Cannot find cluster "${this.origin}"`), attempt);
             this.retriable = cluster.retriable;
 
-            return cluster.stream(this.session).then(
-                (ret) => {
+            // return pTimeout(cluster.stream(this.session), timeout,
+            //                 `Connect stream timed out after ${timeout} msec`).
+            //     then(
+            return cluster.stream(this.session).
+                then((ret) => {
                     log.verbose("Stage.connect:", `Session: ${this.session.name}:`,
                                 `stage "${this.origin}" connected to endoint`,
                                 ret.endpoint.name);
@@ -121,8 +125,7 @@ class Stage {
                     this.last_conn = Date.now();
                     this.status = 'CONNECTED';
                     return this;
-                },
-            );
+                });
         };
 
         return pRetry(run, {
@@ -136,7 +139,6 @@ class Stage {
 
                 // dump(error,10);
 
-                // DISCONNECTED BUT UNDER RETRY
                 this.status = error.retriesLeft == 0 ?
                     'END' : 'RETRYING';
 
@@ -146,7 +148,8 @@ class Stage {
             retries: num_retries,
             factor: 1,
             minTimeout: timeout,
-            maxTimeout: timeout,
+            // maxTimeout: timeout,
+            // maxRetryTime: timeout,
             randomize: false
         });
     }
@@ -216,17 +219,17 @@ class Stage {
         log.silly('Stage.reconnect:', `Session ${this.session.name}:`,
                   `reconnecting on cluster "${this.origin}"`);
 
-        // dampen retries: never attempt to reconnect a cluster within
-        // timeout msecs of the last successfull connection (handle
-        // clusters that reconnect but then immediately drop
-        // connection like 'websocat -E...')
-        let time_wait = Math.max(retry.timeout -
-                                 (Date.now() - this.last_conn), 0);
+        // // dampen retries: never attempt to reconnect a cluster within
+        // // timeout msecs of the last successfull connection (handle
+        // // clusters that reconnect but then immediately drop
+        // // connection like 'websocat -E...')
+        // let time_wait = Math.max(retry.timeout -
+        //                          (Date.now() - this.last_conn), 0);
 
-        // dump(time_wait,3);
-        // dump(retry_policy,3);
+        // // dump(time_wait,3);
+        // // dump(retry_policy,3);
 
-        await delay(time_wait);
+        // await delay(time_wait);
 
         let num_retries = retry.retry_on === 'disconnect' ||
             retry.retry_on === 'always' ? retry.num_retries : 0;
@@ -612,8 +615,8 @@ class Session {
         if(this.status === 'CONNECTED')
             this.emit('disconnect', stage.origin, error);
 
-        // since we are going to reconnect the stream, we make sure that the old stream is properly
-        // closed, otherwise the stream may remain alive, e.g., adter a 'connection refused' for a
+        // since we may reconnect the stream, make sure that the old stream is properly closed,
+        // otherwise the stream may remain alive, e.g., adter a 'connection refused' for a
         // connected UDP stream
         if(stream){
             stream.removeListener("close", stage.on_disc["close"]);
