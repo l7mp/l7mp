@@ -528,6 +528,9 @@ class WebSocketCluster extends Cluster {
                   `Session: ${s.name}`);
 
         var e = this.loadbalancer.apply(s);
+        if(!e)
+            return Promise.reject(new NotFoundError('Could not find suitable endpoint'));
+
         // Promisifies endpoint events: cancels the event listeners on
         // reject!
         return pEvent(e.connect(s), 'open', {
@@ -557,6 +560,9 @@ class NetSocketCluster extends Cluster {
         log.silly('NetSocketCluster.stream:', `Session: ${s.name}`);
 
         var e = this.loadbalancer.apply(s);
+        if(!e)
+            return Promise.reject(new NotFoundError('Could not find suitable endpoint'));
+
         return pEvent(e.connect(s), 'open', {
             rejectionEvents: ['close', 'end', 'error', 'timeout'],
             multiArgs: true, timeout: s.route.retry.timeout
@@ -580,7 +586,6 @@ class UDPCluster extends Cluster {
         var e = this.loadbalancer.apply(s);
         if(!e)
             return Promise.reject(new NotFoundError('Could not find suitable endpoint'));
-
 
         return pEvent(e.connect(s), 'open', {
             rejectionEvents: ['close', 'error'],
