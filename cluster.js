@@ -139,9 +139,6 @@ class HashRingLoadBalancer extends LoadBalancer {
         let n = this.hashring.get(key.toString());
         let e = this.keys[n].endpoint;
 
-        if(typeof e === 'undefined')
-            log.silly('endpoints:', dumper(this.keys, 6));
-
         log.silly('HashRingLoadBalancer.apply:',
                   `Choosing endpoint "${e.name}" for key "${key}"`);
 
@@ -390,7 +387,6 @@ class NetSocketEndPoint extends EndPoint {
 
 class JSONSocketEndPoint extends EndPoint {
     constructor(c, e) {
-        e.name = e.name ? e.name : c.name + '-transport-endpoint';
         super(c, e);
         this.cluster.transport.addEndPoint(e);
     }
@@ -611,7 +607,7 @@ class JSONSocketCluster extends Cluster {
     constructor(c) {
         // do not add endpoints, transport is not initialized yet
         let es = c.endpoints;
-        c.endpoints = [];
+        c.endpoints = undefined;
         super(c);
 
         // 1. create transport
