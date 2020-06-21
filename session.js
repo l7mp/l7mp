@@ -85,7 +85,7 @@ class Stage {
 
         let run = (attempt) => {
             log.silly("Session.connect:", `Session: ${this.session.name}:`,
-                      `stage "${this.origin}" at attempt ${attempt}`);
+                      `stage "${this.origin}" at attempt ${attempt}, timeout: ${timeout}`);
 
             // do not retry a session that has been deleted from the API
             let s = l7mp.getSession(this.session.name);
@@ -130,7 +130,7 @@ class Stage {
                 log.silly("Stage.connect:", `Session: ${this.session.name}:`,
                           `stage "${this.origin}"/${this.status}`,
                           `Attempt ${error.attemptNumber} failed`,
-                          `(${error.retriesLeft} retries left):`,
+                          `(${error.retriesLeft} retries left, timeout: ${timeout}):`,
                           error.message,
                           (error.content ? `: ${error.content}` : ''));
 
