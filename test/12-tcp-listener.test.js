@@ -38,7 +38,7 @@ describe('TCPListener', ()  => {
         it('has-spec',     () => { assert.property(l, 'spec'); });
         it('has-protocol', () => { assert.nestedPropertyVal(l, 'spec.protocol', 'TCP'); });
         it('has-port',     () => { assert.nestedPropertyVal(l, 'spec.port', 54321); });
-        it('can-listen',   () => { l.on('emit', (x) => { s = x }); assert.isOk(true); });
+        it('can-listen',   () => { l.emitter=(x) =>{ s = x }; assert.isOk(true); });
     });
 
     context('#run', () => {
@@ -67,19 +67,19 @@ describe('TCPListener', ()  => {
         it('session-metadata-TCP',      () => { assert.nestedProperty(s, 'metadata.TCP'); });
         it('session-metadata-src-port', () => { assert.nestedProperty(s, 'metadata.TCP.src_port'); });
         it('session-metadata-dst-port', () => { assert.nestedPropertyVal(s, 'metadata.TCP.dst_port', 54321); });
-        it('session-listener',          () => { assert.nestedPropertyVal(s, 'listener.origin', 'TCP'); });
-        it('session-stream',            () => { assert.nestedProperty(s, 'listener.stream'); });
-        it('session-stream',            () => { assert.nestedProperty(s, 'listener.origin', 'TCP'); });
-        it('session-stream',            () => { assert.instanceOf(s.listener.stream, Stream) });
-        it('session-stream-readable',   () => { assert.isOk(s.listener.stream.readable); });
-        it('session-stream-writeable',  () => { assert.isOk(s.listener.stream.writable); });
+        it('session-listener',          () => { assert.nestedPropertyVal(s, 'source.origin', 'TCP'); });
+        it('session-stream',            () => { assert.nestedProperty(s, 'source.stream'); });
+        it('session-stream',            () => { assert.nestedProperty(s, 'source.origin', 'TCP'); });
+        it('session-stream',            () => { assert.instanceOf(s.source.stream, Stream) });
+        it('session-stream-readable',   () => { assert.isOk(s.source.stream.readable); });
+        it('session-stream-writeable',  () => { assert.isOk(s.source.stream.writable); });
     });
 
     context('I/O', () => {
         it('read',  (done) => {
-            s.listener.stream.on('readable', () => {
+            s.source.stream.on('readable', () => {
                 let data = ''; let chunk;
-                while (null !== (chunk = s.listener.stream.read())) {
+                while (null !== (chunk = s.source.stream.read())) {
                     data += chunk;
                 }
                 assert.equal(data, 'test');
@@ -96,12 +96,12 @@ describe('TCPListener', ()  => {
                 assert.equal(data, 'test');
                 done();
             });
-            s.listener.stream.write('test');
+            s.source.stream.write('test');
         });
         it('server-stream-end',  () => {
-            s.listener.stream.removeAllListeners();
+            s.source.stream.removeAllListeners();
             c.removeAllListeners();
-            s.listener.stream.destroy();
+            s.source.stream.destroy();
             assert.isOk(true);
         });
         it('client-stream-end',  () => { c.destroy(); assert.isOk(true); });

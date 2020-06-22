@@ -31,7 +31,6 @@ const duplex3     = require("duplexer2");
 const miss        = require('mississippi');
 const eventDebug  = require('event-debug');
 
-
 class DatagramStream extends Duplex {
     constructor(socket, options){
         super({
@@ -86,7 +85,6 @@ class DatagramStream extends Duplex {
         });
 
         this.socket = socket;
-
     }
 
     _read() {
@@ -242,6 +240,9 @@ class DuplexPassthrough {
     lower() { return this.lower }
     left()  { return this.left }
     right() { return this.right }
+
+    destroy(e) { this.upper.destroy(e); this.lower.destroy(e); };
+    end(d,e,c) { this.upper.end(d,e,c); this.lower.end(d,e,c); };
 };
 
 // adopted from merge-streams:
@@ -288,6 +289,7 @@ var MergeStream = function (/*streams...*/) {
 }
 
 // module.exports.socket2dgramstream = socket2dgramstream;
+// module.exports.Status            = Status;
 module.exports.DatagramStream    = DatagramStream;
 module.exports.BroadcastStream   = BroadcastStream;
 module.exports.DuplexPassthrough = DuplexPassthrough;

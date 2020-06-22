@@ -23,7 +23,6 @@
 'use strict';
 
 const log = require('npmlog');
-//const _   = require('underscore');
 const _   = require('lodash');
 const jsonPredicate = require("json-predicate")
 
@@ -133,17 +132,47 @@ Rule.create = (r) => {
 // this here:
 // if data under path does not exist, we create it
 // value can be object, in this case it will be deepcopied
-Rule.setAtPath = (data, path, value) => {
-    var loc, locs = path.split('/');
-    // starts with /
+Rule.getAtPath = (data, path) => {
+    var result, loc, locs = path.split('/');
+    // remove leading /
     if(locs.length && locs[0] === '')
         locs.shift();
+
+    // ready: '/'
+    if(locs.length===1 && locs[0] === '')
+        return data;
+
+    while(data && (loc = locs.shift()) && loc!=='') {
+        result = data = data[loc];
+    }
+    return result;
+}
+
+Rule.setAtPath = (data, path, value) => {
+    let ret = data;
+    var loc, locs = path.split('/');
+
+    // remove trailing /
+    if(locs.length && locs[locs.length-1] === '')
+        locs.pop();
+
+    // remove leading /
+    if(locs.length && locs[0] === '')
+        locs.shift();
+
+    // ready: '/'
+    if(locs.length===0){
+        ret = typeof value === 'object' ? _.cloneDeep(value) : value;
+        return ret;
+    }
     while((loc = locs.shift())) {
+        let index = parseInt(loc, 10);
+        if(!isNaN(index))loc=index;
         if(locs.length === 0) {
             if(typeof value !== 'object'){
                 data[loc] = value;
             } else {
-                data[loc] = {... value};
+                data[loc] = _.cloneDeep(value);
             }
         } else {
             if(data[loc]){
@@ -153,17 +182,7 @@ Rule.setAtPath = (data, path, value) => {
             }
         }
     }
-}
-
-// make leading '/' optional
-Rule.getAtPath = (data, path) => {
-    var result, loc, locs = path.split('/');
-    if(locs.length && locs[0] === '')
-        locs.shift();
-    while(data && (loc = locs.shift())) {
-        result = data = data[loc];
-    }
-    return result;
+    return ret;
 }
 
 module.exports.Rule = Rule;

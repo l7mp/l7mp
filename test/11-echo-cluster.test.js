@@ -24,21 +24,22 @@ describe('EchoCluster', ()  => {
     context('stream()', () => {
         var c = Cluster.create({name: 'Echo', spec: {protocol: 'Echo'}});
         var s;
-        it('runs', async () => { s = await c.stream({name:"test-session"}); });
-        it('returns ok', () => { assert.isOk(s); });
-        it('isa stream', () => { assert.instanceOf(s, Stream); });
-        it('readable',   () => { assert.isOk(s.readable); });
-        it('writeable',  () => { assert.isOk(s.writable); });
+        it('runs', async   () => { s = await c.stream({name:"test-session"}); });
+        it('returns ok',   () => { assert.isOk(s.stream); });
+        it('isa stream',   () => { assert.instanceOf(s.stream, Stream); });
+        it('readable',     () => { assert.isOk(s.stream.readable); });
+        it('writeable',    () => { assert.isOk(s.stream.writable); });
+        it('has-endpoint', () => { assert.isObject(s.endpoint); });
         it('correct-byte-stream', (done) => {
-            s.on('readable', () => {
+            s.stream.on('readable', () => {
                 let data = ''; let chunk;
-                while (null !== (chunk = s.read())) {
+                while (null !== (chunk = s.stream.read())) {
                     data += chunk;
                 }
                 assert.equal(data, 'test');
                 done();
             });
-            s.write('test');
+            s.stream.write('test');
         });
         // it('correct-datagram-stream', (done) => {
         //     let data = '';

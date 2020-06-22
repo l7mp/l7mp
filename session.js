@@ -29,9 +29,223 @@ const util         = require('util');
 const miss         = require('mississippi');
 const delay        = require('delay');
 const pRetry       = require('p-retry');
+const pTimeout     = require('p-timeout');
+const _            = require('lodash');
 
 const StreamCounter = require('./stream-counter.js').StreamCounter;
 const Rule          = require('./rule.js').Rule;
+const {L7mpError, Ok, InternalError, BadRequestError, NotFoundError, GeneralError} = require('./error.js');
+
+
+//------------------------------------
+//
+// Stage: elements in a chain, can be listener or cluster
+//
+//------------------------------------
+class Stage {
+    constructor(st){
+        this.id       = Stage.index++;
+        this.session  = st.session;
+        this.origin   = st.origin;  // name of cluster/listener
+        this.stream   = st.stream;  // stream
+        this.endpoint = undefined;  // if cluster, name of endpoint
+        this.status   = 'INIT';
+        this.source   = typeof st.source !== 'undefined' ? st.source : false; // special-case source
+        this.last_conn = null;
+        this.retriable = !this.source;
+    }
+
+    toJSON(){
+        log.silly('Stage.toJSON:', `"${this.session.name}::${this.origin}`);
+        if(this.source){
+            let l = l7mp.getListener(this.origin);
+            return {
+                origin:   this.origin,
+                listener: l ? l.spec : '<INVALID>', // listener might have gone away
+                status:   this.status,
+            };
+        } else {
+            return {
+                origin:   this.origin,
+                endpoint: { name: this.endpoint.name, spec: this.endpoint.spec } || '<INVALID>',
+                status:   this.status,
+            };
+        }
+    }
+
+    // STAGE: stage = cluster + stream + status
+    // STATUS: CONNECTED -> READY -> DISCONNECTED -> RETRYING -> END
+    // returns a promise!
+    connect(num_retries, timeout){
+        const fail = (err, a) => {
+            err.stage = this;
+            log.silly(`Stage.connect.fail: Session "${this.session.name}":`,
+                      `stage "${this.origin}" at attempt ${a}: ${err.content}`);
+            throw new pRetry.AbortError(err);
+        };
+
+        let run = (attempt) => {
+            log.silly("Session.connect:", `Session: ${this.session.name}:`,
+                      `stage "${this.origin}" at attempt ${attempt}, timeout: ${timeout}`);
+
+            // do not retry a session that has been deleted from the API
+            let s = l7mp.getSession(this.session.name);
+            if(typeof s === 'undefined')
+                fail(new InternalError('Internal error: Session removed while retrying'),
+                                       attempt);
+
+            switch(this.status){
+            case 'CONNECTED':
+                fail(new InternalError('Retrying a CONNECTED stage'), attempt);
+                break;
+            case 'FINALIZING':
+                fail(new Ok('Session status FINALIZING, giving up on retry'), attempt);
+                break;
+            case 'END':
+                fail(new Ok('Session status END, not retrying'), attempt);
+                break;
+            default: { /* ingoring */ };
+            };
+
+            let cluster = l7mp.getCluster(this.origin);
+            if(!cluster)
+                fail(new NotFoundError(`Cannot find cluster "${this.origin}"`), attempt);
+            this.retriable = cluster.retriable;
+
+            // return pTimeout(cluster.stream(this.session), timeout,
+            //                 `Connect stream timed out after ${timeout} msec`).
+            //     then(
+            return cluster.stream(this.session).
+                then((ret) => {
+                    log.verbose("Stage.connect:", `Session: ${this.session.name}:`,
+                                `stage "${this.origin}" connected to endoint`,
+                                ret.endpoint.name);
+                    this.stream = ret.stream;
+                    this.endpoint = ret.endpoint;
+                    this.last_conn = Date.now();
+                    this.status = 'CONNECTED';
+                    return this;
+                });
+        };
+
+        return pRetry(run, {
+            onFailedAttempt: error => {
+                log.silly("Stage.connect:", `Session: ${this.session.name}:`,
+                          `stage "${this.origin}"/${this.status}`,
+                          `Attempt ${error.attemptNumber} failed`,
+                          `(${error.retriesLeft} retries left, timeout: ${timeout}):`,
+                          error.message,
+                          (error.content ? `: ${error.content}` : ''));
+
+                // dump(error,10);
+
+                this.status = error.retriesLeft == 0 ?
+                    'END' : 'RETRYING';
+
+                // will return the problematic endpoint eventually
+                error.stage = this;
+            },
+            retries: num_retries,
+            factor: 1,
+            minTimeout: timeout,
+            // maxTimeout: timeout,
+            // maxRetryTime: timeout,
+            randomize: false
+        });
+    }
+
+    set_event_handlers(){
+        // Writable has 'close', readable has 'end', duplex has
+        // who-knows...
+        // need this for being able to remove listeners
+        // var onDisc = this.disconnect.bind(this);
+        log.silly("Stage.set_event_handlers: Setting up event handlers for",
+                  `stage "${this.origin}"/${this.status}`);
+        this.on_disc = {};
+        var eh = (event) => {
+            this.on_disc[event] = (err) => {
+                log.silly(`Stage.event:`, `"${event}" event received:`,
+                          `${this.origin}`,
+                          (err) ? ` Error: ${err}` : '');
+                this.session.disconnect(this, err);
+            };
+            this.stream.on(event, this.on_disc[event]);
+        };
+
+        // eh('end', stage);
+        eh('close', this);
+        eh('error', this);
+    }
+
+    dump(role){
+        log.silly(`Stage.dump: ${this.origin}: ${role}: Status: ${this.status}`);
+        let s = this.stream;
+        if(s){
+            log.silly(`Stage.dump:`,
+                      s.writable ? 'writable,' : 'not-writable,',
+                      `destroyed:`, s.writableDestroyed ? 'true,':'false,',
+                      `writableEnded:`, s.writableEnded ? 'true,':'false,',
+                      `writableFinished:`, s.writableFinished ? 'true,':'false,',
+                      `writableLength: ${s.writableLength},`,
+                      `writableObjectMode:`, s.writableObjectMode ? 'true':'false');
+            log.silly(`Stage.dump:`,
+                      s.readable ? 'readable,' : 'not-readable,',
+                      `destroyed:`, s.destroyed ? 'true,':'false,',
+                      `readableEnded:`, s.readableEnded ? 'true,':'false,',
+                      `isPaused:`, s.isPaused()  ? 'true,':'false,',
+                      `readableObjectMode:`, s.readableObjectMode ? 'true':'false'
+                     );
+        }
+    }
+
+    // local override to allow experimenting with mississippi.pipe or
+    // other pipe implementations
+    pipe(to){
+        let from = this;
+        if(!from) log.warn('Stage.pipe: "from stage" mssing');
+        if(!to)   log.warn('Stage.pipe: "from to" mssing');
+
+        // default: source remains alive is destination closes/errs
+        return from.stream.pipe(to.stream);
+        // this will kill the source if the destination fails
+        // miss.pipe(from, to, (error) => {
+        //     error = error || '';
+        //     log.silly("Session.pipe.Error event: ", `${error}`);
+        //     this.emit('error', error, from, to);
+        // });
+    }
+
+    async reconnect(retry){
+        log.silly('Stage.reconnect:', `Session ${this.session.name}:`,
+                  `reconnecting on cluster "${this.origin}"`);
+
+        // // dampen retries: never attempt to reconnect a cluster within
+        // // timeout msecs of the last successfull connection (handle
+        // // clusters that reconnect but then immediately drop
+        // // connection like 'websocat -E...')
+        // let time_wait = Math.max(retry.timeout -
+        //                          (Date.now() - this.last_conn), 0);
+
+        // // dump(time_wait,3);
+        // // dump(retry_policy,3);
+
+        // await delay(time_wait);
+
+        let num_retries = retry.retry_on === 'disconnect' ||
+            retry.retry_on === 'always' ? retry.num_retries : 0;
+        let new_stage = await this.connect(num_retries > 0 ? num_retries-1 : 0, retry.timeout);
+
+        // store new stream
+        this.stream = new_stage.stream;
+        this.endpoint = new_stage.endpoint;
+        this.set_event_handlers();
+        this.status = 'READY';
+
+        return;
+    }
+}
+// unique ID
+Stage.index = 0;
 
 //------------------------------------
 //
@@ -43,31 +257,27 @@ const Rule          = require('./rule.js').Rule;
 //   status: INIT
 //   args:
 
-// - Event: 'connect': Emitted after an 'init' session's stream
-//   pipeline was successfully established or when it is re-connected
-//   after 'disconnect' event.
+// - Event: 'connect': Emitted after an 'init' session's stream pipeline was successfully
+//   established or when it is re-connected after 'disconnect' event.
 //   status: INIT/DISCONNECTED -> CONNECTED
 //   args: -
 
-// - Event: 'disconnect': Emitted if one of the streams in the
-//   session's pipeline is prematurely closed. This state is temporal:
-//   the session may still re-connect later as per the retry policy.
+// - Event: 'disconnect': Emitted if one of the streams in the session's pipeline is prematurely
+//   closed. This state is temporal: the session may still re-connect later as per the retry
+//   policy.
 //   status: CONNECTED -> DISCONNECTED
 //   args: origin, error
 
-// - Event: 'error': Emitted if one or more of the streams that
-//   underlie a session fail and we cannot reconnect, under the retry
-//   policy.
+// - Event: 'error': Emitted if one or more of the streams that underlie a session fail and we
+//   cannot reconnect, under the retry policy.
 //   status: CONNECTED/DISCONNECTED -> FINALIZING
 //   args: error
 
-// - Event: 'end': Emitted if the session is deleted from the API or
-//   ends normally.
+// - Event: 'end': Emitted if the session is deleted from the API or ends normally.
 //   status: CONNECTED/DISCONNECTED -> FINALIZING
 //   args: -
 
-// - Event: 'destroy': Emitted when all streams of the session have
-//   closed down successfully
+// - Event: 'destroy': Emitted when all streams of the session have closed down successfully
 //   status: FINALIZING -> DESTROYED
 //   args: -
 
@@ -75,7 +285,7 @@ class Session {
     constructor(s){
         this.metadata                = s.metadata;
         this.name                    = s.metadata.name;  // id
-        this.source                  = s.listener;
+        this.source                  = s.source;
         this.destination             = undefined;
         this.route                   = undefined;
         this.stats                   = { counter: new StreamCounter() };
@@ -85,6 +295,8 @@ class Session {
         this.type                    = this.source.origin.type;  // init
         this.retry_on_disconnect_num = 0;
         this.active_streams          = 0;
+        this.track                   = false
+        this.events                  = [];  // an event log for tracked sessions
 
         this.init();
     }
@@ -92,16 +304,25 @@ class Session {
     toJSON(){
         log.silly('Session.toJSON:', `"${this.name}"`);
         return {
-            metadata: this.metadata,
-            listener: this.listener,
-            route:    this.route,
+            metadata:    this.metadata,
+            source:      this.source,
+            destination: this.destination,
+            ingress:     this.chain.ingress,
+            egress:      this.chain.egress,
+            status:      this.status,
+            events:      this.events,
         };
     }
 
     init(){
         log.silly(`Session.init: "${this.name}"`);
-        this.metadata.status = 'INIT';
+        this.status = 'INIT';
         this.emit('init');
+        this.events.push({ event: 'INIT',
+                           timestamp: new Date().toISOString(),
+                           message: `Session ${this.name} initialized`,
+                           content: ''
+                         });
     }
 
     // warning: session does not hold hard references to listeners,
@@ -109,82 +330,80 @@ class Session {
     // deleted from the API any time
     create(){
         log.silly('Session.create:', `${this.name}`,
-                  `listener: ${this.source.origin}:`);
+                  `source: ${this.source.origin}:`);
 
+        this.source = new Stage({session: this,
+                                 origin: this.source.origin,
+                                 stream: this.source.stream,
+                                 source: true
+                                });
         this.source.status = 'READY';
         this.source.last_conn = Date.now();
 
         // this may fail: no promise
         // late-bind listener
         let source = l7mp.getListener(this.source.origin);
-        this.assert(source, `Cannot find listener ${this.source.origin}`);
+        this.assert(source, new NotFoundError(`Cannot find listener ${this.source.origin}`));
+        this.track = source.options.track;
 
         let action = this.lookup(source.rules);
-        this.assert(action, `No route for session "${this.name}"`);
+        this.assert(action, new NotFoundError(`No route for session "${this.name}"`));
 
         // apply metadata rewrite rules
         if(action.rewrite){
             action.rewrite.forEach( (r) => {
                 log.silly('Session.create', `Applying metadata rewrite rule:`,
                           dumper(r, 3));
-                Rule.setAtPath(this.metadata, r.path, r.value)
+                this.metadata = Rule.setAtPath(this.metadata, r.path, r.value);
             });
         }
 
-        this.assert(action.route, `Invalid route for session "${this.name}"`);
+        this.assert(action.route, new NotFoundError(`Invalid route for session "${this.name}"`));
 
         let route = l7mp.getRoute(action.route);
-        this.assert(route, `Cannot find Route "${action.route}"`,
-                    `for session "${this.name}"`);
+        this.assert(route, new NotFoundError(`Cannot find Route "${action.route}" `+
+                                             `for session "${this.name}"`));
         // we keep this route inline even if Route is deleted from API
-        this.route = {...route};
+        this.route = _.cloneDeep(route);
         this.checkRoute();
     }
 
     async router(){
-        try{
-            await this.pipeline();
-        } catch(e){
-            this.error(e.message);
+        try {
+            this.create();
+            var status = await this.pipeline();
+        } catch(err){
+            if(log.level === 'silly') dump(err, 6);
+            let msg = `Could not route session "${this.name}": ${err.message}, reason: ` +
+                err.content || "";
+            log.warn(`Session.router:`, msg);
+            this.error(err);
+            this.events.push({ event: 'ERROR',
+                               timestamp: new Date().toISOString(),
+                               message: msg,
+                               content: err,
+                             });
+            return err;
         }
+
+        return status;
     }
 
-    assert(condition, error){
+    assert(condition, err){
         if(!condition){
-            log.silly('Session.assert: failed');
-            throw this.error(error)
+            log.silly('Session.assert: failed: error:', err.message);
+            throw err;
         }
     }
 
-    connected(e){
-        this.metadata.status = 'CONNECTED';
-        this.emit('connect');
-    }
-
-    error(e){
-        let err = new Error(`Session.error: "${this.name}": ${e}`);
-        // log.silly(err.message);
-        this.metadata.status = 'FINALIZING';
-        this.emit('error', err);
-        this.destroy();
-        return err;
-    }
-
-    end(msg){
-        log.silly(`Session.end: "${this.name}"`+
-                  (msg ? `: msg: ${dumper(msg,0)}` : ''));
-        this.metadata.status = 'FINALIZING';
-        this.emit('end', msg);
-        this.destroy();
-    }
-
+    // helpers
     lookup(rulelist){
         log.silly('Session.lookup:', `Session: ${this.name}`,
                   `on RuleList "${rulelist}"`);
 
         // late-bind rulelist
         let rl = l7mp.getRuleList(rulelist);
-        this.assert(rl, `Cannot find RuleList "${rulelist}"`);
+        this.assert(rl, new NotFoundError(`Cannot find RuleList "${rulelist}"`));
         rulelist = rl;
 
         // late-bind rules
@@ -193,8 +412,8 @@ class Session {
             // this is a rule name, substitute ref to Rule
             let rule = rulelist.rules[i];
             let ru = l7mp.getRule(rule);
-            this.assert(ru, `Cannot find named rule "${rule}" ` +
-                        `in RuleList "${rulelist.name}"`);
+            this.assert(ru, new NotFoundError(`Cannot find named rule "${rule}" ` +
+                                              `in RuleList "${rulelist.name}"`));
 
             action = ru.apply(this)
             if(action){
@@ -203,7 +422,12 @@ class Session {
                               `Deferring lookup to RuleList "${action.apply}"`);
                     return this.lookup(action.apply);
                 }
-
+                this.events.push({ event: 'LOOKUP SUCCESS',
+                                   timestamp: new Date().toISOString(),
+                                   message: `Successfull lookup on rulelist:${rulelist.name}/`+
+                                   `rule:${ru.name}`,
+                                   content: '',
+                             });
                 return action;
             }
         }
@@ -218,6 +442,7 @@ class Session {
         //              'Can no longer enforce datagam boundaries');
         //     r.type = 'byte-stream';
         // }
+        return true;
     }
 
     async pipeline(){
@@ -232,10 +457,18 @@ class Session {
         try {
             var resolved_list = await Promise.all(wait_list);
         } catch(error){
-            // log.silly(error);
-            log.verbose(`Pipeline setup failed for session `+
-                        `"${this.name}": ${error.message}`);
-            throw(error);
+            log.silly(error);
+            let err = `Pipeline setup failed for session `+
+                `"${this.name}": ${error.message}`;
+            // log.verbose(err);
+
+            this.events.push({ event: 'ERROR',
+                               timestamp: new Date().toISOString(),
+                               message: err,
+                               content: error,
+                             });
+
+            return Promise.reject(new NotFoundError(err));
         }
 
         for(let i = 0; i < resolved_list.length; i++)
@@ -244,17 +477,18 @@ class Session {
                           `Empty stream for cluster`);
             }
 
-        // set streams for each route elem
-        let d = resolved_list.pop();
-        this.destination.stream = d.stream;
-        this.active_streams++;
+        // // set streams for each route elem
+        // let d = resolved_list.pop();
+        // this.destination.stream = d.stream;
+        // this.active_streams++;
 
-        resolved_list.forEach( (r) => {
-            r.stage.stream = r.stream;
-            this.active_streams++;
-        });
+        // resolved_list.forEach( (r) => {
+        //     r.stage.stream = r.stream;
+        //     this.active_streams++;
+        // });
+        // this.num_streams = this.active_streams;
 
-        this.num_streams = this.active_streams;
+        this.num_streams = this.active_streams = resolved_list.length;
         log.verbose("Session.pipeline:",
                     `${this.active_streams} stream(s) initiated`);
 
@@ -290,14 +524,14 @@ class Session {
         for(let dir of ['ingress', 'egress']){
             if(!(this.route[dir] instanceof Array)) continue;
             for(let cluster of this.route[dir]){
-                let stage = { origin: cluster, status: 'INIT' };
+                let stage = new Stage({origin: cluster, session: this});
                 this.chain[dir].push(stage);
-                wait_list.push(this.connect_stage(stage, num_retries));
+                wait_list.push(stage.connect(num_retries, retry.timeout));
             }
         }
 
-        this.destination = { origin: this.route.destination, status: 'INIT' };
-        wait_list.push(this.connect_stage(this.destination, num_retries));
+        this.destination = new Stage({origin: this.route.destination, session: this });
+        wait_list.push(this.destination.connect(num_retries, retry.timeout));
 
         return wait_list;
     }
@@ -308,351 +542,36 @@ class Session {
         chain.forEach( (to) => {
             log.silly("Session.pipeline:", `${dir} pipe:`,
                       `${from.origin} -> ${to.origin.name}`);
-            this.pipe(from, to);
+            from.pipe(to);
             from.status = 'READY';
             from = to;
         });
         log.silly("Session.pipeline:", `${dir} pipe:`,
                   `${from.origin} ->`, `${dest.origin}`);
-        this.pipe(from, dest);
+        from.pipe(dest);
         from.status = 'READY';
     }
 
     pipeline_event_handlers(){
-        this.set_stage_event_handlers(this.source);
+        this.source.set_event_handlers();
         for(let dir of ['ingress', 'egress']){
             this.chain[dir].forEach( (stage) => {
-                this.set_stage_event_handlers(stage);
+                stage.set_event_handlers();
             });
         }
-        this.set_stage_event_handlers(this.destination);
+        this.destination.set_event_handlers();
     }
 
     pipeline_dump(){
         this.get_stages()
-        this.stage_dump(this.source, 'source/listener');
+        this.source.dump('source/listener');
         for(let dir of ['ingress', 'egress']){
             let i = 0;
             this.chain[dir].forEach( (stage) => {
-                this.stage_dump(stage, `${dir}/stage:${i++}`);
+                stage.dump(`${dir}/stage:${i++}`);
             });
         }
-        this.stage_dump(this.destination, 'destination/cluster');
-    }
-
-    // STAGE: stage = cluster + stream + status
-    // STATUS: CONNECTED -> READY -> DISCONNECTED -> RETRYING -> END
-    connect_stage(stage, num_retries){
-        const fail = (msg, a) => {
-            let e = new Error(msg);
-            e.stage = stage;
-            log.silly(`Session.connect_stage: Session "${this.name}":`,
-                      `stage "${stage.origin}" at attempt ${a}: ${msg}`);
-            throw new pRetry.AbortError(e);
-        };
-
-        let run = (attempt) => {
-            log.silly("Session.connect_stage:", `Session: ${this.name}:`,
-                      `stage "${stage.origin}" at attempt ${attempt}`);
-
-            // do not retry a session that has been deleted from the API
-            let s = l7mp.getSession(this.name);
-            if(typeof s === 'undefined')
-                fail('Internal error: Session removed while retrying',
-                    attempt);
-
-            switch(stage.status){
-            case 'CONNECTED':
-                fail('Retrying a CONNECTED stage', attempt);
-                break;
-            case 'FINALIZING':
-                fail('Session in FINALIZING, giving up on retry', attempt);
-                break;
-            case 'END':
-                fail('Stage ended, not retrying', attempt);
-                break;
-            default: { /* ingoring */ };
-            };
-
-            let cluster = l7mp.getCluster(stage.origin);
-            if(!cluster)
-                fail(`Cannot find cluster "${stage.origin}"`, attempt);
-
-            return cluster.stream(this).then( (s) => {
-                log.verbose("Session.connect_stage:", `Session: ${this.name}:`,
-                         `stage "${stage.origin}": connected`);
-
-                stage.last_conn = Date.now();
-                stage.status = 'CONNECTED';
-                return {stage: stage, stream: s};
-            });
-        };
-
-        return pRetry(run, {
-            onFailedAttempt: error => {
-                log.silly("Session.connect_stage:", `Session: ${this.name}:`,
-                          `stage "${stage.origin}"/${stage.status}`,
-                          `Attempt ${error.attemptNumber} failed`,
-                          `(${error.retriesLeft} retries left):`,
-                          (error.errno) ?
-                          `${error.errno}: ${error.address}:${error.port}` :
-                          error.message);
-                          // dumper(error, 1));
-
-                // DISCONNECTED BUT UNDER RETRY
-                stage.status = error.retriesLeft == 0 ?
-                    'END' : 'RETRYING';
-
-                // if(log.level === 'silly')
-                //     console.trace();
-
-                // will return the problematic endpoint eventually
-                error.stage = stage;
-            },
-            retries: num_retries,
-            factor: 1,
-            minTimeout: this.route.retry.timeout,
-            maxTimeout: this.route.retry.timeout,
-            randomize: false
-        });
-    }
-
-    set_stage_event_handlers(stage){
-        // Writable has 'close', readable has 'end', duplex has
-        // who-knows...
-        // need this for being able to remove listeners
-        // var onDisc = this.disconnect.bind(this);
-        log.silly("Session.set_stage_event_handlers:",
-                  "Setting up event handlers for",
-                  `stage "${stage.origin}"/${stage.status}`);
-        stage.on_disc = {};
-        var eh = (event) => {
-            // to be able to remove the event handler in this.end()
-            stage.on_disc[event] = (err) => {
-                log.silly(`Session.event:`, `"${event}" event received:`,
-                          `${stage.origin}`,
-                          (err) ? ` Error: ${err}` : '');
-                this.disconnect.bind(this)(stage, err);
-            };
-            stage.stream.on(event, stage.on_disc[event]);
-        };
-
-        // eh('end', stage);
-        eh('close', stage);
-        eh('error', stage);
-    }
-
-    stage_dump(stage, role){
-        log.silly(`Session.stage_dump: ${stage.origin}: ${role}: Status: ${stage.status}`);
-        let s = stage.stream;
-        if(s){
-            log.silly(`Session.stage_dump:`,
-                      s.writable ? 'writable,' : 'not-writable,',
-                      `destroyed:`, s.writableDestroyed ? 'true,':'false,',
-                      `writableEnded:`, s.writableEnded ? 'true,':'false,',
-                      `writableFinished:`, s.writableFinished ? 'true,':'false,',
-                      `writableLength: ${s.writableLength},`,
-                      `writableObjectMode:`, s.writableObjectMode ? 'true':'false');
-            log.silly(`Session.stage_dump:`,
-                      s.readable ? 'readable,' : 'not-readable,',
-                      `destroyed:`, s.destroyed ? 'true,':'false,',
-                      `readableEnded:`, s.readableEnded ? 'true,':'false,',
-                      `isPaused:`, s.isPaused()  ? 'true,':'false,',
-                      `readableObjectMode:`, s.readableObjectMode ? 'true':'false'
-                     );
-        }
-    }
-
-    // local override to allow experimenting with mississippi.pipe or
-    // other pipe implementations
-    pipe(from, to){
-        if(!from) console.trace('from');
-        if(!to)   console.trace('to');
-
-        // default: source remains alive is destination closes/errs
-        return from.stream.pipe(to.stream);
-        // this will kill the source if the destination fails
-        // miss.pipe(from, to, (error) => {
-        //     error = error || '';
-        //     log.silly("Session.pipe.Error event: ", `${error}`);
-        //     this.emit('error', error, from, to);
-        // });
-    }
-
-    // stage.stream contains the new stream
-    repipe(stage){
-        log.silly('Session.repipe:', `Session ${this.name}:`,
-                  `stream: ${stage.origin}`);
-
-        // was error on source?
-        if(stage.origin === this.source.origin)
-            log.error('Session.disconnect: Internal error:',
-                      'onDisconnect called on listener');
-
-        // was error on destination?
-        if(stage.origin === this.destination.origin){
-            let from = this.chain.ingress.length > 0 ?
-                this.chain.ingress[this.chain.ingress.length - 1] :
-                this.source;
-            this.pipe(from, stage);
-            let to = this.chain.egress.length > 0 ?
-                this.chain.egress[0] : this.source;
-            this.pipe(stage, to);
-            stage.status = 'READY';
-
-            log.silly('Session.repipe:', `Session ${this.name}:`,
-                      `destination stage "${stage.origin}" repiped`);
-            return;
-        }
-
-        // was error on ingress?
-        let i = this.chain.ingress.findIndex(r => r === stage);
-        if(i >= 0){
-            let from = i === 0 ? this.source : this.chain.ingress[i-1];
-            this.pipe(from, stage);
-            let to = i === this.chain.ingress.length - 1 ?
-                this.destination : this.chain.ingress[i+1];
-            this.pipe(stage, to);
-            stage.status = 'READY';
-
-            log.silly('Session.repipe:', `Session ${this.name}:`,
-                      `ingress chain repiped on cluster "${stage.origin}"`);
-            return;
-        }
-
-        i = this.chain.egress.findIndex(r => r === stage);
-        if(i<0)
-            log.error('Session.repipe: Internal error:',
-                      'Could not find disconnected stage',
-                      `${stage.origin}`);
-
-        let from = i === 0 ? this.destination : this.chain.egress[i-1];
-        this.pipe(from, stage);
-        let to = i === this.chain.egress - 1 ?
-            this.source : this.chain.egress[i+1];
-        this.pipe(stage, to);
-        stage.status = 'READY';
-
-        log.silly('Session.repipe:', `Session ${this.name}:`,
-                  `egress chain repiped on cluster "${stage.origin}"`);
-
-        return;
-    }
-
-    // called when one of the streams fail
-    async disconnect(stage, error){
-        let stream = stage.stream;
-
-        log.silly('Session.disconnect:', `Session ${this.name}:`,
-                  `stage: ${stage.origin}:`,
-                  error ? `Error: ${error.message}` :
-                  'Reason: unknown');
-
-        // this.stage_dump(stage, stage === this.destination ?
-        //                 'destination/cluster' : 'stage');
-
-        if(stage.status !== 'READY'){
-            // we have received mutliple events for the same stage
-            // (e.g., error followed by a close), ignore all but the
-            // first
-            log.silly('Session.disconnect:', `Session ${this.name}:`,
-                      `stage: ${stage.origin}:`,
-                      `Stage status: ${stage.status}: Ignoring`);
-            return;
-        }
-
-        stage.status = 'DISCONNECTED';
-        this.active_streams--;
-
-        if(this.metadata.status === 'CONNECTED')
-            this.emit('disconnect', stage.origin, error);
-        // if(this.active_streams === 0)
-        //     this.destroy();
-
-        switch(this.route.retry.retry_on){
-        case 'always':
-        case 'disconnect':
-            // this may fail: no promise
-            try {
-                if(stage.origin === this.source.origin){
-                    let msg = `Session ${this.name}: Source "${stage.origin}" ` +
-                        `is not retriable, terminating session`;
-                    log.info('Session.disconnect:', msg);
-                    throw this.error(`Reconnect failed: ${msg}`);
-                }
-
-                let cluster = l7mp.getCluster(stage.origin);
-                this.assert(cluster, 'Session.disconnect: Cannot find cluster ' +
-                            `"${stage.origin}"`);
-
-                if(!cluster.retriable){
-                    let msg = `Session ${this.name}: Stage "${stage.origin}" ` +
-                        `is not retriable, terminating session`;
-                    throw this.error(`Reconnect failed: ${msg}`);
-                }
-            } catch(e){
-                log.silly('Session.disconnect: Could not initiate reconnect',
-                          `for reconnect session "${this.name}"`, e.message);
-                return;
-            }
-
-            // this may fail: promise
-            try {
-                let new_stage = await this.reconnect(stage);
-
-                log.info('Session.disconnect:', `Session ${this.name}:`,
-                         `stage "${stage.origin}"`,
-                         `successfully reconnected`);
-
-                // store new stream
-                stage.stream = new_stage.stream;
-                this.active_streams++;
-                this.repipe(stage);
-                this.set_stage_event_handlers(stage);
-                stage.status = 'READY';
-
-                // this.pipeline_dump();
-
-                if(this.active_streams === this.num_streams)
-                    this.connected();
-            } catch(e){
-                log.silly('Session.disconnect:',
-                          `Could not reconnect session "${this.name}":`,
-                          e.message);
-                this.error(`Could not reconnect session "${this.name}":`,
-                           e.message);
-            }
-
-            break;
-        case 'connect-failure': // does not involve re-connect
-        case 'never': // never retry, fail immediately
-            break;
-        default:
-            log.error('Session.disconnect: Internal error:',
-                      `Unknown retry policy in Session "${this.name}"`);
-        }
-    }
-
-    async reconnect(stage){
-        log.silly('Session.reconnect:', `Session ${this.name}:`,
-                  `reconnecting on cluster "${stage.origin}"`);
-
-        // dampen retries: never attempt to reconnect a cluster within
-        // timeout msecs of the last successfull connection (handle
-        // clusters that reconnect but then immediately drop
-        // connection like 'websocat -E...')
-        let retry = this.route.retry;
-        let time_wait = Math.max(retry.timeout -
-                                 (Date.now() - stage.last_conn), 0);
-
-        // dump(time_wait,3);
-        // dump(retry_policy,3);
-
-        await delay(time_wait);
-
-        let num_retries = retry.retry_on === 'disconnect' ||
-            retry.retry_on === 'always' ? retry.num_retries : 0;
-        return this.connect_stage(stage, num_retries > 0 ? num_retries-1 : 0);
+        this.destination.dump('destination/cluster');
     }
 
     get_stages(){
@@ -666,6 +585,185 @@ class Session {
         return stages;
     }
 
+    // called when one of the streams fail
+    async disconnect(stage, error){
+        let stream = stage.stream;
+
+        log.verbose('Session.disconnect:', `Session ${this.name}:`,
+                    `stage: ${stage.origin}:`,
+                    (error ? `Error: ${error.message}` : 'Reason: unknown'));
+
+        this.events.push({ event: 'DISCONNECT',
+                           timestamp: new Date().toISOString(),
+                           message: `Session.disconnect: Stage: ${stage.origin}: `+
+                           (error ? `Error: ${error.message}` : 'Reason: unknown'),
+                           content: error,
+                         });
+
+        if(stage.status !== 'READY'){
+            // we have received mutliple events for the same stage (e.g., error followed by a
+            // close), ignore all but the first
+            log.silly('Session.disconnect:', `Session ${this.name}:`,
+                      `stage: ${stage.origin}:`,
+                      `Stage status: ${stage.status}: Ignoring`);
+            return;
+        }
+
+        stage.status = 'DISCONNECTED';
+        this.active_streams--;
+
+        if(this.status === 'CONNECTED')
+            this.emit('disconnect', stage.origin, error);
+
+        // since we may reconnect the stream, make sure that the old stream is properly closed,
+        // otherwise the stream may remain alive, e.g., adter a 'connection refused' for a
+        // connected UDP stream
+        if(stream){
+            stream.removeListener("close", stage.on_disc["close"]);
+            stream.removeListener("error", stage.on_disc["error"]);
+            stream.destroy();
+        }
+
+        let retry = this.route.retry;
+        switch(retry.retry_on){
+        case 'always':
+        case 'disconnect':
+            try {
+                this.assert(stage.id !== this.source.id,
+                            new GeneralError(`Session ${this.name}: `+
+                                              `Source/listener "${stage.origin}/ID:${stage.id}" ` +
+                                              `is not retriable`));
+
+                this.assert(stage.retriable,
+                            new GeneralError(`Session ${this.name}: `+
+                                             `Stage "${stage.origin}/ID:${stage.id}" `+
+                                             `is not retriable`));
+
+                await stage.reconnect(this.route.retry);
+
+                log.info('Session.disconnect:', `Session ${this.name}:`,
+                         `stage "${stage.origin}" successfully reconnected`);
+
+                // this.pipeline_dump();
+
+                this.active_streams++;
+                this.repipe(stage);
+
+                if(this.active_streams === this.num_streams)
+                    this.connected();
+            } catch(err){
+                log.info('Session.disconnect:', `Could not reconnect session "${this.name}":`,
+                         `${err.message}` + (err.content ? `: ${err.content}`: ""));
+                this.error(err);
+            }
+
+            break;
+        case 'connect-failure': // does not involve re-connect
+        case 'never': // never retry, fail immediately
+            break;
+        default:
+            let msg = `Unknown retry policy for session "${this.name}"`;
+            log.warn(`Session.disconnect: ${msg}`);
+            this.error(new GeneralError(msg));
+        }
+    }
+
+    // stage.stream contains the new stream
+    repipe(stage){
+        log.silly('Session.repipe:', `Session ${this.name}:`,
+                  `stream: ${stage.origin}`);
+
+        // was error on source?
+        if(stage.id === this.source.id)
+            log.error('Session.disconnect: Internal error: repipe called on listener');
+
+        // was error on destination?
+        if(stage.id === this.destination.id){
+            let from = this.chain.ingress.length > 0 ?
+                this.chain.ingress[this.chain.ingress.length - 1] :
+                this.source;
+            from.pipe(stage);
+            let to = this.chain.egress.length > 0 ?
+                this.chain.egress[0] : this.source;
+            stage.pipe(to);
+            stage.status = 'READY';
+
+            log.silly('Session.repipe:', `Session ${this.name}:`,
+                      `destination stage "${stage.origin}" repiped`);
+            return;
+        }
+
+        // was error on ingress?
+        let i = this.chain.ingress.findIndex(r => r.id === stage.id);
+        if(i >= 0){
+            let from = i === 0 ? this.source : this.chain.ingress[i-1];
+            from.pipe(this);
+            let to = i === this.chain.ingress.length - 1 ?
+                this.destination : this.chain.ingress[i+1];
+            stage.pipe(to);
+            stage.status = 'READY';
+
+            log.silly('Stage.repipe:', `Session ${this.name}:`,
+                      `ingress chain repiped on cluster "${stage.origin}"`);
+            return;
+        }
+
+        i = this.chain.egress.findIndex(r => r.id === stage.id);
+        if(i<0)
+            log.error('Session.repipe: Internal error:',
+                      'Could not find disconnected stage',
+                      `${stage.origin}`);
+
+        let from = i === 0 ? this.destination : this.chain.egress[i-1];
+        from.pipe(this);
+        let to = i === this.chain.egress - 1 ?
+            this.source : this.chain.egress[i+1];
+        stage.pipe(to);
+        stage.status = 'READY';
+
+        log.silly('Session.repipe:', `Session ${this.name}:`,
+                  `egress chain repiped on cluster "${stage.origin}"`);
+
+        return;
+    }
+
+    // state transitions
+    connected(){
+        this.status = 'CONNECTED';
+        this.emit('connect');
+
+        this.events.push({ event: 'CONNECT',
+                           timestamp: new Date().toISOString(),
+                           message: 'Session successfully connected',
+                           content: ''});
+    }
+
+    // immediately closes the stream, possibly sends response headers
+    error(err){
+        this.events.push({ event: 'ERROR',
+                           timestamp: new Date().toISOString(),
+                           message: err.message,
+                           content: err});
+
+        this.status = 'FINALIZING';
+        if(this.priv && this.priv.error){
+            this.priv.error(this.priv, err);
+        }
+        this.emit('error', err);
+        this.destroy();
+    }
+
+    end(err){
+        this.events.push({ event: 'END',
+                           timestamp: new Date().toISOString(),
+                           message: err ? err.message : 'Normal end',
+                           content: err});
+
+        this.status = 'FINALIZING';
+        this.emit('end', err);
+        this.emit('destroy', err);
+    }
+
     // return 1 of route/session can be deleted (i.e., no retry is
     // ongoing), otherwise keep route/session around until all retries
     // have been aborted
@@ -675,7 +773,6 @@ class Session {
         let ret = 1;
 
         for(let stage of this.get_stages()){
-
             // dump(stage, 1);
 
             if(stage.status === 'RETRYING'){
@@ -710,11 +807,9 @@ class Session {
                     stream.destroy();
                     deleted++;
                 }
-            } catch(e){
-                log.info('Session.destroy:', `${this.name}:`,
-                         `Could not terminate stage:`,
-                         `"${stage.origin}"/${stage.status}:`,
-                         dumper(e,3));
+            } catch(err){
+                log.info(`Session.destroy: ${this.name}: Could not terminate stage:`,
+                         `"${stage.origin}"/${stage.status}:`, dumper(err, 3));
             }
 
             stage.status = 'END';
@@ -722,15 +817,27 @@ class Session {
 
         log.verbose('Session.destroy:', `${this.name}:`,
                     `deleted ${deleted} streams`);
+        this.status = 'DESTROYED';
 
-        this.metadata.status = 'DESTROYED';
-        this.emit('destroy');
+        this.events.push({ event: 'DESTROY',
+                           timestamp: new Date().toISOString(),
+                           message: "Session destroyed",
+                           content: ''});
+
+        if(this.track)
+            log.silly('Session.destroy:', `${this.name}:`,
+                      `Tracking session for ${this.track} seconds`);
+        if(this.track){
+            setTimeout(() => this.emit('destroy'), this.track * 1000);
+        } else {
+            this.emit('destroy');
+        }
 
         // return OK if no stage is retrying
         return ret;
     }
 
-    };
+};
 util.inherits(Session, EventEmitter);
 
 module.exports.Session = Session;

@@ -31,7 +31,6 @@ const udp           = require('dgram');
 const url           = require('url');
 const util          = require('util');
 const EventEmitter  = require('events');
-const pTimeout      = require('p-timeout');
 const pEvent        = require('p-event');
 const HashRing      = require('hashring');
 const stream        = require('stream');
@@ -43,9 +42,11 @@ const _             = require('lodash');
 const StreamCounter = require('./stream-counter.js').StreamCounter;
 const L7mpOpenAPI   = require('./l7mp-openapi.js').L7mpOpenAPI;
 const utils         = require('./stream.js');
-
+const Status        = utils.Status;
 // for getAtPath()
 const Rule          = require('./rule.js').Rule;
+
+const {L7mpError, Ok, InternalError, BadRequestError, NotFoundError, GeneralError} = require('./error.js');
 
 //------------------------------------
 //
@@ -104,7 +105,7 @@ class HashRingLoadBalancer extends LoadBalancer {
         this.keys = {};
         es.forEach( (e) => {
             // this.keys[e.name] = { weight: e.weight, endpoint: e };
-            this.keys[e.address] = { weight: e.weight, endpoint: e };
+            this.keys[e.spec.address] = { weight: e.weight, endpoint: e };
         });
         // dump(this.keys, 2);
 
@@ -117,8 +118,9 @@ class HashRingLoadBalancer extends LoadBalancer {
         log.silly('HashRingLoadBalancer.apply:', `Session: ${s.name}`);
 
         if(Object.keys(this.keys).length === 0){
-            log.error('HashRingLoadBalancer.apply: No endpoint in cluster');
-            process.exit();
+            let err = 'HashRingLoadBalancer.apply: No endpoint in cluster';
+            log.warn(err);
+            throw new GeneralError(err);
         }
 
         let key;
@@ -187,13 +189,13 @@ class EndPoint {
         log.silly('EndPoint.toJSON:', `"${this.name}"`);
         return {
             name: this.name,
-            spec: { address:  this.remote_address },
-            weight:   this.weight,
+            spec: this.spec,
+            weight: this.weight,
         };
     }
 
     connect(s) {
-        Promise.reject(log.error('EndPoint.connect', 'Base class called'));
+        log.error('EndPoint.connect', 'Base class called');
     }
 };
 EndPoint.index = 0;
@@ -213,6 +215,7 @@ class TestEndPoint extends EndPoint {
         this.mode = ['ok'];
         this.round = 0;
     }
+
     connect(s){
         log.silly('TestEndPoint.connect');
         let strm = new stream.PassThrough();
@@ -290,9 +293,9 @@ class UDPEndPoint extends EndPoint {
         this.remote_port    = c.spec.port;
 
         if(!(this.remote_address && this.remote_port))
-            throw new Error('UDPEndPoint:', 'No remote addr:port pair defined');
+            throw new Error('UDPEndPoint: No remote addr:port pair defined');
         if(this.socket)
-            throw new Error('UDPEndPoint:', 'Cluster already connected');
+            throw new Error('UDPEndPoint: Cluster already connected');
     }
 
     connect(s){
@@ -371,9 +374,11 @@ class NetSocketEndPoint extends EndPoint {
         sock.once('connect', () => sock.emit('open', sock));
         sock.setNoDelay();  // disable Nagle's
         sock.once('error',
-                  (e) => { log.warn('NetSocketEndPoint:connect: Error:',
-                                    `${e.errno}: ${e.address}:${e.port}`);
-                         sock.emit('error', e); });
+                  (e) => {
+                      let msg = `Error: ${e.code}: ${e.address}:${e.port}`;
+                      log.warn('NetSocketEndPoint:connect:', msg);
+                      sock.emit('error', e);
+                  });
         // sock.on('end', () => { log.info('NetSocketEndPoint:end'); });
 
         return sock;
@@ -382,7 +387,6 @@ class NetSocketEndPoint extends EndPoint {
 
 class JSONSocketEndPoint extends EndPoint {
     constructor(c, e) {
-        e.name = e.name ? e.name : c.name + '-transport-endpoint';
         super(c, e);
         this.cluster.transport.addEndPoint(e);
     }
@@ -477,11 +481,12 @@ class Cluster {
         this.loadbalancer.update(this.endpoints);
     }
 
+    virtualEndPoint(){
+        return { name: this.name, spec: { address: '<VIRTUAL>' } };
+    }
 };
 Cluster.index = 0;
 
-// Inherit from EventEmitter: roughly equivalent to:
-// Cluster.prototype = Object.create(EventEmitter.prototype)
 util.inherits(Cluster, EventEmitter);
 
 // class HTTPCluster extends Cluster {};
@@ -494,19 +499,15 @@ class TestCluster extends Cluster {
                                    // non-objectmode passthrough
     }
 
-    async connect(s){
-        log.silly('TestCluster.connect');
+    async stream(s){
+        log.silly('TestCluster.stream');
         var e = this.endpoints[0];
         return pEvent(e.connect(s), 'test-open', {
             rejectionEvents: ['test-error'],
             multiArgs: true, timeout: s.route.retry.timeout
-        });
-    }
-
-    async stream(s){
-        log.silly('TestCluster.stream');
-        return this.connect(s).then(
-            (args) => { return args[0]; }
+        }).then(
+            (args) => { return { stream: args[0], endpoint: e} },
+            (err)  => { return Promise.reject(new GeneralError(500, err.message)) }
         );
     }
 };
@@ -518,30 +519,30 @@ class WebSocketCluster extends Cluster {
         this.type = 'datagram-stream';
     }
 
-    async connect(s){
-        log.silly('WebSocketCluster.connect:', `Protocol: ${this.protocol}`,
+    async stream(s){
+        log.silly('WebSocketCluster.stream:',  `Protocol: ${this.protocol}`,
                   `Session: ${s.name}`);
+
         var e = this.loadbalancer.apply(s);
+        if(typeof e === 'undefined')
+            return Promise.reject(new NotFoundError('Could not find suitable endpoint'));
+
         // Promisifies endpoint events: cancels the event listeners on
         // reject!
         return pEvent(e.connect(s), 'open', {
             rejectionEvents: ['close', 'error', 'unexpected-response'],
             multiArgs: true, timeout: s.route.retry.timeout
-        });
-    }
-
-    async stream(s){
-        log.silly('WebSocketCluster.stream:',  `Protocol: ${this.protocol}`,
-                  `Session: ${s.name}`);
-        return this.connect(s).then(
+        }).then(
             (args) => {
                 // multiArg!
                 let ws = args[0];
                 let _stream = WebSocket
                     .createWebSocketStream(ws, {readableObjectMode: true});
                 // eventDebug(_stream);
-                return _stream;
-            });
+                return { stream: _stream, endpoint: e};
+            },
+            (err)  => { return Promise.reject(new GeneralError(err.message)) }
+        );
     }
 };
 
@@ -551,22 +552,20 @@ class NetSocketCluster extends Cluster {
         this.type = 'byte-stream';
     }
 
-    async connect(s){
-        log.silly('NetSocketCluster.connect:', `Session: ${s.name}`);
+    async stream(s){
+        log.silly('NetSocketCluster.stream:', `Session: ${s.name}`);
+
         var e = this.loadbalancer.apply(s);
+        if(typeof e === 'undefined')
+            return Promise.reject(new NotFoundError('Could not find suitable endpoint'));
+
         return pEvent(e.connect(s), 'open', {
             rejectionEvents: ['close', 'end', 'error', 'timeout'],
             multiArgs: true, timeout: s.route.retry.timeout
-        });
-    }
-
-    async stream(s){
-        log.silly('NetSocketCluster.stream:', `Session: ${s.name}`);
-        return this.connect(s).then(
-            (args) => {
-                // multiArg!
-                return args[0];
-            });
+        }).then(
+            (args) => { return { stream: args[0], endpoint: e} },
+            (err)  => { return Promise.reject(new GeneralError(e.message)) }
+        );
     }
 };
 
@@ -577,32 +576,30 @@ class UDPCluster extends Cluster {
         this.type = 'datagram-stream';
     }
 
-    async connect(s){
-        log.silly('UDPCluster.connect:', `Session: ${s.name}`);
+    async stream(s){
+        log.silly('UDPCluster.stream', `Session: ${s.name}`);
+
         var e = this.loadbalancer.apply(s);
-        log.silly('UDPCluster.connect:', `Connecting to ${e.name}:`,
-                  `${e.remote_address}:${e.remote_port}`);
+        if(typeof e === 'undefined')
+            return Promise.reject(new NotFoundError('Could not find suitable endpoint'));
 
         return pEvent(e.connect(s), 'open', {
             rejectionEvents: ['close', 'error'],
             multiArgs: true, timeout:  s.route.retry.timeout
-        });
-    }
+        }).then(
+            (args) => {
+                // multiArg!
+                var socket = args[0];
+                // var remote_address = args[1];
+                // var remote_port    = args[2];
 
-    async stream(s){
-        log.silly('UDPCluster.stream', `Session: ${s.name}`);
-        return this.connect(s).then( (args) => {
-            // multiArg!
-            var socket = args[0];
-            // var remote_address = args[1];
-            // var remote_port    = args[2];
+                let _stream = new utils.DatagramStream(socket);
+                // eventDebug(_stream);
 
-            this._stream = new utils.DatagramStream(socket);
-            log.silly('UDPCluster.stream:', `Created`);
-            // eventDebug(this._stream);
-
-            return this._stream;
-        });
+                return { stream: _stream, endpoint: e}
+            },
+            (err)  => { return Promise.reject(new GeneralError(err.message)) }
+        );
     }
 };
 
@@ -610,7 +607,7 @@ class JSONSocketCluster extends Cluster {
     constructor(c) {
         // do not add endpoints, transport is not initialized yet
         let es = c.endpoints;
-        c.endpoints = [];
+        c.endpoints = undefined;
         super(c);
 
         // 1. create transport
@@ -626,6 +623,7 @@ class JSONSocketCluster extends Cluster {
         }
         this.transport = Cluster.create(cu);
         this.type = this.transport.type;
+        this.header = c.spec.header || [];
 
         if(es)
             es.forEach( (e) => this.addEndPoint(e) );
@@ -634,97 +632,116 @@ class JSONSocketCluster extends Cluster {
                  dumper(this.transport, 2));
     }
 
-    async connect(s){
-        throw new Error('JSONSocketEndPoint.connect: Internal error:',
-                        `Session: ${s.name}`,
-                        'Should never be called directly');
-    }
-
-    // 1. create transport stream
     // 2. add JSONSocket fields to metadata and send as header
-    // 3. wait for a valid response header from server and return stream to caller
-    async stream(s){
-        log.silly('JSONSocketCluster.stream:',  `Protocol: ${this.protocol}`,
-                  `Session: ${s.name}`);
+    // 4. wait for a valid response header from server and return stream to caller
+    stream(s){
+        log.silly('JSONSocketCluster.stream:', `Session: ${s.name}`);
+        return this.transport.stream(s).then( async (x) => {
+            let endpoint = x.endpoint;
+            let stream = x.stream;
+            if(!(stream.readableObjectMode || stream.writableObjectMode))
+                log.warn('JSONSocketCluster.stream:', `${this.name}:`,
+                         `Transport is not message-based, JSON headers may be fragmented`);
 
-        // 2. ask for a stream
-        try {
-            var stream = await this.transport.stream(s);
-        } catch(e){
-            log.silly('JSONSocketCluster.stream:', `Could not obtain transport stream:`,
-                      e.message);
-            return Promise.reject(e.message);
-        }
+            let req_header = {};
+            for(let h of this.header){
+                if(h.path) {
+                    // default is to copy to the root
+                    if(typeof h.path !== 'object'){
+                        let path = h.path;
+                        h.path = {};
+                        h.path.from = path;
+                    }
 
-        if(!(stream.readableObjectMode || stream.writableObjectMode))
-            log.warn('JSONSocketCluster:', `${this.name}:`,
-                     `Transport is not message-based, JSON headers may be fragmented`);
+                    if(typeof h.path.to === 'undefined'){
+                        h.path.to = '/';
+                    }
 
-        // 3. add JSONSocket fields to metadata and send as header
-        let req_header = {...s.metadata};
-        req_header['JSONSocketVersion'] = 1; // overwrite
+                    let value = Rule.getAtPath(s.metadata, h.path.from);
+                    if(value){
+                        log.silly('JSONSocketCluster.stream:', `${this.name}:`,
+                                  `Adding ${dumper(value,4)} at path "${h.path.from}"`,
+                                  `to the header under path "${h.path.to}"`);
+                        req_header = Rule.setAtPath(req_header, h.path.to, value);
+                        // _.merge(req_header, value);
+                    } else {
+                        log.warn('JSONSocketCluster.stream:', `${this.name}:`,
+                                 `Cannot find path "${h.path} in metadata`);
+                    }
+                } else if(h.set &&
+                          typeof h.set.key !== "undefined" &&
+                          typeof h.set.value !== "undefined" ){
+                    log.silly('JSONSocketCluster.stream:', `${this.name}:`,
+                              `Adding "${h.set.key}: ${dumper(h.set.value,4)} to the header`);
+                    req_header = Rule.setAtPath(req_header, h.set.key, h.set.value);
+                } else {
+                    return Promise.reject(new GeneralError(
+                        'Unknown JSONSocket header spec: '+ dumper(h, 4)));
+                }
+            }
+            req_header['JSONSocketVersion'] = 1; // overwrite
+            log.silly('JSONSocketCluster.stream:', `${this.name}:`,
+                      `Prepared JSONSocket request header: ${dumper(req_header,4)}`);
 
-        stream.write(JSON.stringify(req_header));
+            stream.write(JSON.stringify(req_header));
 
-        // 4. wait for a valid response header from server and return stream to caller
-        try {
-            var data = await pEvent(stream, 'data', {
-                rejectionEvents: ['close', 'error'],
-                multiArgs: true, // TODO: support TIMEOUT: timeout: this.timeout
-            });
-        } catch(e){
-            log.silly('JSONSocketCluster.stream:', `Error receiving response header:`,
-                      e.message);
-            stream.destroy();
-            return Promise.reject(e.message);
-        }
+            try {
+                var data = await pEvent(stream, 'data', {
+                    rejectionEvents: ['close', 'error'],
+                    multiArgs: false, timeout:  s.route.retry.timeout,
+                });
+            } catch(e){
+                let err = `Failed to receive JSONSocket in ${s.route.retry.timeout} msecs: `+
+                    e.message;
+                log.warn('JSONSocketCluster:', `${this.name}:`, err);
+                stream.destroy();
+                return Promise.reject(new GeneralError(err));
+            }
 
-        log.silly('JSONSocketCluster:', `${this.name}:`,
-                  `Received packet, checking for JSON response header"`);
+            log.silly('JSONSocketCluster:', `${this.name}:`,
+                      `Received packet, checking for JSON response header`);
 
-        try {
-            var header = JSON.parse(data);
-        } catch(e){
-            let err = `Invalid JSON response header, dropping connection:`+e.message;
-            log.warn('JSONSocketCluster:', `${this.name}:`, err);
-            stream.destroy();
-            return Promise.reject(err);
-        }
+            try {
+                var header = JSON.parse(data);
+            } catch(e){
+                let err = `Invalid JSON response header:` + e.message;
+                log.warn('JSONSocketCluster:', `${this.name}:`, err);
+                return Promise.reject(new GeneralError(e.message));
+            }
 
-        if(typeof header['JSONSocketVersion'] === 'undefined'){
-            log.warn('JSONSocketCluster:', `${this.name}:`,
-                     `No JSONSocket version info in reponse header:`, dumper(header,5));
-            stream.destroy();
-            return Promise.reject(err);
-        }
+            if(typeof header['JSONSocketVersion'] === 'undefined'){
+                let err = `No JSONSocket version info in reponse header: `+
+                    dumper(header,5);
+                log.warn('JSONSocketCluster:', `${this.name}:`, err);
+                return Promise.reject(new GeneralError(err));
+            }
 
-        let version = header['JSONSocketVersion'];
+            let version = header['JSONSocketVersion'];
 
-        if(typeof version != "number") {
-            let err = `JSONSocket version info is not numeric in response header: `+
-                dumper(header,5);
-            log.warn('JSONSocketCluster:', `${this.name}:`, err);
-            stream.destroy();
-            return Promise.reject(err);
-        }
+            if(typeof version != "number") {
+                let err = `JSONSocket version info is not numeric in response header: `+
+                    dumper(header,5);
+                log.warn('JSONSocketCluster:', `${this.name}:`, err);
+                return Promise.reject(new GeneralError(err));
+            }
 
-        if(version < 0 || version > 1) {
-            let err = `Unsupported JSONSocket version "${version}" in header, dropping connection`;
-            log.warn('JSONSocketCluster:', `${this.name}:`, err);
-            stream.destroy();
-            return Promise.reject(err);
-        }
+            if(version < 0 || version > 1) {
+                let err = `Unsupported JSONSocket version "${version}" in header, dropping connection`;
+                log.warn('JSONSocketCluster:', `${this.name}:`, err);
+                return Promise.reject(new GeneralError(err));
+            }
 
-        if(header['JSONSocketStatus'] < 200 || header['JSONSocketStatus'] > 299){
-            let err = `Server sent invalid statis "${header['JSONSocketStatus']}" in `+
-                `response header, dropping connection`;
-            log.warn('JSONSocketCluster:', `${this.name}:`, err);
-            stream.destroy();
-            return Promise.reject(err);
-        }
+            if(header['JSONSocketStatus'] < 200 || header['JSONSocketStatus'] > 299){
+                let err = `Server sent invalid status "${header['JSONSocketStatus']}" in `+
+                    `response header, dropping connection`;
+                log.warn('JSONSocketCluster:', `${this.name}:`, err);
+                return Promise.reject(new GeneralError(err));
+            }
 
-        log.silly('JSONSocketCluster:', `${this.name}:`, `Connected`);
-        return Promise.resolve(stream);
+            log.silly('JSONSocketCluster:', `${this.name}:`, `Connected`);
+
+            return { stream: stream, endpoint: endpoint};
+        });
     }
 };
 
@@ -749,26 +766,22 @@ class L7mpControllerCluster extends Cluster {
         };
     }
 
-    connect(s){
-        log.silly('L7mpControllerCluster.connect', `Session: "${s.name}"`);
-        return Promise.resolve();
-    }
-
     stream(s){
         log.silly('L7mpControllerCluster.stream', `Session: "${s.name}"`);
 
         // the writable part is in objectMode: result is status/message
         let passthrough =
             new utils.DuplexPassthrough({}, {writableObjectMode: true});
-        let strm = passthrough.right;
+        let stream = passthrough.right;
         // eventDebug(strm);
         var body = '';
-        strm.on('data', (chunk) => { body += chunk; });
-        strm.on('end', () => { this.openapi.handleRequest(s, body, strm) } );
+        stream.on('data', (chunk) => { body += chunk; });
+        stream.on('end', () => { this.openapi.handleRequest(s, body, stream) } );
 
-        return Promise.resolve(passthrough.left);
+        return Promise.resolve({stream: passthrough.left,
+                                endpoint: this.virtualEndPoint() });
     }
-};
+}
 
 class StdioCluster extends Cluster {
     constructor(c) {
@@ -789,16 +802,13 @@ class StdioCluster extends Cluster {
         };
     }
 
-    connect(s){
-        return Promise.reject('StdioCluster:connect: Not supported');
-    }
-
     stream(s){
         log.silly('StdioCluster.stream', `Session: "${s.name}"`);
         // flush stdout
         process.stdout.clearLine();
         process.stdout.cursorTo(0);
-        return Promise.resolve(miss.duplex(process.stdout, process.stdin));
+        return Promise.resolve({stream: miss.duplex(process.stdout, process.stdin),
+                                endpoint: this.virtualEndPoint()});
     }
 };
 
@@ -819,13 +829,10 @@ class EchoCluster extends Cluster {
         };
     }
 
-    connect(s){
-        return Promise.reject('EchoCluster.connect: Not implemented');
-    }
-
     stream(s){
         log.silly('EchoCluster.stream', `Session: "${s.name}"`);
-        return Promise.resolve(new stream.PassThrough({readableObjectMode: true}));
+        return Promise.resolve({stream: new stream.PassThrough({readableObjectMode: true}),
+                                endpoint: this.virtualEndPoint()});
     }
 };
 
@@ -850,10 +857,6 @@ class LoggerCluster extends Cluster {
         };
     }
 
-    connect(s){
-        return Promise.reject('LoggerCluster.connect: Not implemented');
-    }
-
     stream(s){
         log.silly('LoggerCluster.stream',
                   `Session: ${s.name}, File: ${this.spec.log_file}`);
@@ -864,15 +867,18 @@ class LoggerCluster extends Cluster {
                                               { flags: 'w' });
         }
 
-        return Promise.resolve( miss.through(
-            (arg, enc, cb) => {
-                let log_msg = (this.spec.log_prefix) ?
-                    `${this.spec.log_prefix}: ${arg}` : arg;
-                log_stream.write(log_msg);
-                cb(null, arg);
-            },
-            (cb) => { cb(null, '') }
-        ));
+        return Promise.resolve({
+            stream: miss.through(
+                (arg, enc, cb) => {
+                    let log_msg = (this.spec.log_prefix) ?
+                        `${this.spec.log_prefix}: ${arg}` : arg;
+                    log_stream.write(log_msg);
+                    cb(null, arg);
+                },
+                (cb) => { cb(null, '') }
+            ),
+            endpoint: this.virtualEndPoint(),
+        });
 
         // return Promise.resolve( streamops.map( (arg) => {
         //     let log_msg = (this.spec.log_prefix) ?
@@ -899,13 +905,10 @@ class JSONEncapCluster extends Cluster {
         };
     }
 
-    connect(s){
-        return Promise.reject('JSONEncapCluster.connect: Not implemented');
-    }
-
     stream(s){
         log.silly('JSONEncapCluster.stream', `Session: ${s.name}`);
-        return Promise.resolve( miss.through.obj( // objectMode=true
+        return Promise.resolve({
+            stream: miss.through.obj( // objectMode=true
             (arg, enc, cb) => {
                 let buffer = arg instanceof Buffer;
                 let ret = buffer ? arg : Buffer.from(arg, enc);
@@ -916,8 +919,10 @@ class JSONEncapCluster extends Cluster {
                 ret = JSON.stringify(json);
                 cb(null, ret);
             },
-            (cb) => { cb(null, '') }
-        ));
+                (cb) => { cb(null, '') }
+            ),
+            endpoint: this.virtualEndPoint()
+        });
     }
 };
 
@@ -938,28 +943,27 @@ class JSONDecapCluster extends Cluster {
         };
     }
 
-    connect(s){
-        return Promise.reject('JSONDecapCluster.connect: Not implemented');
-    }
-
     stream(s){
         log.silly('JSONDecapCluster.stream', `Session: ${s.name}`);
-        return Promise.resolve( miss.through.obj(  // objectMode=true
-            (arg, enc, cb) => {
-                let buffer = arg instanceof Buffer;
-                arg = buffer ? arg : arg.toString(enc);
-                try {
-                    let json = JSON.parse(arg);
-                    var ret = Buffer.from(json.payload, 'base64') || "";
-                } catch(e){
-                    log.info('JSONDecapCluster.stream.transform:',
-                             `Invalid JSON payload`,
-                             `"${ret.toString('base64')}":`, e,);
-                }
-                cb(null, ret);
-            },
-            (cb) => { cb(null, '') }
-        ));
+        return Promise.resolve({
+            stream: miss.through.obj(  // objectMode=true
+                (arg, enc, cb) => {
+                    let buffer = arg instanceof Buffer;
+                    arg = buffer ? arg : arg.toString(enc);
+                    try {
+                        let json = JSON.parse(arg);
+                        var ret = Buffer.from(json.payload, 'base64') || "";
+                    } catch(e){
+                        log.info('JSONDecapCluster.stream.transform:',
+                                 `Invalid JSON payload`,
+                                 `"${ret.toString('base64')}":`, e,);
+                    }
+                    cb(null, ret);
+                },
+                (cb) => { cb(null, '') }
+            ),
+            endpoint: this.virtualEndPoint()
+        });
     }
 };
 
@@ -991,10 +995,6 @@ class SyncCluster extends Cluster {
         };
     }
 
-    connect(s){
-        return Promise.reject(new Error('SyncCluster.connect: Not implemented'));
-    }
-
     stream(s){
         log.silly('SyncCluster.stream', `Session: "${s.name}"`);
 
@@ -1006,11 +1006,11 @@ class SyncCluster extends Cluster {
             }
 
             let port = this.streams[label].add(s.name);
-            return Promise.resolve(port);
+            return Promise.resolve({ stream: port, endpoint: this.virtualEndPoint()});
         } else {
             return Promise.reject(
-                new Error(`SyncCluster.stream: reject: Session: "${s.name}":`+
-                          ` query "${this.query}": empty label`));
+                new GeneralError(`SyncCluster.stream: reject: Session: "${s.name}":`+
+                                 ` query "${this.query}": empty label`));
         }
     }
 };
