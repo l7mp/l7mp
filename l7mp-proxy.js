@@ -74,7 +74,7 @@ process.on('unhandledRejection', (reason, p) => {
               reason);
 });
 
-process.title = 'npm'
+process.title = 'l7mp'
 
 // Command line args
 const usage = 'l7mp -c <static_config> -s -l <log-level>'
@@ -87,9 +87,11 @@ if(!('c' in argv)){
 }
 
 // Start
+if('l' in argv) log.level = argv.l;
 l7mp.readConfig(config);
 
 if('s' in argv) l7mp.admin.strict = true;
+// redo
 if('l' in argv) log.level = argv.l;
 
 if(!l7mp.static_config)

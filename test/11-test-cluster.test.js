@@ -55,12 +55,12 @@ describe('TestCluster', ()  => {
         it('ok', async () => {
             e = c.endpoints[0]; e.mode=['ok']; e.timeout=0;
             s_ok = await c.stream({route:{retry:{timeout:1000}}});
-            assert.isOk(true);
+            assert.isOk(s_ok);
         });
-        it('exists',     () => { assert.isOk(s_ok); });
-        it('instanceOf', () => { assert.instanceOf(s_ok, Stream); });
-        it('readable',   () => { assert.isOk(s_ok.readable); });
-        it('writeable',  () => { assert.isOk(s_ok.writable); });
+        it('exists',     () => { assert.isOk(s_ok.stream); });
+        it('instanceOf', () => { assert.instanceOf(s_ok.stream, Stream); });
+        it('readable',   () => { assert.isOk(s_ok.stream.readable); });
+        it('writeable',  () => { assert.isOk(s_ok.stream.writable); });
         it('fail', async () => {
             e = c.endpoints[0]; e.mode=['fail']; e.timeout=0;
             let s = await c.stream({route:{retry:{timeout:1000}}}).

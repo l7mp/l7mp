@@ -4,13 +4,14 @@ const assert       = require('chai').assert;
 const L7mp         = require('../l7mp.js').L7mp;
 const EndPoint     = require('../cluster.js').EndPoint;
 const Cluster      = require('../cluster.js').Cluster;
+const Session      = require('../session.js').Session;
 const LoadBalancer = require('../cluster.js').LoadBalancer;
 
 describe('JSONSocketCluster', ()  => {
-    var e, c, s, s_ok;
+    var e, c, s, s_ok, session;
     before( () => {
         l7mp = new L7mp();
-        l7mp.applyAdmin({ log_level: 'warn' });
+        l7mp.applyAdmin({ log_level: 'error' });
         // l7mp.applyAdmin({ log_level: 'silly' });
         l7mp.run();
     });
@@ -20,7 +21,8 @@ describe('JSONSocketCluster', ()  => {
             c = Cluster.create({
                 name: 'JSONSocket',
                 spec: {protocol: 'JSONSocket',
-                       transport: { protocol: 'UDP', port: 54321 }
+                       transport: { protocol: 'UDP', port: 54321 },
+                       // header: [ { path: '/' } ]
                       },
             });
             assert.exists(c);
@@ -62,21 +64,27 @@ describe('JSONSocketCluster', ()  => {
 
         it('ok', async () => {
             s.on('error', (e) => { assert.fail(); });
-            s_ok = await c.stream({metadata:{some:{nested:{meta:'data'}}},route:{retry:{timeout:1000}}});
-            assert.isOk(true);
+            session = new Session({metadata:{some:{nested:{meta:'data'}}},source:{origin:'JSONSocket',stream:s}});
+            session.route = {retry:{timeout:1000}};
+            session.name = 'Test';
+            s_ok = await c.stream(session);
+            assert.isOk(s_ok);
         });
-        it('exists',      () => { assert.isOk(s_ok); });
-        it('instanceOf',  () => { assert.instanceOf(s_ok, Stream); });
-        it('readable',    () => { assert.isOk(s_ok.readable); });
-        it('writeable',   () => { assert.isOk(s_ok.writable); });
-        it('destroyable', () => { s_ok.end(); assert.isOk(true); });
+        it('instanceOf',   () => { assert.instanceOf(s_ok.stream, Stream); });
+        it('readable',     () => { assert.isOk(s_ok.stream.readable); });
+        it('writeable',    () => { assert.isOk(s_ok.stream.writable); });
+        it('has-endpoint', () => { assert.isObject(s_ok.endpoint); });
+        it('destroyable',  () => { s_ok.stream.end(); assert.isOk(true); });
     });
 
-    context('#stream() + metadata', () => {
+    context('#stream() + header', () => {
         beforeEach(() => {
             s = new udp.createSocket('udp4');
             s.bind(54321);
             // s.on('error', (e) => { assert.fail(); });
+            session = new Session({metadata:{some:{nested:{meta:'data'}}},source:{origin:'JSONSocket',stream:null}});
+            session.route = {retry:{timeout:1000}};
+            session.name = 'Test';
         });
         afterEach(() => { s.close();s.unref(); });
 
@@ -85,11 +93,12 @@ describe('JSONSocketCluster', ()  => {
                 s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
                 try{
                     let header = JSON.parse(msg);
+                    assert.isOk(header);
                     return Promise.resolve();
                 }catch(x){assert.fail()}
             });
-            s_ok = await c.stream({metadata:{some:{nested:{meta:'data'}}},route:{retry:{timeout:1000}}});
-            s_ok.end();
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
         });
         it('stream-header-ok', async () => {
             s.on('message', (msg, rinfo) => {
@@ -102,9 +111,34 @@ describe('JSONSocketCluster', ()  => {
                     }
                 }catch(x){assert.fail()}
             });
-            s_ok = await c.stream({metadata:{some:{nested:{meta:'data'}}},route:{retry:{timeout:1000}}});
-            s_ok.end();
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
         });
+    });
+
+    context('#stream() + metadata', () => {
+        beforeEach(() => {
+            s = new udp.createSocket('udp4');
+            s.bind(54321);
+            s.on('error', (e) => { assert.fail(); });
+            session = new Session({metadata:{some:{nested:{meta:'data'}}},source:{origin:'JSONSocket',stream:null}});
+            session.route = {retry:{timeout:1000}};
+            session.name = 'Test';
+        });
+        afterEach(() => { s.close();s.unref(); });
+
+        it('cluster-re-create',      () => {
+            c = Cluster.create({
+                name: 'JSONSocket',
+                spec: {protocol: 'JSONSocket',
+                       transport: { protocol: 'UDP', port: 54321 },
+                       header: [ { path: '/' } ]
+                      },
+            });
+            assert.exists(c);
+        });
+        it('object',          () => { assert.isObject(c); });
+        it('endpoint-re-add', () => { e = c.addEndPoint({name:'JSONSocket', spec:{address:'127.0.0.1'}}); assert.isOk(e); });
         it('stream-metadata-1', async () => {
             s.on('message', (msg, rinfo) => {
                 s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
@@ -112,8 +146,8 @@ describe('JSONSocketCluster', ()  => {
                 assert.property(header, 'some');
                 return Promise.resolve();
             });
-            s_ok = await c.stream({metadata:{some:{nested:{meta:'data'}}},route:{retry:{timeout:1000}}});
-            s_ok.end();
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
         });
         it('stream-metadata-2', async () => {
             s.on('message', (msg, rinfo) => {
@@ -122,8 +156,8 @@ describe('JSONSocketCluster', ()  => {
                 assert.nestedProperty(header, 'some.nested');
                 return Promise.resolve();
             });
-            s_ok = await c.stream({metadata:{some:{nested:{meta:'data'}}},route:{retry:{timeout:1000}}});
-            s_ok.end();
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
         });
         it('stream-metadata-3', async () => {
             s.on('message', (msg, rinfo) => {
@@ -132,8 +166,8 @@ describe('JSONSocketCluster', ()  => {
                 assert.nestedProperty(header, 'some.nested.meta');
                 return Promise.resolve();
             });
-            s_ok = await c.stream({metadata:{some:{nested:{meta:'data'}}},route:{retry:{timeout:1000}}});
-            s_ok.end();
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
         });
         it('stream-metadata-4', async () => {
             s.on('message', (msg, rinfo) => {
@@ -142,9 +176,166 @@ describe('JSONSocketCluster', ()  => {
                 assert.nestedPropertyVal(header, 'some.nested.meta', 'data');
                 return Promise.resolve();
             });
-            s_ok = await c.stream({metadata:{some:{nested:{meta:'data'}}},route:{retry:{timeout:1000}}});
-            s_ok.end();
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
         });
+        it('stream-metadata-5', async () => {
+            c.header = [ {path: '/some' } ];
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+                let header = JSON.parse(msg);
+                assert.nestedPropertyVal(header, 'nested.meta', 'data');
+                return Promise.resolve();
+            });
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
+        });
+        it('stream-metadata-6', async () => {
+            c.header = [ {path: { from: '/some' , to: '/some'}} ];
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+                let header = JSON.parse(msg);
+                assert.nestedPropertyVal(header, 'some.nested.meta', 'data');
+                return Promise.resolve();
+            });
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
+        });
+        it('stream-metadata-7', async () => {
+            c.header = [ {path: { from: '/some' , to: '/some'}} ];
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+                let header = JSON.parse(msg);
+                assert.deepEqual(header, {some:{nested: {meta: 'data'}}, JSONSocketVersion: 1});
+                return Promise.resolve();
+            });
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
+        });
+        it('stream-metadata-8', async () => {
+            c.header = [ {path: { from: '/some' , to: '/'}} ];
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+                let header = JSON.parse(msg);
+                assert.nestedPropertyVal(header, 'nested.meta', 'data');
+                return Promise.resolve();
+            });
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
+        });
+        it('stream-metadata-9', async () => {
+            c.header = [ {path: { from: '/some' , to: '/'}} ];
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+                let header = JSON.parse(msg);
+                assert.deepEqual(header, {nested: {meta: 'data'}, JSONSocketVersion: 1});
+                return Promise.resolve();
+            });
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
+        });
+        it('stream-metadata-10', async () => {
+            c.header = [ {path: { from: '/some' , to: '/'}} ];
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+                let header = JSON.parse(msg);
+                assert.nestedPropertyVal(header, 'nested.meta', 'data');
+                return Promise.resolve();
+            });
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
+        });
+        it('stream-metadata-11', async () => {
+            c.header = [ {path: { from: '/some/nested', to: '/nested'}} ];
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+                let header = JSON.parse(msg);
+                assert.deepEqual(header, {nested: {meta: 'data'}, JSONSocketVersion: 1});
+                return Promise.resolve();
+            });
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
+        });
+        it('stream-metadata-12', async () => {
+            c.header = [ {path: { from: '/some/nested', to: '/some/nested'}} ];
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+                let header = JSON.parse(msg);
+                assert.deepEqual(header, {some: {nested: {meta: 'data'}}, JSONSocketVersion: 1});
+                return Promise.resolve();
+            });
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
+        });
+        it('stream-metadata-12', async () => {
+            c.header = [ {path: { from: '/some/nested/meta', to: '/nested'}} ];
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+                let header = JSON.parse(msg);
+                assert.deepEqual(header, {nested: 'data', JSONSocketVersion: 1});
+                return Promise.resolve();
+            });
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
+        });
+        it('stream-metadata-13', async () => {
+            c.header = [ {path: { from: '/some/nested/meta', to: '/nested/meta'}} ];
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+                let header = JSON.parse(msg);
+                assert.deepEqual(header, {nested: {meta: 'data'}, JSONSocketVersion: 1});
+                return Promise.resolve();
+            });
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
+        });
+        it('stream-metadata-14', async () => {
+            c.header = [ {path: '/non-existent-path/' } ];
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+                let header = JSON.parse(msg);
+                assert.deepEqual(header, {JSONSocketVersion: 1});
+                return Promise.resolve();
+            });
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
+        });
+        it('stream-metadata-15', async () => {
+            c.header = [ { set: { key: '/some/nested/meta', value: 'data' } } ];
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+                let header = JSON.parse(msg);
+                assert.deepEqual(header, { some:{nested:{meta:'data'}}, JSONSocketVersion: 1 });
+                return Promise.resolve();
+            });11
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
+        });
+        it('stream-metadata-16', async () => {
+            c.header = [ { set: { key: '/some/nested/meta/', value: 'data' } } ]; // trailing /
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+                let header = JSON.parse(msg);
+                assert.deepEqual(header, { some:{nested:{meta:'data'}}, JSONSocketVersion: 1 });
+                return Promise.resolve();
+            });
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
+        });
+        it('stream-metadata-17', async () => {
+            c.header = [ {path: '/some/nested' },
+                         { set: { key: '/some/nested/meta', value: 'data' } },
+                         { set: { key: '/some/other/nested/meta', value: 'other-data' } } ];
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+                let header = JSON.parse(msg);
+                assert.deepEqual(header, { meta:'data', some:{nested:{meta:'data'},other:{nested:{meta:'other-data'}}}, JSONSocketVersion: 1 });
+                return Promise.resolve();
+            });
+            s_ok = await c.stream(session);
+            s_ok.stream.end();
+        });
+
     });
 
     context('create - UDP - inline endpoints', () => {

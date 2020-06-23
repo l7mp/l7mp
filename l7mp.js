@@ -36,6 +36,8 @@ const Rule       = require('./rule.js').Rule;
 const RuleList   = require('./rule.js').RuleList;
 const Route      = require('./route.js').Route;
 
+const {L7mpError, Ok, InternalError, BadRequestError, NotFoundError, ValidationError, GeneralError} = require('./error.js');
+
 const MAX_NAME_ATTEMPTS = 20;
 
 // WARNING: these dumpers are needed for development and testing only,
@@ -122,15 +124,17 @@ class L7mp {
                 this.static_config = JSON.parse(fs.readFileSync(config));
             this.static_config = this.static_config || {};
             this.applyAdmin(this.static_config.admin || {});
-        } catch(e) {
+        } catch(err) {
             log.error(`Could not read static configuration ${config}:`,
-                      e.code ? `${e.code}: ${e.message}` : e.message);
+                      err.code ? `${err.code}: ${err.message}` : err.message);
         }
     }
 
     run(){
-        log.info('Starting l7mp version:', this.admin.version,
+        log.info(`Starting l7mp version: ${this.admin.version} Log-level: ${log.level}`,
                  'Strict mode:', l7mp.admin.strict ? 'enabled' : 'disabled');
+
+        dump(this.static_config, 10);
 
         try {
             if('clusters' in this.static_config){
@@ -142,6 +146,7 @@ class L7mp {
             if('listeners' in this.static_config){
                 this.static_config.listeners.forEach(
                     (l) => this.addListener(l).catch((e) => {
+                        log.silly(dumper(e, 6));
                         log.error(`Could not initialize static configuration`,
                                   e.code ? `${e.code}: ${e.message}` : e.message
                                  );
@@ -168,7 +173,7 @@ class L7mp {
             }
         } catch(e) {
             console.log(dumper(e, 6));
-            log.error(`Could not initialize static configuration ${config}:`,
+            log.error(`Could not initialize static configuration:`,
                       e.code ? `${e.code}: ${e.message}` : e.message);
         }
     }
@@ -255,7 +260,9 @@ class L7mp {
             throw new Error(`Cannot add listener: ${e}`);
         }
 
+        l.emitter = this.addSession.bind(this);
         var li = Listener.create(l);
+        // li.on('emit', (s) => this.addSession(s));
 
         // if this is a reference to a named RuleList (aka:
         // MatchActionTable), defer binding until runtime, otherwise,
@@ -275,7 +282,6 @@ class L7mp {
             throw new Error(`Cannot add listener: ${e}`);
         }
 
-        li.on('emit', (s) => this.addSession(s));
         this.listeners.push(li);
 
         // this may fail: promise
@@ -623,8 +629,7 @@ class L7mp {
     // EndPoint API
     //
     ////////////////////////////////////////////////////
-
-    addEndPoint(ep){
+    addEndPoint(c, ep){
         log.silly('L7mp.addEndPoint:', dumper(ep, 6));
 
         let schema = {
@@ -641,10 +646,17 @@ class L7mp {
         let e = validate(ep, schema);
         if(e){
             log.warn('L7mp.addEndPoint:', e);
-            throw new Error(`Cannot add route: ${e}`);
+            throw new Error(`Cannot add endpoint: ${e}`);
         }
 
-        ep = EndPoint.create(ep);
+        let cl = this.getCluster(c);
+        if(!cl){
+            let e = `Unknown cluster "${c}"`;
+            log.warn('L7mp.addEndPoint', e);
+            throw new NotFoundError(`Cannot add endpoint: ${e}`);
+        }
+
+        ep = EndPoint.creatcl, e(ep);
         this.endpoints.push(ep);
 
         return ep;
@@ -652,7 +664,7 @@ class L7mp {
 
     getEndPoint(n){
         log.silly('L7mp.getEndPoint:', n);
-        return this.endponts.find( ({name}) => name === n );
+        return this.endpoints.find( ({name}) => name === n );
     }
 
     // internal, not to be called from the API
@@ -670,7 +682,9 @@ class L7mp {
     ////////////////////////////////////////////////////
 
     // internal, not to be called from the API
-    addSession(s){
+    // input: {metadata: {...}, source: {origin:<name>, stream: <stream>}}
+    // output: {status: <HTTP status code>, content: { message: {...}, ...}}
+    async addSession(s){
         log.silly('L7mp.addSession');
 
         let schema = {
@@ -678,7 +692,7 @@ class L7mp {
                 validate: (value) => value instanceof Object,
                 required: true,
             },
-            listener: {
+            source: {
                 validate: (value) => value instanceof Object,
                 required: true,
             },
@@ -689,8 +703,8 @@ class L7mp {
 
         let e = validate(s, schema);
         if(e){
-            log.warn('L7mp.addSession:', s);
-            throw new Error(`Cannot add sesson: ${e}`);
+            log.warn('L7mp.addSession:', `Cannot add sesson: ${e}`);
+            return;
         }
 
         s.metadata.name = this.newName(s.metadata.name, this.getSession);
@@ -698,43 +712,35 @@ class L7mp {
         this.sessions.push(s);
 
         s.on('init', () => log.silly(`Session "${s.name}: initializing"`));
-        s.on('connect', () => log.silly(`Session "${s.name}:`,
-                                        `successfully (re)connected"`));
+        s.on('connect', () => log.info(`Session "${s.name}: successfully (re)connected"`,
+                                       dumper(s.metadata, 10)));
+
         s.on('disconnect', (origin, error) => {
             log.info(`Session "${s.name}":`,
-                     `temporarily disconnected at stream "${origin}":`,
+                     `temporarily disconnected at stage "${origin}":`,
                      `reason: ${error ? error.message : 'unknown'}`);
         });
 
-        s.on('error', (e) => {
+        s.on('error', (err) => {
             // if(log.level === 'silly') dump(e);
-            log.warn(`Session "${s.name}": fatal error:`, e.message);
-            if(s.priv && s.priv.end)
-                s.priv.end(s, e);
+            log.warn(`Session "${s.name}": fatal error: ${err.message}` +
+                     (err.content ? `: ${err.content}`: ""));
         });
 
         // normal end
         s.on('end', (msg) => {
             log.info(`Session "${s.name}": ending normally`);
-            if(s.priv && s.priv.end)
-                s.priv.end(s, msg);
         });
 
         s.on('destroy', () => {
-            log.silly(`Session "${s.name}": destroyed`);
+            log.info(`Session "${s.name}": destroyed`);
             setImmediate(() => this.deleteSession(s.name));
         });
 
-        // may use .error()
-        try {
-            s.create();
-        } catch(e){
-            if(log.level === 'silly') dump(e);
-            e = `Could not create session "${s.name}": ${e.message}`
-            log.warn(e);
-        }
+        let status = await s.router();
+        log.silly(`Session "${s.name}": router responded with status:`, status.status);
 
-        s.router();
+        return s;
     }
 
     deleteSession(n){

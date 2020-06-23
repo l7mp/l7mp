@@ -5,6 +5,7 @@
     "main": "l7mp.js",
     "files": [
         "cluster.js",
+        "error.js",
         "l7mp-proxy.js",
         "l7mp.js",
         "l7mp-openapi.js",
