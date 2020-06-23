@@ -17,6 +17,10 @@ describe('WebSocket', () => {
         l7mp.run(); // should return
     });
 
+    after( () => {
+        wss.close();
+    });
+
     context('create', () => {
         it('runs',         () => { 
             assert.exists(e = EndPoint.create(
