@@ -5,19 +5,18 @@ const EndPoint = require('../cluster.js').EndPoint;
 const udp      = require('dgram');
 
 describe('UDPEndPoint', ()  => {
-    var e, s_ok;
+    var e, s;
     before( () => {
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'error' });
         l7mp.run(); // should return
     });
-
+    //TODO: try to find that thing that is still running after the tests
     context('create', () => {
         it('runs',         () => { assert.exists(e = EndPoint.create(
             {protocol: 'UDP', spec: {protocol: 'UDP' ,port: 16000, bind: {address: "127.0.0.1", port: 16001}}},
             {name: 'UDP', spec: {address: "127.0.0.1"}})); });
         it('object',       () => { assert.isObject(e); });
-        // EchoCluster is not exported so we cannot check from here
         it('instanceOf',   () => { assert.instanceOf(e, EndPoint); });
         it('has-name',     () => { assert.property(e, 'name'); });
         it('has-spec',     () => { assert.property(e, 'spec'); });
@@ -26,13 +25,13 @@ describe('UDPEndPoint', ()  => {
 
     context('#connect()', () => {
         it('remote connect', (done) => {
-            s_ok = e.connect({});
-            s_ok.on('connect', () => { assert.isOk(true); done(); });
+            s = e.connect({});
+            s.on('connect', () => { assert.isOk(true); done(); });
         });
-        it('exists',     () => { assert.isOk(s_ok); });
-        it('instanceOf', () => { assert.instanceOf(s_ok, udp.Socket); });
+        it('exists',     () => { assert.isOk(s); });
+        it('instanceOf', () => { assert.instanceOf(s, udp.Socket); });
         it('message', (done) => {
-            let s = e.connect({});
+            s = e.connect({});
             s.send('test', e.remote_port, e.remote_address, (err) => {
                 s.close();
             });
@@ -42,13 +41,16 @@ describe('UDPEndPoint', ()  => {
             done();
         });
         it('listening', (done) => {
-            let s = e.connect({});
+            s = e.connect({});
             s.on('listening', () => { assert.isOk(true); done(); });
         });
         it('close', (done) => {
-            let s = e.connect({});
+            s = e.connect({});
             s.on('close', () => { assert.isOk(true); done(); });
             s.close();
         });
+    });
+    after(() => {
+        //things that still running, should be stopped here
     });
 });
