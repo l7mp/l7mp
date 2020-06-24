@@ -39,18 +39,12 @@ describe('NetSocketEndPoint', ()  => {
                 done();
             });
         });
-        it('exists',     () => { assert.isOk(s); });
-        it('instanceOf', () => { assert.instanceOf(s, net.Socket); });
-        // it('readable',   () => {
-        //     let s = e.connect({});
-        //     assert.isOk(s.readable);
-        //     s.destroy();
-        //  });
-        // it('writeable',  () => {
-        //     let s = e.connect({});
-        //     assert.isOk(s.writable);
-        //     s.destroy()
-        // });
+        it('exists', () => {
+            assert.isOk(s);
+        });
+        it('instanceOf', () => {
+            assert.instanceOf(s, net.Socket);
+        });
         it('ready', (done) => {
             s = e.connect({});
             s.on('ready', () => {
@@ -60,11 +54,11 @@ describe('NetSocketEndPoint', ()  => {
             });
         });
         it('lookup', (done) => {
-           s = e.connect({});
-           s.on('lookup', () => {
-               assert.isOk(true);
-               done();
-           });
+            s = e.connect({});
+            s.on('lookup', () => {
+                assert.isOk(true);
+                done();
+            });
             s.destroy();
         });
         it('data', (done) => {
@@ -87,14 +81,14 @@ describe('NetSocketEndPoint', ()  => {
             s.destroy();
         });
         it('timeout', (done) => {
-           let start = new Date().getMilliseconds();
-           s = e.connect({});
+            let start = new Date().getMilliseconds();
+            s = e.connect({});
             s.on('connect', () => {
-               let end = new Date().getMilliseconds();
-               assert.isOk(s);
-               assert.approximately(end-start,150,150,"Could not connect within 300 ms")
-               done();
-           });
+                let end = new Date().getMilliseconds();
+                assert.isOk(s);
+                assert.approximately(end - start, 150, 150, "Could not connect within 300 ms")
+                done();
+            });
         });
     });
     after(() =>{
