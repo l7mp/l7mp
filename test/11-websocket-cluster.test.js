@@ -3,6 +3,7 @@ const assert   = require('chai').assert;
 const L7mp     = require('../l7mp.js').L7mp;
 const Cluster  = require('../cluster.js').Cluster;
 const EndPoint = require('../cluster.js').EndPoint;
+const LoadBalancer = require('../cluster.js').LoadBalancer;
 const WebSocket = require('ws');
 
 describe('WebSocketCluster', () => {
@@ -24,31 +25,48 @@ describe('WebSocketCluster', () => {
     // })
 
     context('create', () => {
-        it('runs',         () => { assert.exists(c = Cluster.create({name: 'WebSocket', spec: {protocol: 'WebSocket'}})); });
-        it('object',       () => { assert.isObject(c); });
-        it('instanceOf',   () => { assert.instanceOf(c, Cluster); });
-        it('has-name',     () => { assert.property(c, 'name'); });
-        it('has-spec',     () => { assert.property(c, 'spec'); });
-        it('has-protocol', () => { assert.deepPropertyVal(c, 'spec', {protocol: 'WebSocket'}); });
+        c = Cluster.create({name: 'WebSocket', spec: {protocol: 'WebSocket'}});
+        it('runs',             () => { assert.exists(c); });
+        it('object',           () => { assert.isObject(c); });
+        it('instanceOf',       () => { assert.instanceOf(c, Cluster); });
+        it('has-name',         () => { assert.property(c, 'name'); });
+        it('has-spec',         () => { assert.property(c, 'spec'); });
+        it('has-protocol',     () => { assert.deepPropertyVal(c, 'spec', {protocol: 'WebSocket'}); });
+        it('has-loadbalancer', () => { assert.property(c, 'loadbalancer'); }); 
+        it('has-policy',       () => { assert.instanceOf(c.loadbalancer, LoadBalancer); });
+        it('has-type',         () => { assert.property(c, 'type'); });
+        it('has-retry',        () => { assert.deepPropertyVal(c, 'retriable', true); });
+        it('has-options',      () => { assert.deepPropertyVal(c, 'options', {removeOrphanSessions: true}); });
+        it('has-objectmode',   () => { assert.property(c, 'objectMode'); }); 
     });
 
     context('addEndPoint', () => {
         c = Cluster.create({name: 'WebSocket', spec: {protocol: 'WebSocket'}});
-        c.addEndPoint(EndPoint.create({protocol: 'WebSocket', spec: {port: 8080, bind: {address: '127.0.0.1', port: 8080}}},{spec: {address: '127.0.0.1', port: 8080}})); 
+        c.addEndPoint(EndPoint.create({protocol: 'WebSocket', name: 'WebSocket', spec: {port: 8080, bind: {address: '127.0.0.1', port: 8080}}},{spec: {address: '127.0.0.1', port: 8080}})); 
         var endpoint = c.endpoints[0];
-        it('runs',         () => { assert.exists(c.endpoints); });
-        it('object',       () => { assert.isObject(endpoint); });
-        it('instanceOf',   () => { assert.instanceOf(endpoint, EndPoint); });
-        it('has-name',     () => { assert.property(endpoint, 'name'); });
-        it('has-spec',     () => { assert.property(endpoint, 'spec'); });
-        it('has-protocol', () => { assert.deepPropertyVal(endpoint, 'protocol', 'WebSocket'); });
+        it('runs',             () => { assert.exists(c.endpoints); });
+        it('object',           () => { assert.isObject(endpoint); });
+        it('instanceOf',       () => { assert.instanceOf(endpoint, EndPoint); });
+        it('has-name',         () => { assert.property(endpoint, 'name'); });
+        it('equal',            () => { assert.equal(endpoint.name, 'WebSocket-EndPoint-0'); });
+        it('has-spec',         () => { assert.property(endpoint, 'spec'); });
+        it('has-protocol',     () => { assert.deepPropertyVal(endpoint, 'protocol', 'WebSocket'); });
+        it('get',              () => { let n = c.getEndPoint('WebSocket-EndPoint-0'); assert.isOk(n); });
+        it('get-instanceOf',   () => { let n = c.getEndPoint('WebSocket-EndPoint-0'); assert.instanceOf(n, EndPoint); });
+        it('get-name',         () => { let n = c.getEndPoint('WebSocket-EndPoint-0'); assert.equal(n.name, 'WebSocket-EndPoint-0'); });
+        it('get-fail',         () => { let n = c.getEndPoint('Never'); assert.isUndefined(n); });
+        it('delete',           () => { c.deleteEndPoint('WebSocket-EndPoint-0'); assert.lengthOf(c.endpoints, 0); });
+        it('get-fail',         () => { let n = c.getEndPoint('WebSocket'); assert.isUndefined(n); });
+        it('re-add',           () => { e = c.addEndPoint({name: 'WebSocket', spec: {}}); assert.isOk(e); });
+        it('get-2',            () => { let n = c.getEndPoint('WebSocket'); assert.isOk(n); });
+        it('get-2-name',       () => { let n = c.getEndPoint('WebSocket'); assert.equal(n.name, 'WebSocket'); });
     });
 
     context('stream', () => {
         var c = Cluster.create({name: 'WebSocket', spec: {protocol: 'WebSocket'}});
         c.addEndPoint({spec: {address: '127.0.0.1', port: 8080}}); 
         var s;
-        it('runs', async   () => { s = await c.stream({route: {retry: {timeout: 2000}}, metadata: {HTTP: {url: {host: '127.0.0.1', port: 8080}}}}); });
+        it('runs', async   () => { s = await c.stream({route: {retry: {timeout: 1000}}, metadata: {HTTP: {url: {host: '127.0.0.1', port: 8080}}}});});
         it('returns ok',   () => { assert.isOk(s.stream); });
         it('isa stream',   () => { assert.instanceOf(s.stream, Stream); });
         it('readable',     () => { assert.isOk(s.stream.readable); });
@@ -70,6 +88,10 @@ describe('WebSocketCluster', () => {
             return await c.stream({name: 'WebSocket'})
                     .then(() => assert(false))
                     .catch(() => assert(true));
+        });
+        it('fail-timeout', async () => {
+            s = await c.stream({route:{retry:{timeout:100}}}).
+                catch(() => { assert.isOk(true);});
         });
     });
 });
