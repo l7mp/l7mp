@@ -50,12 +50,5 @@ describe('UDPEndPoint', ()  => {
             s.on('close', () => { assert.isOk(true); done(); });
             s.close();
         });
-
-        // it('fail-timeout-override', async () => {
-        //     e = c.endpoints[0];
-        //     e.timeout=1000;
-        //     let s = await c.stream({route:{retry:{timeout:100}}}).
-        //     catch(() => { assert.isOk(true);});
-        // });
     });
 });
