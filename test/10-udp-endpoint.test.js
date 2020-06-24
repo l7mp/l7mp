@@ -29,28 +29,38 @@ describe('UDPEndPoint', ()  => {
             s.on('connect', () => { assert.isOk(true); done(); });
         });
         it('exists',     () => { assert.isOk(s); });
-        it('instanceOf', () => { assert.instanceOf(s, udp.Socket); });
-        it('message', (done) => {
-            s = e.connect({});
-            s.send('test', e.remote_port, e.remote_address, (err) => {
-                s.close();
-            });
-            s.on('message', (msg) => {
-                assert.equal(msg, 'test')
-            })
-            done();
+        it('instanceOf', () => {
+            assert.instanceOf(s, udp.Socket);
+        s.close();
         });
         it('listening', (done) => {
             s = e.connect({});
-            s.on('listening', () => { assert.isOk(true); done(); });
+            s.on('listening', () => { assert.isOk(true); done(); s.close() });
+        });
+        it('message', (done) => {
+            s = e.connect({});
+            let client = udp.createSocket("udp4")
+            client.bind(16000)
+            let message = Buffer.from('test')
+            s.on('message', (msg, rinfo) => {
+                assert.equal(msg.toString(), 'test');
+                client.close();
+                s.close();
+                done();
+            })
+            client.send(message,16001, "127.0.0.1" , (err, bytes) => {
+                if(err) {
+                    client.close();
+                    s.close();
+                    console.log(msg)
+                }
+            });
+
         });
         it('close', (done) => {
             s = e.connect({});
             s.on('close', () => { assert.isOk(true); done(); });
             s.close();
         });
-    });
-    after(() => {
-        //things that still running, should be stopped here
     });
 });
