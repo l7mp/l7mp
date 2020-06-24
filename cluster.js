@@ -950,9 +950,10 @@ class JSONDecapCluster extends Cluster {
                 (arg, enc, cb) => {
                     let buffer = arg instanceof Buffer;
                     arg = buffer ? arg : arg.toString(enc);
+                    var ret = ""; 
                     try {
                         let json = JSON.parse(arg);
-                        var ret = Buffer.from(json.payload, 'base64') || "";
+                        ret = Buffer.from(json.payload, 'base64') || "";
                     } catch(e){
                         log.info('JSONDecapCluster.stream.transform:',
                                  `Invalid JSON payload`,
