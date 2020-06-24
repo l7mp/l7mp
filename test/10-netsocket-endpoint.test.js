@@ -5,13 +5,13 @@ const EndPoint = require('../cluster.js').EndPoint;
 const net      = require('net');
 
 describe('NetSocketEndPoint', ()  => {
-    var e, s_ok, server;
+    var e, s, server;
     before( () => {
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'error' });
         l7mp.run(); // should return
         //should stop after
-        var server = net.createServer(function(socket){
+        server = net.createServer(function(socket){
             socket.pipe(socket);
         });
         server.listen(16001,"127.0.0.1")
@@ -32,15 +32,15 @@ describe('NetSocketEndPoint', ()  => {
 
     context('#connect()', () => {
         it('ok', (done) => {
-            s_ok = e.connect({});
-            s_ok.on('connect', () => {
+            s = e.connect({});
+            s.on('connect', () => {
                 assert.isOk(true);
-                s_ok.destroy()
+                s.destroy()
                 done();
             });
         });
-        it('exists',     () => { assert.isOk(s_ok); });
-        it('instanceOf', () => { assert.instanceOf(s_ok, net.Socket); });
+        it('exists',     () => { assert.isOk(s); });
+        it('instanceOf', () => { assert.instanceOf(s, net.Socket); });
         // it('readable',   () => {
         //     let s = e.connect({});
         //     assert.isOk(s.readable);
@@ -52,7 +52,7 @@ describe('NetSocketEndPoint', ()  => {
         //     s.destroy()
         // });
         it('ready', (done) => {
-            let s = e.connect({});
+            s = e.connect({});
             s.on('ready', () => {
                 assert.isOk(true);
                 s.destroy();
@@ -60,7 +60,7 @@ describe('NetSocketEndPoint', ()  => {
             });
         });
         it('lookup', (done) => {
-           let s = e.connect({});
+           s = e.connect({});
            s.on('lookup', () => {
                assert.isOk(true);
                done();
@@ -68,7 +68,7 @@ describe('NetSocketEndPoint', ()  => {
             s.destroy();
         });
         it('data', (done) => {
-            let s = e.connect({});
+            s = e.connect({});
             s.setEncoding("utf8")
             s.write('test');
             s.on('data', (data) => {
@@ -78,7 +78,7 @@ describe('NetSocketEndPoint', ()  => {
             })
         });
         it('close', (done) => {
-            let s = e.connect({});
+            s = e.connect({});
             s.end();
             s.on('close', () => {
                 assert.isOk(true);
@@ -87,13 +87,18 @@ describe('NetSocketEndPoint', ()  => {
             s.destroy();
         });
         it('timeout', (done) => {
-           let s = e.connect({});
-           s.setTimeout(300);
-           s.on('timeout', () => {
-               assert.isOk(true);
-               s.destroy();
+           let start = new Date().getMilliseconds();
+           s = e.connect({});
+            s.on('connect', () => {
+               let end = new Date().getMilliseconds();
+               assert.isOk(s);
+               assert.approximately(end-start,150,150,"Could not connect within 300 ms")
                done();
            });
         });
+    });
+    after(() =>{
+       server.close();
+       s.end();
     });
 });
