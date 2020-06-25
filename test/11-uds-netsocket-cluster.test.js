@@ -3,29 +3,29 @@ const assert  = require('chai').assert;
 const L7mp    = require('../l7mp.js').L7mp;
 const Cluster = require('../cluster.js').Cluster;
 const EndPoint = require('../cluster.js').EndPoint;
-const LoadBalancer = require('../cluster.js').LoadBalancer;
 const fs = require('fs');
 const net      = require('net');
+const {PassThrough} = require('stream');
+
 
 describe('UDS-NetSocketCluster', ()  => {
     var s, unixSocketServer;
     before( () => {
         unixSocketServer = net.createServer();
-        unixSocketServer.listen('/tmp/unixSocket', () => {
-            console.log('now listening');
+        unixSocketServer.listen('/tmp/unixSocket.txt', () => {
         });
         l7mp = new L7mp();
-        l7mp.applyAdmin({ log_level: 'silly' });
+        l7mp.applyAdmin({ log_level: 'error' });
         l7mp.run(); // should return
     });
 
     after( () => {
-       fs.unlink('/tmp/unixSocket',(err => {
-            if(err) {
-                console.log(err);
-            }
-            console.log('unlinked')
-       }));
+       // fs.unlink('/tmp/unixSocket.txt',(err => {
+       //      if(err) {
+       //          console.log(err);
+       //      }
+       //      console.log('unlinked')
+       // }));
        unixSocketServer.close();
     });
 
@@ -42,9 +42,8 @@ describe('UDS-NetSocketCluster', ()  => {
 
     context('endpoints', () => {
         var c = Cluster.create({name: 'UnixDomainSocket', spec: {protocol: 'UnixDomainSocket'}});
-
         var e;
-        it('add',                 () => { e = c.addEndPoint({name: 'UDSNetSocket', spec: {address: '/tmp/unixSocket'}}); assert.isOk(e); });
+        it('add',                 () => { e = c.addEndPoint({name: 'UDSNetSocket', spec: {address: '/tmp/unixSocket.txt'}}); assert.isOk(e); });
         it('exists',              () => { assert.lengthOf(c.endpoints, 1); });
         it('instanceOf',          () => { assert.instanceOf(e, EndPoint); });
         it('equal',               () => { assert.equal(c.endpoints[0].name, 'UDSNetSocket'); });
@@ -56,14 +55,14 @@ describe('UDS-NetSocketCluster', ()  => {
         it('get-fail',            () => { let n = c.getEndPoint('Never'); assert.isUndefined(n); });
         it('delete',              () => { c.deleteEndPoint('UDSNetSocket'); assert.lengthOf(c.endpoints, 0); });
         it('get-fail',            () => { let n = c.getEndPoint('UDSNetSocket'); assert.isUndefined(n); });
-        it('re-add',              () => { e = c.addEndPoint({name: 'UDSNetSocket', spec: {address: '/tmp/unixSocket'}}); assert.isOk(e); });
+        it('re-add',              () => { e = c.addEndPoint({name: 'UDSNetSocket', spec: {address: '/tmp/unixSocket.txt'}}); assert.isOk(e); });
         it('get-2',               () => { let n = c.getEndPoint('UDSNetSocket'); assert.isOk(n); });
         it('get-2-name',          () => { let n = c.getEndPoint('UDSNetSocket'); assert.equal(n.name, 'UDSNetSocket'); });
     });
 
     context('stream()', () => {
-        var c = Cluster.create({name: 'UnixDomainSocket',protocol: 'UnixDomainSocket', spec: {protocol: 'UnixDomainSocket', bind: {address: '/tmp/unixSocket'}}});
-        var e = c.addEndPoint({name: 'UDSNetSocket', spec: {address: '/tmp/unixSocket'}})
+        var c = Cluster.create({name: 'UnixDomainSocket',protocol: 'UnixDomainSocket', spec: {protocol: 'UnixDomainSocket', bind: {address: '/tmp/unixSocket', port: 16000}}});
+        var e = c.addEndPoint({name: 'UDSNetSocket', spec: {address: '/tmp/unixSocket.txt'}})
         it('runs', async   () => { s = await c.stream({ route:{retry:{timeout:1000}}})});
         it('returns ok',   () => { assert.isOk(s.stream); });
         it('isa stream',   () => { assert.instanceOf(s.stream, Stream); });
@@ -79,7 +78,14 @@ describe('UDS-NetSocketCluster', ()  => {
                 assert.equal(data, 'test');
                 done();
             });
-            s.stream.write('test');
+            let echo = new PassThrough({objectMode: true});
+            s.stream.pipe(echo);
+            echo.pipe(s.stream);
+            // let r = fs.createWriteStream("/tmp/unixSocket.txt");
+            // s.stream.pipe(r);
+            s.stream.write('test',()=>{
+               // s.stream.emit('readable')
+            });
         });
         it('Not-found-endpoint', async () => {
             c.loadbalancer.update([undefined]);
