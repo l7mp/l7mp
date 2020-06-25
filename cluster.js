@@ -669,11 +669,11 @@ class JSONSocketCluster extends Cluster {
                                  `Cannot find path "${h.path} in metadata`);
                     }
                 } else if(h.set &&
-                          typeof h.set.key !== "undefined" &&
+                          typeof h.set.path !== "undefined" &&
                           typeof h.set.value !== "undefined" ){
                     log.silly('JSONSocketCluster.stream:', `${this.name}:`,
-                              `Adding "${h.set.key}: ${dumper(h.set.value,4)} to the header`);
-                    req_header = Rule.setAtPath(req_header, h.set.key, h.set.value);
+                              `Adding "${h.set.path}: ${dumper(h.set.value,4)} to the header`);
+                    req_header = Rule.setAtPath(req_header, h.set.path, h.set.value);
                 } else {
                     return Promise.reject(new GeneralError(
                         'Unknown JSONSocket header spec: '+ dumper(h, 4)));

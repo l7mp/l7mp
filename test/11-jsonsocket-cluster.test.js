@@ -301,7 +301,7 @@ describe('JSONSocketCluster', ()  => {
             s_ok.stream.end();
         });
         it('stream-metadata-15', async () => {
-            c.header = [ { set: { key: '/some/nested/meta', value: 'data' } } ];
+            c.header = [ { set: { path: '/some/nested/meta', value: 'data' } } ];
             s.on('message', (msg, rinfo) => {
                 s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
                 let header = JSON.parse(msg);
@@ -312,7 +312,7 @@ describe('JSONSocketCluster', ()  => {
             s_ok.stream.end();
         });
         it('stream-metadata-16', async () => {
-            c.header = [ { set: { key: '/some/nested/meta/', value: 'data' } } ]; // trailing /
+            c.header = [ { set: { path: '/some/nested/meta/', value: 'data' } } ]; // trailing /
             s.on('message', (msg, rinfo) => {
                 s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
                 let header = JSON.parse(msg);
@@ -324,8 +324,8 @@ describe('JSONSocketCluster', ()  => {
         });
         it('stream-metadata-17', async () => {
             c.header = [ {path: '/some/nested' },
-                         { set: { key: '/some/nested/meta', value: 'data' } },
-                         { set: { key: '/some/other/nested/meta', value: 'other-data' } } ];
+                         { set: { path: '/some/nested/meta', value: 'data' } },
+                         { set: { path: '/some/other/nested/meta', value: 'other-data' } } ];
             s.on('message', (msg, rinfo) => {
                 s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
                 let header = JSON.parse(msg);
