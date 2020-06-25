@@ -64,7 +64,7 @@ describe('WebSocketCluster', () => {
 
     context('stream', () => {
         var c = Cluster.create({name: 'WebSocket', spec: {protocol: 'WebSocket'}});
-        c.addEndPoint({spec: {address: '127.0.0.1', port: 8080}}); 
+        c.addEndPoint(EndPoint.create({protocol: 'WebSocket', name: 'WebSocket', spec: {port: 8080, bind: {address: '127.0.0.1', port: 8080}}},{spec: {address: '127.0.0.1', port: 8080}})); 
         var s;
         it('runs', async   () => { s = await c.stream({route: {retry: {timeout: 1000}}, metadata: {HTTP: {url: {host: '127.0.0.1', port: 8080}}}});});
         it('returns ok',   () => { assert.isOk(s.stream); });
@@ -92,6 +92,36 @@ describe('WebSocketCluster', () => {
         it('fail-timeout', async () => {
             s = await c.stream({route:{retry:{timeout:100}}}).
                 catch(() => { assert.isOk(true);});
+        });
+        it('fail-timeout-override', async () => {
+            e = c.endpoints[0]; e.mode=['ok']; e.timeout=1000;
+            let s = await c.stream({route:{retry:{timeout:100}}}).
+                catch(() => { assert.isOk(true);});
+        });
+        it('ok-fail-program', async () => {
+            e = c.endpoints[0]; e.mode=['ok', 'fail', 'ok', 'fail'];
+            e.timeout=0; e.round=0;
+            c.loadbalancer.update([e]); 
+            let i = 0;
+            let s1 = await c.stream({route:{retry:{timeout:2000}}, metadata: {HTTP: {url: {host: '127.0.0.1', port: 8080}}}}).then(
+                async () => {
+                    let s2 = await c.stream({route:{retry:{timeout:2000}}, metadata: {HTTP: {url: {host: '127.0.0.1', port: 8080}}}}).then(
+                        () => { assert.isOk(true); },
+                        async () => {
+                            let s3 = await c.stream({route:{retry:{timeout:2000}}, metadata: {HTTP: {url: {host: '127.0.0.1', port: 8080}}}}).then(
+                                async () => {
+                                    let s4 = await c.stream({route:{retry:{timeout:2000}}, metadata: {HTTP: {url: {host: '127.0.0.1', port: 8080}}}}).then(
+                                        () => { assert.fail(); },
+                                        () => { assert.isOk(true); }
+                                    );
+                                },
+                                () => { assert.fail(); }
+                            );
+                        }
+                    );
+                },
+                () => { assert.fail(); }
+            );
         });
     });
 });
