@@ -67,7 +67,7 @@ describe('TCP-NetSocketCluster', ()  => {
         });
         it('Not-found-endpoint', async () => {
             c.loadbalancer.update([undefined]);
-            return await c.stream({name: 'WebSocket'})
+            return await c.stream({route:{retry:{timeout:1000}}})
                 .then(() => assert(false))
                 .catch(() => assert(true));
         });
