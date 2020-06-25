@@ -55,7 +55,6 @@ describe('UDPEndPoint', ()  => {
                     console.log(msg)
                 }
             });
-
         });
         it('close', (done) => {
             s = e.connect({});
