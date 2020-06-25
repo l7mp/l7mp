@@ -15,14 +15,14 @@ describe('UDS-NetSocketCluster', ()  => {
             console.log('now listening');
         });
         l7mp = new L7mp();
-        l7mp.applyAdmin({ log_level: 'error' });
+        l7mp.applyAdmin({ log_level: 'silly' });
         l7mp.run(); // should return
     });
 
     after( () => {
        fs.unlink('/tmp/unixSocket',(err => {
             if(err) {
-                log.error(err);
+                console.log(err);
             }
             console.log('unlinked')
        }));
@@ -44,7 +44,7 @@ describe('UDS-NetSocketCluster', ()  => {
         var c = Cluster.create({name: 'UnixDomainSocket', spec: {protocol: 'UnixDomainSocket'}});
 
         var e;
-        it('add',                 () => { e = c.addEndPoint({name: 'UDSNetSocket', spec: {address: '/tmp/netSocket'}}); assert.isOk(e); });
+        it('add',                 () => { e = c.addEndPoint({name: 'UDSNetSocket', spec: {address: '/tmp/unixSocket'}}); assert.isOk(e); });
         it('exists',              () => { assert.lengthOf(c.endpoints, 1); });
         it('instanceOf',          () => { assert.instanceOf(e, EndPoint); });
         it('equal',               () => { assert.equal(c.endpoints[0].name, 'UDSNetSocket'); });
@@ -56,19 +56,19 @@ describe('UDS-NetSocketCluster', ()  => {
         it('get-fail',            () => { let n = c.getEndPoint('Never'); assert.isUndefined(n); });
         it('delete',              () => { c.deleteEndPoint('UDSNetSocket'); assert.lengthOf(c.endpoints, 0); });
         it('get-fail',            () => { let n = c.getEndPoint('UDSNetSocket'); assert.isUndefined(n); });
-        it('re-add',              () => { e = c.addEndPoint({name: 'UDSNetSocket', spec: {address: '/tmp/netSocket'}}); assert.isOk(e); });
+        it('re-add',              () => { e = c.addEndPoint({name: 'UDSNetSocket', spec: {address: '/tmp/unixSocket'}}); assert.isOk(e); });
         it('get-2',               () => { let n = c.getEndPoint('UDSNetSocket'); assert.isOk(n); });
         it('get-2-name',          () => { let n = c.getEndPoint('UDSNetSocket'); assert.equal(n.name, 'UDSNetSocket'); });
     });
 
     context('stream()', () => {
-        var c = Cluster.create({name: 'UnixDomainSocket', spec: {protocol: 'UnixDomainSocket'}});
-        var e = c.addEndPoint({name: 'UDSNetSocket', spec: {address: '/tmp/netSocket'}})
-        it('runs', async   () => { s = await c.stream({route:{retry:{timeout:1000}}})});
+        var c = Cluster.create({name: 'UnixDomainSocket',protocol: 'UnixDomainSocket', spec: {protocol: 'UnixDomainSocket', bind: {address: '/tmp/unixSocket'}}});
+        var e = c.addEndPoint({name: 'UDSNetSocket', spec: {address: '/tmp/unixSocket'}})
+        it('runs', async   () => { s = await c.stream({ route:{retry:{timeout:1000}}})});
         it('returns ok',   () => { assert.isOk(s.stream); });
         it('isa stream',   () => { assert.instanceOf(s.stream, Stream); });
         it('readable',     () => { assert.isOk(s.stream.readable); });
-        it('writeable',    () => { assert.isOk(s.stream.writable); });
+        it('writable',    () => { assert.isOk(s.stream.writable); });
         it('has-endpoint', () => { assert.isObject(s.endpoint); });
         it('correct-byte-stream',  (done) => {
             s.stream.once('readable', () => {
@@ -83,7 +83,7 @@ describe('UDS-NetSocketCluster', ()  => {
         });
         it('Not-found-endpoint', async () => {
             c.loadbalancer.update([undefined]);
-            return await c.stream({name: 'WebSocket'})
+            return await c.stream({route:{retry:{timeout:1000}}})
                 .then(() => assert(false))
                 .catch(() => assert(true));
         });
