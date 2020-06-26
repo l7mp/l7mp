@@ -312,10 +312,10 @@ class WebSocketListener extends Listener {
         }
 
         this.server.on('connection',
-                       (socket, req, res) => this.onReq(socket, req, res));
+                       (socket, req) => this.onReq(socket, req));
     }
 
-    async onReq(socket, req, res){
+    async onReq(socket, req){
         log.silly('WebSocketListener.onRequest', `Listener: ${this.name}`);
         var name =
             `WS:${req.connection.remoteAddress}:` +
@@ -370,7 +370,7 @@ class WebSocketListener extends Listener {
 
         // this.emit('emit', this.getSession(metadata, duplex,
         //                                   { req: req, res: res }));
-        await this.emitSession(metadata, duplex, { req: req, res: res });
+        await this.emitSession(metadata, duplex);
     }
 
     // end(s, e){
