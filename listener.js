@@ -114,7 +114,7 @@ class HTTPListener extends Listener {
     }
 
     run(){
-        this.server = http.createServer( this.onRequest );
+        this.server = http.createServer();
 
         this.server.on('error', (e) => {
             log.warn('HTTPListener.new: Error:', e);
@@ -312,10 +312,10 @@ class WebSocketListener extends Listener {
         }
 
         this.server.on('connection',
-                       (socket, res) => this.onReq(socket, res));
+                       (socket, req, res) => this.onReq(socket, req, res));
     }
 
-    async onReq(socket, req){
+    async onReq(socket, req, res){
         log.silly('WebSocketListener.onRequest', `Listener: ${this.name}`);
         var name =
             `WS:${req.connection.remoteAddress}:` +
