@@ -1,9 +1,6 @@
-const { inRange } = require('lodash');
-
 const assert = require('chai').assert;
-const L7mp         = require('../l7mp.js').L7mp;
-const Listener     = require('../listener.js').Listener;
-const Route = require('../route.js').Route;
+const L7mp   = require('../l7mp.js').L7mp;
+const Route  = require('../route.js').Route;
 
 describe('Route', () => {
     var c; 
