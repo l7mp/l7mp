@@ -12,11 +12,11 @@ const PassThrough       = require('stream').PassThrough;
 const NotFoundError     = require('../error.js');
 
 describe('Session', () => {
-    var sess, stage; 
+    var stage; 
     var l, e, c, r, ru, rl, u;
     before( () => {
         l7mp = new L7mp();
-        l7mp.applyAdmin({ log_level: 'silly' });
+        l7mp.applyAdmin({ log_level: 'error' });
         l7mp.run(); // should return
 
         l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
@@ -48,14 +48,16 @@ describe('Session', () => {
     });
 
     context('Init', () => {
-        var du = new DuplexPassthrough();
-        it('init', () => {
+        let sess;
+        before( () => {
+            var du = new DuplexPassthrough();
             let x = { metadata: {name: 'Test-s'},
                       source: { origin: l.name, stream: du.right }};
             sess = new Session(x);
             l7mp.sessions.push(sess);
-            assert.exists(sess); 
         });
+        after(              () => { l7mp.sessions.pop(); });
+        it('init',          () => { assert.exists(sess); });
         it('object',        () => { assert.isObject(sess); }); 
         it('has-metadata',  () => { assert.property(sess, 'metadata'); }); 
         it('has-name',      () => { assert.property(sess, 'name'); });
@@ -70,6 +72,15 @@ describe('Session', () => {
     });
 
     context('Create', () => {
+        let sess; 
+        before( () => {
+            var du = new DuplexPassthrough();
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            sess = new Session(x);
+            l7mp.sessions.push(sess);
+        });
+        after(                        () => { l7mp.sessions.pop(); });
         it('create',                  () => { sess.create(); assert.isOk(true); });
         it('status',                  () => { assert.propertyVal(sess.source, 'status', 'READY'); }); 
         it('origin',                  () => { assert.instanceOf(sess.source.session, Session); });
@@ -93,11 +104,16 @@ describe('Session', () => {
     context('Stage-Connect', () => {
         var du = new DuplexPassthrough();
         let s, to;
-        it('connect', async () => {
+        before( () => {
             let x = { metadata: {name: 'Test'},
-                      source: { origin: c.name, stream: du.right }};
+                        source: { origin: c.name, stream: du.right }};
             s = new Session(x);
             l7mp.sessions.push(s);
+        });
+        after( () => {
+            l7mp.sessions.pop();
+        })
+        it('connect', async () => {
             s.source = new Stage({session: s, origin: s.source.origin, stream: s.source.stream, source: true}); 
             s.route = r;
             await s.source.connect(0, 2000); 
@@ -145,14 +161,32 @@ describe('Session', () => {
         });
     });
 
-    context('Connected', () => {NotFoundError
-        it('connect-status', () => { sess.connected(); assert.propertyVal(sess, 'status', 'CONNECTED'); });
+    context('Connected', () => {
+        let sess;
+        before( () => {
+            var du = new DuplexPassthrough();
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            sess = new Session(x);
+            l7mp.sessions.push(sess);
+        });
+        after(               () => { l7mp.sessions.pop(); });
+        it('connect-status', () => { sess.create(); sess.connected(); assert.propertyVal(sess, 'status', 'CONNECTED'); });
         it('event-length',   () => { assert.equal(sess.events.length, 3); }); 
         it('event-status',   () => { assert.propertyVal(sess.events[2], 'event', 'CONNECT'); });
     });
 
     context('Router', () => {
         let s;
+        let sess;
+        before( () => {
+            var du = new DuplexPassthrough();
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            sess = new Session(x);
+            l7mp.sessions.push(sess);
+        });
+        after(                  () => { l7mp.sessions.pop(); });
         it('router',      async () => { s = await sess.router(); assert.isOk(s); }); 
         it('number-of-streams', () => { assert.property(s, 'num_streams'); });
         it('active_streams',    () => { assert.property(s, 'active_streams'); });
@@ -161,6 +195,15 @@ describe('Session', () => {
 
     context('Lookup', () => {
         var action; 
+        let sess;
+        before( () => {
+            var du = new DuplexPassthrough();
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            sess = new Session(x);
+            l7mp.sessions.push(sess);
+        });
+        after(       () => { l7mp.sessions.pop(); });
         it('lookup', () => { action = sess.lookup('Test-rs'); assert.isOk(action); });
         it('action', () => { assert.propertyVal(action, 'route', 'Test-r'); }); 
         it('cannot-find-rulelist', (done) => { 
@@ -171,7 +214,7 @@ describe('Session', () => {
                 done();
             }
         });
-        it('cannot-find-rules', (done) => {
+        it('cannot-find-rules',    (done) => {
             ruleList = RuleList.create({name: 'no-rule', rules: ['']});
             l7mp.rulelists.push(ruleList);
             try {
@@ -184,6 +227,16 @@ describe('Session', () => {
     });
 
     context('Pipeline', () => {
+        let sess;
+        before( () => {
+            var du = new DuplexPassthrough();
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            sess = new Session(x);
+            l7mp.sessions.push(sess);
+            sess.create();
+        });
+        after(               () => { l7mp.sessions.pop(); });
         it('pipeline', async () => { assert.isOk(await sess.pipeline()); });
         // TODO: Other pipeline methods
     });
