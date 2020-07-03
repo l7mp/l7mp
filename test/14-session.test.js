@@ -11,52 +11,54 @@ const Route             = require('../route.js').Route;
 const PassThrough       = require('stream').PassThrough;
 const NotFoundError     = require('../error.js');
 
+function remove(){
+    l7mp.listeners.pop(); 
+    l7mp.clusters.pop(); 
+    l7mp.rules.pop(); 
+    l7mp.rulelists.pop();
+    l7mp.routes.pop();
+    l7mp.sessions.pop(); 
+}
+
 describe('Session', () => {
-    var stage; 
-    var l, e, c, r, ru, rl, u;
     before( () => {
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'error' });
         l7mp.run(); // should return
-
-        l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
-        l7mp.listeners.push(l);
-
-        c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'},
-                             endpoints: [{ name: 'Test-e', spec: {}}]});
-        e = c.endpoints[0];
-        l7mp.clusters.push(c);
-        
-        ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
-        l7mp.rules.push(ru);
-        
-        rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
-        l7mp.rulelists.push(rl);
-        
-        l.rules='Test-rs';
-
-        r = Route.create({
-            name: 'Test-r',
-            destination: 'Test-c',
-            retry: {
-                retry_on: 'never',
-                num_retries: 0,
-                timeout: 2000,
-            }
-        });
-        l7mp.routes.push(r);
     });
 
     context('Init', () => {
-        let sess;
+        let stage, sess, l, c, e, ru, rl, r;
         before( () => {
+            l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
+            l7mp.listeners.push(l);
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            e = c.endpoints[0];
+            l7mp.clusters.push(c);
+            ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
+            l7mp.rules.push(ru);
+            rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
+            l7mp.rulelists.push(rl);
+            l.rules='Test-rs';
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'never',
+                    num_retries: 0,
+                    timeout: 2000,
+                }
+            });
+            l7mp.routes.push(r);
             var du = new DuplexPassthrough();
             let x = { metadata: {name: 'Test-s'},
-                      source: { origin: l.name, stream: du.right }};
+                source: { origin: l.name, stream: du.right }};
             sess = new Session(x);
             l7mp.sessions.push(sess);
         });
-        after(              () => { l7mp.sessions.pop(); });
+        after( () => { 
+            remove();
+        });
         it('init',          () => { assert.exists(sess); });
         it('object',        () => { assert.isObject(sess); }); 
         it('has-metadata',  () => { assert.property(sess, 'metadata'); }); 
@@ -72,13 +74,36 @@ describe('Session', () => {
     });
 
     context('Create', () => {
-        let sess; 
+        let stage, sess, l, c, e, ru, rl, r;
         before( () => {
+            l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
+            l7mp.listeners.push(l);
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            e = c.endpoints[0];
+            l7mp.clusters.push(c);
+            ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
+            l7mp.rules.push(ru);
+            rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
+            l7mp.rulelists.push(rl);
+            l.rules='Test-rs';
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'never',
+                    num_retries: 0,
+                    timeout: 2000,
+                }
+            });
+            l7mp.routes.push(r);
             var du = new DuplexPassthrough();
             let x = { metadata: {name: 'Test-s'},
                       source: { origin: l.name, stream: du.right }};
             sess = new Session(x);
             l7mp.sessions.push(sess);
+        });
+        after( () => { 
+            remove();
         });
         after(                        () => { l7mp.sessions.pop(); });
         it('create',                  () => { sess.create(); assert.isOk(true); });
@@ -97,22 +122,39 @@ describe('Session', () => {
         it('event-status',            () => { assert.propertyVal(sess.events[1], 'event', 'LOOKUP SUCCESS'); });
     });
 
-    // context('GetStages', () => {
-    //     it('get_stages', () => { console.log(sess.get_stages()); }); 
-    // });
-
     context('Stage-Connect', () => {
-        var du = new DuplexPassthrough();
         let s, to;
+        let stage, l, c, e, ru, rl, r;
         before( () => {
+            l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
+            l7mp.listeners.push(l);
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            e = c.endpoints[0];
+            l7mp.clusters.push(c);
+            ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
+            l7mp.rules.push(ru);
+            rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
+            l7mp.rulelists.push(rl);
+            l.rules='Test-rs';
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'never',
+                    num_retries: 0,
+                    timeout: 2000,
+                }
+            });
+            l7mp.routes.push(r);
+            var du = new DuplexPassthrough();
             let x = { metadata: {name: 'Test'},
                         source: { origin: c.name, stream: du.right }};
             s = new Session(x);
             l7mp.sessions.push(s);
         });
-        after( () => {
-            l7mp.sessions.pop();
-        })
+        after( () => { 
+            remove();
+        });
         it('connect', async () => {
             s.source = new Stage({session: s, origin: s.source.origin, stream: s.source.stream, source: true}); 
             s.route = r;
@@ -162,31 +204,169 @@ describe('Session', () => {
     });
 
     context('Connected', () => {
-        let sess;
+        let stage, sess, l, c, e, ru, rl, r;
         before( () => {
+            l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
+            l7mp.listeners.push(l);
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            e = c.endpoints[0];
+            l7mp.clusters.push(c);
+            ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
+            l7mp.rules.push(ru);
+            rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
+            l7mp.rulelists.push(rl);
+            l.rules='Test-rs';
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'never',
+                    num_retries: 0,
+                    timeout: 2000,
+                }
+            });
+            l7mp.routes.push(r);
             var du = new DuplexPassthrough();
             let x = { metadata: {name: 'Test-s'},
                       source: { origin: l.name, stream: du.right }};
             sess = new Session(x);
             l7mp.sessions.push(sess);
         });
-        after(               () => { l7mp.sessions.pop(); });
+        after( () => { 
+            remove();
+        });
         it('connect-status', () => { sess.create(); sess.connected(); assert.propertyVal(sess, 'status', 'CONNECTED'); });
         it('event-length',   () => { assert.equal(sess.events.length, 3); }); 
         it('event-status',   () => { assert.propertyVal(sess.events[2], 'event', 'CONNECT'); });
     });
 
+    context('Error', () => {
+        let sess, l, c, e, ru, rl, r;
+        before( () => {
+            l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
+            l7mp.listeners.push(l);
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            e = c.endpoints[0];
+            l7mp.clusters.push(c);
+            ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
+            l7mp.rules.push(ru);
+            rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
+            l7mp.rulelists.push(rl);
+            l.rules='Test-rs';
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'never',
+                    num_retries: 0,
+                    timeout: 2000,
+                }
+            });
+            l7mp.routes.push(r);
+            var du = new DuplexPassthrough();
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            sess = new Session(x);
+            l7mp.sessions.push(sess);
+            sess.create();
+        });
+        after( () => { 
+            remove();
+        });
+        it('make-an-error', () => { 
+            try {
+                sess.error(Error("Test"));                 
+            } catch (error) {
+                assert.isOk(true);
+            }
+        });
+        it('error-status',  () => { assert.propertyVal(sess, 'status', 'FINALIZING'); })
+        it('event-length',  () => { assert.equal(sess.events.length, 3); }); 
+        it('event-status',  () => { assert.propertyVal(sess.events[2], 'event', 'ERROR'); });
+        it('event-message', () => { assert.propertyVal(sess.events[2], 'message', 'Test'); });
+        it('event-content', () => { assert.instanceOf(sess.events[2].content, Error); });
+    });
+
+    context('End', () => {
+        let sess, l, c, e, ru, rl, r;
+        before( () => {
+            l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
+            l7mp.listeners.push(l);
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            e = c.endpoints[0];
+            l7mp.clusters.push(c);
+            ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
+            l7mp.rules.push(ru);
+            rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
+            l7mp.rulelists.push(rl);
+            l.rules='Test-rs';
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'never',
+                    num_retries: 0,
+                    timeout: 2000,
+                }
+            });
+            l7mp.routes.push(r);
+            var du = new DuplexPassthrough();
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            sess = new Session(x);
+            l7mp.sessions.push(sess);
+            sess.create();
+        });
+        after( () => { 
+            remove();
+        });
+        it('make-an-end', () => { 
+            try {
+                sess.end(Error("Test"));                 
+            } catch (error) {
+                assert.isOk(true);
+            }
+        });
+        it('end-status',  () => { assert.propertyVal(sess, 'status', 'FINALIZING'); })
+        it('event-length',  () => { assert.equal(sess.events.length, 3); }); 
+        it('event-status',  () => { assert.propertyVal(sess.events[2], 'event', 'END'); });
+        it('event-message', () => { assert.propertyVal(sess.events[2], 'message', 'Test'); });
+        it('event-content', () => { assert.instanceOf(sess.events[2].content, Error); });
+    });
+
     context('Router', () => {
         let s;
-        let sess;
+        let stage, sess, l, c, e, ru, rl, r;
         before( () => {
+            l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
+            l7mp.listeners.push(l);
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            e = c.endpoints[0];
+            l7mp.clusters.push(c);
+            ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
+            l7mp.rules.push(ru);
+            rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
+            l7mp.rulelists.push(rl);
+            l.rules='Test-rs';
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'never',
+                    num_retries: 0,
+                    timeout: 2000,
+                }
+            });
+            l7mp.routes.push(r);
             var du = new DuplexPassthrough();
             let x = { metadata: {name: 'Test-s'},
                       source: { origin: l.name, stream: du.right }};
             sess = new Session(x);
             l7mp.sessions.push(sess);
         });
-        after(                  () => { l7mp.sessions.pop(); });
+        after( () => { 
+            remove();
+        });
         it('router',      async () => { s = await sess.router(); assert.isOk(s); }); 
         it('number-of-streams', () => { assert.property(s, 'num_streams'); });
         it('active_streams',    () => { assert.property(s, 'active_streams'); });
@@ -195,15 +375,37 @@ describe('Session', () => {
 
     context('Lookup', () => {
         var action; 
-        let sess;
+        let stage, sess, l, c, e, ru, rl, r;
         before( () => {
+            l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
+            l7mp.listeners.push(l);
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            e = c.endpoints[0];
+            l7mp.clusters.push(c);
+            ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
+            l7mp.rules.push(ru);
+            rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
+            l7mp.rulelists.push(rl);
+            l.rules='Test-rs';
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'never',
+                    num_retries: 0,
+                    timeout: 2000,
+                }
+            });
+            l7mp.routes.push(r);
             var du = new DuplexPassthrough();
             let x = { metadata: {name: 'Test-s'},
                       source: { origin: l.name, stream: du.right }};
             sess = new Session(x);
             l7mp.sessions.push(sess);
         });
-        after(       () => { l7mp.sessions.pop(); });
+        after( () => { 
+            remove();
+        });
         it('lookup', () => { action = sess.lookup('Test-rs'); assert.isOk(action); });
         it('action', () => { assert.propertyVal(action, 'route', 'Test-r'); }); 
         it('cannot-find-rulelist', (done) => { 
@@ -226,9 +428,29 @@ describe('Session', () => {
         });
     });
 
-    context('Pipeline', () => {
-        let sess;
+    context('Pipeline-Init', () => {
+        let wait_list, sess, l, c, e, ru, rl, r;
         before( () => {
+            l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
+            l7mp.listeners.push(l);
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            e = c.endpoints[0];
+            l7mp.clusters.push(c);
+            ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
+            l7mp.rules.push(ru);
+            rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
+            l7mp.rulelists.push(rl);
+            l.rules='Test-rs';
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'never',
+                    num_retries: 0,
+                    timeout: 2000,
+                }
+            });
+            l7mp.routes.push(r);
             var du = new DuplexPassthrough();
             let x = { metadata: {name: 'Test-s'},
                       source: { origin: l.name, stream: du.right }};
@@ -236,8 +458,480 @@ describe('Session', () => {
             l7mp.sessions.push(sess);
             sess.create();
         });
-        after(               () => { l7mp.sessions.pop(); });
-        it('pipeline', async () => { assert.isOk(await sess.pipeline()); });
-        // TODO: Other pipeline methods
+        after( () => { 
+            remove();
+        });
+        it('pipeline-init',  () => { assert.isOk(sess.pipeline_init()); });
+        it('empty-ingress',  () => { assert.isEmpty(sess.chain.ingress); });
+        it('empty-egress',   () => { assert.isEmpty(sess.chain.egress); });
+        it('destination',    () => { assert.instanceOf(sess.destination, Stage); });
+        it('pipeline-init-ingess-egress', () => {
+            sess.route.ingress = ['Test-c']; 
+            sess.route.egress = ['Test-c'];
+            wait_list = sess.pipeline_init();
+            assert.isOk(wait_list);
+        });
+        it('wait-list',        () => { assert.instanceOf(wait_list, Array); });
+        it('wait-list-length', () => { assert.lengthOf(wait_list, 3); });
+        it('ingress',          () => { assert.instanceOf(sess.chain.ingress[0], Stage); });
+        it('egress',           () => { assert.instanceOf(sess.chain.egress[0], Stage); });
+        it('destination',      () => { assert.instanceOf(sess.destination, Stage); });        
+    });
+
+    context('Pipeline-Finish', () => {
+        let sess, l, c, e, ru, rl, r;
+        before( () => {
+            l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
+            l7mp.listeners.push(l);
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            e = c.endpoints[0];
+            l7mp.clusters.push(c);
+            ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
+            l7mp.rules.push(ru);
+            rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
+            l7mp.rulelists.push(rl);
+            l.rules='Test-rs';
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'never',
+                    num_retries: 0,
+                    timeout: 2000,
+                }
+            });
+            l7mp.routes.push(r);
+            var du = new DuplexPassthrough();
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            sess = new Session(x);
+            l7mp.sessions.push(sess);
+            sess.create();
+            sess.pipeline_init();
+        });
+        after( () => { 
+            remove();
+        });
+        it('pipeline-finish', () => {
+            sess.destination.stream = new PassThrough();
+            try {
+                sess.pipeline_finish(sess.source, sess.destination, sess.chain.ingress, 'ingress');
+                assert.isOk(true);
+            } catch (error) {
+                assert.fail(error);
+            }
+        });
+        it('pipeline-finish-reverse', () => {
+            try {
+                sess.pipeline_finish(sess.destination, sess.source, sess.chain.egress, 'egress');
+                assert.isOk(true);
+            } catch (error) {
+                assert.fail(error);
+            }
+        });
+        it('chain-loop', () => {
+            sess.route.ingress = ['Test-c']; 
+            sess.route.egress = ['Test-c'];
+            wait_list = sess.pipeline_init();
+            sess.chain.egress[0].stream = new PassThrough();
+            sess.chain.ingress[0].stream = new PassThrough();
+            sess.destination.stream = new PassThrough();
+            try {
+                sess.pipeline_finish(sess.source, sess.destination, sess.chain.ingress, 'ingress');
+                assert.isOk(true);
+            } catch (error) {
+                assert.fail(error);
+            }
+        });
+    });
+
+    context('Pipeline-Event-Handler', () => {
+        let sess, l, c, e, ru, rl, r;
+        before( () => {
+            l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
+            l7mp.listeners.push(l);
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            e = c.endpoints[0];
+            l7mp.clusters.push(c);
+            ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
+            l7mp.rules.push(ru);
+            rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
+            l7mp.rulelists.push(rl);
+            l.rules='Test-rs';
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'never',
+                    num_retries: 0,
+                    timeout: 2000,
+                }
+            });
+            l7mp.routes.push(r);
+            var du = new DuplexPassthrough();
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            sess = new Session(x);
+            l7mp.sessions.push(sess);
+            sess.create();
+            sess.pipeline_init();
+        });
+        after( () => { 
+            remove();
+        });
+        it('single-events', () => {
+            sess.destination.stream = new PassThrough();
+            try {
+                sess.pipeline_event_handlers();                 
+            } catch (error) {
+                asssert.fail(error); 
+            }
+        });
+        it('source-has-on_disc', () => { assert.property(sess.source, 'on_disc'); });
+        it('destination-has-on_disc', () => { assert.property(sess.destination, 'on_disc'); }); 
+        it('with-chain', () => {
+            sess.route.ingress = ['Test-c']; 
+            sess.route.egress = ['Test-c'];
+            wait_list = sess.pipeline_init();
+            sess.chain.egress[0].stream = new PassThrough();
+            sess.chain.ingress[0].stream = new PassThrough();
+            sess.destination.stream = new PassThrough();
+            try {
+                sess.pipeline_event_handlers();                
+            } catch (error) {
+                console.log(error);
+            }
+        });
+        it('source-has-on_disc', () => { assert.property(sess.source, 'on_disc'); });
+        it('destination-has-on_disc', () => { assert.property(sess.destination, 'on_disc'); }); 
+        it('ingress-has-on_disc' , () => { assert.property(sess.chain.ingress[0], 'on_disc'); });
+        it('egress-has-on_disc' , () => { assert.property(sess.chain.egress[0], 'on_disc'); });
+    });
+
+    context('Get-Stages', () => {
+        let sess, l, c, e, ru, rl, r;
+        before( () => {
+            l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
+            l7mp.listeners.push(l);
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            e = c.endpoints[0];
+            l7mp.clusters.push(c);
+            ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
+            l7mp.rules.push(ru);
+            rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
+            l7mp.rulelists.push(rl);
+            l.rules='Test-rs';
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'never',
+                    num_retries: 0,
+                    timeout: 2000,
+                }
+            });
+            l7mp.routes.push(r);
+            var du = new DuplexPassthrough();
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            sess = new Session(x);
+            l7mp.sessions.push(sess);
+            sess.create();
+        });
+        after( () => { 
+            remove();
+        });
+        it('source', () => { 
+            let s = sess.get_stages(); 
+            if (s.length == 1){
+                assert.equal(sess.source, s[0]);
+            } else {
+                assert.fail("The returned list length not equal 1"); 
+            }
+        });
+        it('destination-source', () => { 
+            sess.pipeline_init(); 
+            let s = sess.get_stages(); 
+            if (s.length == 2){
+                assert.equal(sess.source, s[0]);
+                assert.equal(sess.destination, s[1]);
+            } else {
+                assert.fail("The returned list length not equal 2"); 
+            }
+        });
+        it('egress', () => {
+            sess.route.egress = ['Test-c'];
+            sess.pipeline_init(); 
+            sess.destination = undefined;
+            let s = sess.get_stages(); 
+            if (s.length == 2){
+                assert.equal(sess.source, s[0]);
+                assert.equal(sess.chain.egress[0], s[1]);
+            } else {
+                assert.fail("The returned list length not equal 2"); 
+            }
+        });
+        it('ingress', () => {
+            sess.route.egress = undefined;
+            sess.route.ingress = ['Test-c'];
+            sess.pipeline_init(); 
+            sess.destination = undefined;
+            let s = sess.get_stages(); 
+            if (s.length == 2){
+                assert.equal(sess.source, s[0]);
+                assert.equal(sess.chain.ingress[0], s[1]);
+            } else {
+                assert.fail("The returned list length not equal 2"); 
+            }
+        });
+    }); 
+
+    context('Pipeline', () => {
+        let sess, l, c, e, ru, rl, r;
+        before( () => {
+            l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
+            l7mp.listeners.push(l);
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            e = c.endpoints[0];
+            l7mp.clusters.push(c);
+            ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
+            l7mp.rules.push(ru);
+            rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
+            l7mp.rulelists.push(rl);
+            l.rules='Test-rs';
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'never',
+                    num_retries: 0,
+                    timeout: 2000,
+                }
+            });
+            l7mp.routes.push(r);
+            var du = new DuplexPassthrough();
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            sess = new Session(x);
+            l7mp.sessions.push(sess);
+            sess.create();
+        });
+        after( () => { 
+            remove();
+        });
+        it('pipeline', async () => { sess = await sess.pipeline(); assert.isOk(sess); });
+        it('has-num-stresms', () => { assert.property(sess, 'num_streams'); });
+        it('has-active_streams',    () => { assert.property(sess, 'active_streams'); });
+        it('source-has-on_disc', () => { assert.property(sess.source, 'on_disc'); });
+        it('destination-has-on_disc', () => { assert.property(sess.destination, 'on_disc'); }); 
+        it('connected-status', () => { assert.propertyVal(sess, 'status', 'CONNECTED'); });
+    });
+
+    context('Disconnect', () => {
+        let stage, sess, l, c, e, ru, rl, r;
+        before( () => {
+            l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
+            l7mp.listeners.push(l);
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            e = c.endpoints[0];
+            l7mp.clusters.push(c);
+            ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
+            l7mp.rules.push(ru);
+            rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
+            l7mp.rulelists.push(rl);
+            l.rules='Test-rs';
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'never',
+                    num_retries: 0,
+                    timeout: 2000,
+                }
+            });
+            l7mp.routes.push(r);
+            var du = new DuplexPassthrough();
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            sess = new Session(x);
+            l7mp.sessions.push(sess);
+            sess.create();
+        });
+        after( () => { 
+            remove();
+        }); 
+        it('not-ready', () => {
+            stage = new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true});
+            try {
+                sess.disconnect(stage, Error('Test'));
+            } catch (error) {
+                assert.fail(error);
+            }
+        });
+        it('events-length',      () => { assert.lengthOf(sess.events, 3); });
+        it('event-meassage',     () => { assert.equal(sess.events[2].message, 'Session.disconnect: Stage: Test-l: Error: Test'); });
+        it('event-content_type', () => { assert.instanceOf(sess.events[2].content, Error); });
+        it('stage-status',       () => { assert.equal(stage.status, 'INIT'); });
+        it('ready-connected',    () => {
+            sess.active_streams = 1;
+            sess.status = 'CONNECTED';
+            stage.set_event_handlers();
+            stage.status = 'READY'; 
+            stage.origin.status = 'INIT'; 
+            try {
+                sess.disconnect(stage, Error('Test'));
+            } catch (error) {
+                assert.fail(error);
+            }
+        });
+        it('stage-status',     () => { assert.equal(stage.status, 'DISCONNECTED'); });
+        it('active-strems',    () => { assert.equal(sess.active_streams, 0); });
+        it('destroyed',        () => { assert.isOk(stage.stream.destroyed); });
+        it('retry-disconnect', async() => {
+            l7mp.sessions.pop();
+            var du = new DuplexPassthrough();
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            sess = new Session(x);
+            l7mp.sessions.push(sess);
+            sess.create();
+            sess.active_streams = 1;
+            sess.num_streams = 1; 
+            sess.route.retry.retry_on = 'disconnect';
+            sess.route.retry.num_retries = 1;
+            stage.status = 'READY';
+            stage.retriable = true; 
+            stage.origin = 'Test-c';
+            sess.destination = stage;
+            try {
+                await sess.disconnect(stage, Error('Test'));
+            } catch (error) {
+                assert.fail(error);
+            }
+        });
+        it('stage-status', () => { assert.equal(stage.session.source.status, 'READY'); });
+        it('active-streams', () => { assert.equal(sess.active_streams, 1); });
+        it('sess-status', () => { assert.equal(sess.status, 'CONNECTED'); });
+        it('last-event', () => { assert.equal(sess.events[sess.events.length - 1].event, 'CONNECT'); });
+    });
+
+    context('Repipe', () => {
+        let stage, sess, l, c, e, ru, rl, r;
+        beforeEach( () => {
+            l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
+            l7mp.listeners.push(l);
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            e = c.endpoints[0];
+            l7mp.clusters.push(c);
+            ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
+            l7mp.rules.push(ru);
+            rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
+            l7mp.rulelists.push(rl);
+            l.rules='Test-rs';
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'never',
+                    num_retries: 0,
+                    timeout: 2000,
+                }
+            });
+            l7mp.routes.push(r);
+            var du = new DuplexPassthrough();
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            sess = new Session(x);
+            l7mp.sessions.push(sess);
+            sess.create();
+        });
+        afterEach( () => { 
+            remove();
+        });
+        it('Error-on-source', () => {
+            stage = new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true});
+            sess.route.ingress = ['Test-c']; 
+            sess.route.egress = ['Test-c'];
+            sess.pipeline_init();
+            sess.chain.egress[0].id = sess.source.id;
+            sess.chain.egress.push(stage); 
+            sess.destination = stage;
+            sess.destination.id = 1;  
+            sess.stream = new PassThrough();
+            try {
+                sess.repipe(sess.source);
+            } catch (error) {
+                assert.fail(error);
+            }
+        });
+        it('Error-on-destination', () => {
+            stage = new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true});
+            sess.destination = stage; 
+            sess.chain.ingress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true}));
+            sess.chain.ingress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true}));
+            sess.chain.egress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true}));
+            sess.chain.egress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true}));
+            sess.stream = new PassThrough();
+            try {
+                sess.repipe(stage);
+            } catch (error) {
+                assert.fail(error);
+            }
+        });
+        it('Error-on-ingress', () => {
+            stage = new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true});
+            sess.destination = new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true});
+            sess.chain.ingress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true}));
+            sess.chain.ingress.push(stage);
+            sess.chain.egress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true}));
+            sess.chain.egress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true}));
+            sess.stream = new PassThrough();
+            try {
+                sess.repipe(stage);
+            } catch (error) {
+                assert.fail(error);
+            }
+        });
+    });
+
+    context('Destroy', () => {
+        let stage, sess, l, c, e, ru, rl, r;
+        beforeEach( () => {
+            l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
+            l7mp.listeners.push(l);
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            e = c.endpoints[0];
+            l7mp.clusters.push(c);
+            ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
+            l7mp.rules.push(ru);
+            rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
+            l7mp.rulelists.push(rl);
+            l.rules='Test-rs';
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'never',
+                    num_retries: 0,
+                    timeout: 2000,
+                }
+            });
+            l7mp.routes.push(r);
+            var du = new DuplexPassthrough();
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            sess = new Session(x);
+            l7mp.sessions.push(sess);
+            sess.create();
+        });
+        afterEach( () => { 
+            remove();
+        });
+        it('destroy', () => { assert.equal(sess.destroy(), 1); });
+        it('with-retry', () => { sess.source.status = 'RETRYING'; assert.equal(sess.destroy(), 0); });
+        it('on_disc', () => { 
+            sess.source.set_event_handlers();
+            assert.equal(sess.destroy(), 1);
+        });
     });
 });
