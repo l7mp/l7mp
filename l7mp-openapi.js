@@ -106,8 +106,7 @@ class L7mpOpenAPI {
         this.api.registerHandler('deleteListener', (ctx, req, res) => {
             log.verbose("L7mp.api.deleteListener");
             try {
-                let result =
-                    l7mp.deleteListener(ctx.request.params.name);
+                l7mp.deleteListener(ctx.request.params.name);
                 res.status = new Ok();
             } catch(e) {
                 res.status = new BadRequestError(e.message);
@@ -142,8 +141,58 @@ class L7mpOpenAPI {
         this.api.registerHandler('deleteCluster', (ctx, req, res) => {
             log.verbose("L7mp.api.deleteCluster");
             try {
-                let result =
-                    l7mp.deleteCluster(ctx.request.params.name);
+                l7mp.deleteCluster(ctx.request.params.name);
+                res.status = new Ok();
+            } catch(e) {
+                res.status = new BadRequestError(e.message);
+            }
+        });
+
+        this.api.registerHandler('getEndPoints', (ctx, req, res) => {
+            log.verbose("L7mp.api.getEndPoints");
+            try {
+                let cluster = l7mp.getCluster(ctx.request.params.cluster_name);
+                if(!cluster)
+                    throw new Error(`No such cluster: `+ ctx.request.params.cluster_name);
+                res.status = new Response(cluster.endpoints);
+            } catch(e) {
+                res.status = new BadRequestError(e.message);
+            }
+        });
+
+        this.api.registerHandler('getEndPoint', (ctx, req, res) => {
+            log.verbose("L7mp.api.getEndPoint");
+            try {
+                let cluster = l7mp.getCluster(ctx.request.params.cluster_name);
+                if(!cluster)
+                    throw new Error(`No such cluster: `+ ctx.request.params.cluster_name);
+                let endpoint = cluster.endpoints.find( ({name}) =>
+                                                       name === ctx.request.params.endpoint_name );
+                if(!endpoint)
+                    throw new Error(`No such endpoint: {ctx.request.params.endpoint_name} in cluster `+
+                                    ctx.request.params.cluster_name);
+                res.status = new Response(endpoint);
+            } catch(e) {
+                res.status = new BadRequestError(e.message);
+            }
+        });
+
+        this.api.registerHandler('addEndPoint', (ctx, req, res) => {
+            log.verbose("L7mp.api.addEndPoint");
+            try {
+                let result = l7mp.addEndPoint(ctx.request.params.cluster_name,
+                                              req.body.endpoint);
+                res.status = new Ok();
+            } catch(e) {
+                res.status = new BadRequestError(e.message);
+            }
+        });
+
+        this.api.registerHandler('deleteEndPoint', (ctx, req, res) => {
+            log.verbose("L7mp.api.deleteEndPoint");
+            try {
+                l7mp.deleteEndPoint(ctx.request.params.cluster_name,
+                                    ctx.request.params.endpoint_name);
                 res.status = new Ok();
             } catch(e) {
                 res.status = new BadRequestError(e.message);
