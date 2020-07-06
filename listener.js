@@ -370,7 +370,7 @@ class WebSocketListener extends Listener {
 
         // this.emit('emit', this.getSession(metadata, duplex,
         //                                   { req: req, res: res }));
-        await this.emitSession(metadata, duplex, { req: req, res: res });
+        await this.emitSession(metadata, duplex, {socket: socket, req: req});
     }
 
     // end(s, e){
@@ -673,7 +673,7 @@ class NetServerListener extends Listener {
                 },
             };
 
-        this.emitSession(metadata, socket);
+        await this.emitSession(metadata, socket);
         // this.emit('emit', this.getSession(metadata, socket));
         // await this.router({
         //     metadata: metadata,
