@@ -54,10 +54,30 @@ describe('LoadBalancing', () => {
         });
         it('singe-es', () => {
             hl.update([
-                EndPoint.create({protocol: 'Test'}, {name: 'Test1', spec: {}}),
-                EndPoint.create({protocol: 'Test'}, {name: 'Test2', spec: {}})
+                EndPoint.create({protocol: 'Test'}, {name: 'Test1', spec: {address: 'localhost1'}}),
+                EndPoint.create({protocol: 'Test'}, {name: 'Test2', spec: {address: 'localhost2'}})
             ]);
-            hl.apply({name: 'test'});
+            assert.exists(hl.keys['localhost1']);
+            assert.exists(hl.keys['localhost2']);
         });
+        it('hashring', () => { assert.exists(hl.hashring); }); 
+        it('create-with-keys', () => {
+            hl = LoadBalancer.create({policy: 'HashRing', key: '/key'}); 
+            assert.exists(hl);
+        });
+        it('update-es', () => {
+            hl.update([
+                EndPoint.create({protocol: 'Test'}, {name: 'Test1', spec: {address: 'localhost1'}}),
+                EndPoint.create({protocol: 'Test'}, {name: 'Test2', spec: {address: 'localhost2'}})
+            ]);
+            assert.exists(hl.keys['localhost1']);
+            assert.exists(hl.keys['localhost2']);
+        });
+        it('hashring', () => { assert.exists(hl.hashring); }); 
+        it('apply', () => { 
+            e = hl.apply({name: 'test', metadata: {key: 'localhost1'}}); 
+            assert.instanceOf(e, EndPoint); 
+        });
+        it('name', () => { assert.equal(e.name, 'Test1'); });
     });
 });
