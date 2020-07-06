@@ -555,6 +555,16 @@ components:
           description: The JSON path to the metadata field to hash on (optional).
           type: string
 
+    io.l7mp.api.v1.RouteRequest:
+      description: |
+        Wrapper for addRoute calls. Contains only a single Routet object.
+      type: object
+      required:
+        - route
+      properties:
+        route:
+          $ref: '#/components/schemas/io.l7mp.api.v1.Route'
+
     io.l7mp.api.v1.Route:
       description: The route to be assigned to a session in a math-action rule.
       type: object
@@ -669,6 +679,16 @@ components:
         action:
           $ref: '#/components/schemas/io.l7mp.api.v1.Action'
 
+    io.l7mp.api.v1.RuleListRequest:
+      description: |
+        Wrapper for addRuleList calls. Contains only a single RuleList object.
+      type: object
+      required:
+        - rulelist
+      properties:
+        rulelist:
+          $ref: '#/components/schemas/io.l7mp.api.v1.RuleList'
+
     io.l7mp.api.v1.RuleList:
       description: An abstraction for a math-action table, i.e., an ordered list of match-action rules with each rule specifying a matching condition on metadata and an action to execute if the corresponding rule matches. Rules are searched sequentially until a matching one is found; if no match is found the request is dropped.
       type: object
@@ -680,9 +700,12 @@ components:
           type: string
         rules:
           description: A list of Rule objects.
-          type: array
-          items:
-            $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+          # REMOVED CHECKING DUE TO VALIDATION ERRORS IN oneOf(string,object/array)
+          # oneOf:
+          #   - type: string  # reference to a named RuleList
+          #   - type: array
+          #     items:
+          #       $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
 
     io.l7mp.api.v1.Metadata:
       description: "Metadata that describes a session's all known parameters, like ports and IP addresses, status, HTTP headers (if relevant), etc. In general, metadata are created by the listener and they can be modified/queried/matched in rules/actions."
@@ -1133,6 +1156,170 @@ paths:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
         '400':
           description: Invalid Cluster or EndPoint name.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+  # RuleList API
+  /api/v1/rulelists:
+    get:
+      description: Get a list of RuleLists (aka match-action tables).
+      operationId: getRuleLists
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+                description: A list of RuleLists.
+                type: array
+                items:
+                  $ref: '#/components/schemas/io.l7mp.api.v1.RuleList'
+    post:
+      description: Create a RuleList.
+      operationId: addRuleList
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/io.l7mp.api.v1.RuleListRequest'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+  /api/v1/rulelists/{name}:
+    get:
+      description: Get a named RuleList.
+      operationId: getRuleList
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.RuleList'
+        '400':
+          description: Invalid rulelist name.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+    delete:
+      description: Delete a named RuleList.
+      operationId: deleteRuleList
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+  # Route API
+  /api/v1/routes:
+    get:
+      description: Get a list of Routes.
+      operationId: getRoutes
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+                description: A list of Routes.
+                type: array
+                items:
+                  $ref: '#/components/schemas/io.l7mp.api.v1.Route'
+    post:
+      description: Create a Route.
+      operationId: addRoute
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/io.l7mp.api.v1.RouteRequest'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+  /api/v1/routes/{name}:
+    get:
+      description: Get a named Route.
+      operationId: getRoute
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Route'
+        '400':
+          description: Invalid rulelist name.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+    delete:
+      description: Delete a named Route.
+      operationId: deleteRoute
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+        '400':
+          description: Invalid configuration.
           content:
             'application/json':
               schema:
