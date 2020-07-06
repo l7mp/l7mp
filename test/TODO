@@ -34,7 +34,7 @@
 *** TODO UDP
 *** DONE TCP
 *** DONE JSONSocket
-*** TODO UnixDomainSocket
+*** DONE UnixDomainSocket
 *** TODO Test
 
 ** Route, Rule, RuleList: 13-*
