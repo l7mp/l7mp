@@ -656,7 +656,7 @@ class L7mp {
             throw new NotFoundError(`Cannot add endpoint: ${e}`);
         }
 
-        ep = EndPoint.creatcl, e(ep);
+        ep = cl.addEndPoint(ep);
         this.endpoints.push(ep);
 
         return ep;
@@ -667,9 +667,17 @@ class L7mp {
         return this.endpoints.find( ({name}) => name === n );
     }
 
-    // internal, not to be called from the API
-    deleteEndPoint(n){
+    deleteEndPoint(c, n){
         log.silly('L7mp.deleteEndPoint:', n);
+
+        let cl = this.getCluster(c);
+        if(!cl){
+            let e = `Unknown cluster "${c}"`;
+            log.warn('L7mp.deleteEndPoint', e);
+            throw new NotFoundError(`Cannot delete endpoint: ${e}`);
+        }
+        cl.deleteEndPoint(n);
+
         let i = this.endpoints.findIndex(({name}) => name === n);
         if(i >= 0)
             this.endpoints.splice(i, 1);
