@@ -841,3 +841,4 @@ class Session {
 util.inherits(Session, EventEmitter);
 
 module.exports.Session = Session;
+module.exports.Stage = Stage; 
