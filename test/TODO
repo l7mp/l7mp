@@ -12,7 +12,7 @@
 *** TODO WebSocket
 *** TODO UDP
 *** TODO TCP
-*** TODO JSONSocket
+*** DONE JSONSocket
 *** DONE Test
 
 ** Cluster: 11-*
