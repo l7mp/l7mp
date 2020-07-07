@@ -7,6 +7,7 @@
 
 ** Misc: 0*-*
 *** TODO setAtPath/getAtPath
+*** TODO l7mp basic test
 
 ** EndPoint: 10-*
 *** DONE WebSocket
