@@ -2,6 +2,7 @@ const Stream  = require('stream');
 const assert  = require('chai').assert;
 const L7mp    = require('../l7mp.js').L7mp;
 const Cluster = require('../cluster.js').Cluster;
+const log     = require('npmlog');
 
 describe('JSONDecapCluster', () => {
     before( () => {
@@ -21,9 +22,9 @@ describe('JSONDecapCluster', () => {
     });
 
     context('stream()', () => {
-        var c = Cluster.create({name: 'JSONDecap', spec: {protocol: 'JSONDecap'}});
-        var s;
-        it('runs', async () => { s = await c.stream({name:"test-session"});});
+        var c, s;
+        c = Cluster.create({name: 'JSONDecap', spec: {protocol: 'JSONDecap'}});
+        it('runs', async () => { s = await c.stream({name:"test-session"}); assert.exists(s); });
         it('returns ok', () => { assert.isOk(s.stream); });
         it('isa stream', () => { assert.instanceOf(s.stream, Stream); });
         it('readable',   () => { assert.isOk(s.stream.readable); });
@@ -40,14 +41,20 @@ describe('JSONDecapCluster', () => {
                 done();
             });
         });
-        it('not-correct', () => {
-            s.stream.write('{"payload":}');
+    });
+
+    context('stream()-with-invalid-json' , () => {
+        var c, s;
+        c = Cluster.create({name: 'JSONDecap', spec: {protocol: 'JSONDecap'}});
+        it('runs', async () => { s = await c.stream({name:"test-session"}); assert.exists(s); });
+        it('not-correct', (done) => {
+            s.stream.write('');
             s.stream.on('readable', () => {
                 let data = ''; let chunk;
                 while (null !== (chunk = s.stream.read())) {
                     data += chunk.toString('base64');
                 }
-                assert.equal(data, 'test');
+                assert.equal(log.record[10].prefix, 'JSONDecapCluster.stream.transform:');
                 done();
             });
         });
