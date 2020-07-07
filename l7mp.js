@@ -307,8 +307,7 @@ class L7mp {
             let l = this.listeners[i];
             if(l.options.removeOrphanSessions)
                 for(let s of this.sessions){
-                    let r = s.route;
-                    if(r && r.source.origin.name === l.name)
+                    if(s.source && s.source.origin.name === l.name)
                         this.deleteSession(s.name);
                 }
             l.close();
@@ -369,11 +368,10 @@ class L7mp {
             let c = this.clusters[i];
             if(c.options.removeOrphanSessions)
                 for(let s of this.sessions){
-                    let r = s.route;
-                    if(r.destination.origin.name === c.name ||
-                       r.chain.ingress.some(stage =>
+                    if(s.destination.origin.name === c.name ||
+                       s.chain.ingress.some(stage =>
                                             stage.origin.name === c.name) ||
-                       r.chain.egress.some(stage =>
+                       s.chain.egress.some(stage =>
                                            stage.origin.name === c.name))
                         this.deleteSession(s.name);
                 }
