@@ -2,13 +2,12 @@ const Stream  = require('stream');
 const assert  = require('chai').assert;
 const L7mp    = require('../l7mp.js').L7mp;
 const Cluster = require('../cluster.js').Cluster;
-const log     = require('npmlog');
 
 describe('JSONDecapCluster', () => {
     before( () => {
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'error' });
-        l7mp.run(); // should return
+        l7mp.run();
     });
 
     context('create', () => {
@@ -34,7 +33,17 @@ describe('JSONDecapCluster', () => {
             s.stream.write('{"payload": "test"}');
             s.stream.on('readable', () => {
                 let data = ''; let chunk;
-                // console.log(s.stream); 
+                while (null !== (chunk = s.stream.read())) {
+                    data += chunk.toString('base64');
+                }
+                assert.equal(data, 'test');
+                done();
+            });
+        });
+        it('not-correct', () => {
+            s.stream.write('{"payload":}');
+            s.stream.on('readable', () => {
+                let data = ''; let chunk;
                 while (null !== (chunk = s.stream.read())) {
                     data += chunk.toString('base64');
                 }
