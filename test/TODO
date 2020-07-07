@@ -9,7 +9,7 @@
 *** TODO setAtPath/getAtPath
 
 ** EndPoint: 10-*
-*** TODO WebSocket
+*** DONE WebSocket
 *** TODO UDP
 *** TODO TCP
 *** TODO JSONSocket
