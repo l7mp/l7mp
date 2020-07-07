@@ -14,7 +14,7 @@ describe('WebSocket', () => {
         }); 
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'error' });
-        l7mp.run(); // should return
+        l7mp.run(); 
     });
 
     after( () => {
@@ -22,6 +22,17 @@ describe('WebSocket', () => {
     });
 
     context('create', () => {
+        it('runs',         () => { 
+            assert.exists(e = EndPoint.create(
+                {protocol: 'WebSocket', spec: {port: 8080}},
+                {spec: {address: '127.0.0.1', port: 8080}})); });
+        it('object',       () => { assert.isObject(e); });        it('instanceOf',   () => { assert.instanceOf(e, EndPoint); });
+        it('has-name',     () => { assert.property(e, 'name'); });
+        it('has-spec',     () => { assert.property(e, 'spec'); });
+        it('has-protocol', () => { assert.propertyVal(e, 'protocol', 'WebSocket'); });
+    });
+
+    context('create-with-bind', () => {
         it('runs',         () => { 
             assert.exists(e = EndPoint.create(
                 {protocol: 'WebSocket', spec: {port: 8080, bind: {address: '127.0.0.1', port: 8080}}},
