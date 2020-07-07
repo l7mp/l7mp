@@ -4,6 +4,7 @@ const L7mp         = require('../l7mp.js').L7mp;
 const EndPoint     = require('../cluster.js').EndPoint;
 const Cluster      = require('../cluster.js').Cluster;
 const LoadBalancer = require('../cluster.js').LoadBalancer;
+const UDP          = require('dgram');
 
 describe('UDPCluster', () => {
 
@@ -46,52 +47,59 @@ describe('UDPCluster', () => {
         it('get-2-name',          () => { let n = c.getEndPoint('UDP'); assert.equal(n.name, 'UDP'); });
     });
 
-    context('stream()', () => {
-        var s_ok, e; 
-        var c = Cluster.create({name: 'UDP', spec: {protocol: 'UDP', port: 54321}});
-        c.addEndPoint({name: 'UDP', spec: {address: '127.0.0.1'}});
+    context('stream', () => {
+        var s, e, c;
+        before( () => {
+            c = Cluster.create({name: 'UDP', spec: {protocol: 'UDP' ,port: 16000, bind: {address: "127.0.0.1", port: 16001}}});
+            e = c.addEndPoint(EndPoint.create(
+                {protocol: 'UDP', spec: {protocol: 'UDP' ,port: 16000, bind: {address: "127.0.0.1", port: 16001}}},
+                {name: 'UDP', spec: {address: "127.0.0.1"}}));
+        });
+
         it('ok', async () => {
-            e = c.endpoints[0]; e.mode=['ok']; e.timeout=0;
-            s_ok = await c.stream({route:{retry:{timeout:1000}}});
-            assert.isOk(s_ok);
+            s = await c.stream({route:{retry:{timeout:1000}}});
+            assert.isOk(s);
         });
-        it('exists',     () => { assert.isOk(s_ok.stream); });
-        it('instanceOf', () => { assert.instanceOf(s_ok.stream, Stream); });
-        it('readable',   () => { assert.isOk(s_ok.stream.readable); });
-        it('writeable',  () => { assert.isOk(s_ok.stream.writable); });
-        it('fail', async () => {
-            e = c.endpoints[0]; e.mode=['fail']; e.timeout=0;
-            let s = await c.stream({route:{retry:{timeout:1000}}}).
-                catch(() => { assert.isOk(true);});
+        it('exists',     () => { assert.isOk(s.stream); });
+        it('instanceOf', () => { assert.instanceOf(s.stream, Stream); });
+        it('readable',   () => { assert.isOk(s.stream.readable); });
+        it('writeable',  () => { assert.isOk(s.stream.writable); });
+        it('has-endpoint', () => { assert.isObject(s.endpoint); });
+        it('correct-byte-stream', () => {
+            let client = UDP.createSocket("udp4")
+            client.bind(1600)
+            let message = Buffer.from('test')
+            s.stream.on('message', (msg, rinfo) => {
+                assert.equal(msg.toString(), 'test');
+                client.close();
+                s.close();
+                console.log(s);
+                done();
+            })
+            client.send(message,16001, "127.0.0.1" , (err, bytes) => {
+                if(err) {
+                    client.close();
+                    s.close();
+                }
+            });
         });
-        it('fail-timeout-override', async () => {
-            e = c.endpoints[0]; e.mode=['ok']; e.timeout=1000;
-            let s = await c.stream({route:{retry:{timeout:100}}}).
-                catch(() => { assert.isOk(true);});
+        it('Not-found-endpoint', async () => {
+            c.loadbalancer.update([undefined]);
+            return await c.stream({route:{retry:{timeout:1000}}})
+                .then(() => assert(false))
+                .catch(() => assert(true));
         });
-        it('ok-fail-program', async () => {
-            e = c.endpoints[0]; e.mode=['ok', 'fail', 'ok', 'fail'];
-            e.timeout=0; e.round=0;
-            let i = 0;
-            let s1 = await c.stream({route:{retry:{timeout:2000}}}).then(
-                async () => {
-                    let s2 = await c.stream({route:{retry:{timeout:2000}}}).then(
-                        () => { assert.isOk(true); },
-                        async () => {
-                            let s3 = await c.stream({route:{retry:{timeout:2000}}}).then(
-                                async () => {
-                                    let s4 = await c.stream({route:{retry:{timeout:2000}}}).then(
-                                        () => { assert.fail(); },
-                                        () => { assert.isOk(true); }
-                                    );
-                                },
-                                () => { assert.fail(); }
-                            );
-                        }
-                    );
-                },
-                () => { assert.fail(); }
-            );
+        it('fail-timeout', async () => {
+            await c.stream({route:{retry:{timeout:100}}}).catch(() => {
+                assert.isOk(true);
+            });
+        });
+        it('close', (done) =>{
+            s.stream.on('close', ()=>{
+                assert.isOk(true);
+                done();
+            });
+            s.stream.end();
         });
     });
 });
