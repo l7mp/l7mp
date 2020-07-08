@@ -43,7 +43,7 @@
 *** TODO RuleList
 
 ** Session: routing, retry, load-balancing: 14-*
-*** TODO Session
+*** DONE Session
 *** TODO Routing
 *** DONE Retry
 *** TODO LoadBalancing
