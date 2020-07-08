@@ -72,11 +72,9 @@ describe('Cluster-API', ()  => {
             };
             let callback = function (response) {
                 let str = '';
-                //another chunk of data has been received, so append it to `str`
                 response.on('data', function (chunk) {
                     str += chunk;
                 });
-                //the whole response has been received, so we just print it out here
                 response.on('end', function () {
                     let res = JSON.parse(str);
                     assert.nestedPropertyVal(res[0], 'name', 'controller-listener');
@@ -94,11 +92,9 @@ describe('Cluster-API', ()  => {
             };
             let callback = function (response) {
                 let str = '';
-                //another chunk of data has been received, so append it to `str`
                 response.on('data', function (chunk) {
                     str += chunk;
                 });
-                //the whole response has been received, so we just print it out here
                 response.on('end', function () {
                     let res = JSON.parse(str);
                     assert.nestedPropertyVal(res[0], 'name', 'L7mpControllerCluster');
@@ -135,7 +131,7 @@ describe('Cluster-API', ()  => {
                     done();
                 });
             });
-            req.on('error', (e) =>{
+            req.once('error', (e) =>{
                 log.error(`Error: ${e.message}`);
             })
             req.write(postData);
@@ -149,11 +145,9 @@ describe('Cluster-API', ()  => {
                     method: 'GET'
                 };
                 let callback = function (response) {
-                    //another chunk of data has been received, so append it to `str`
                     response.on('data', function (chunk) {
                         str += chunk;
                     });
-                    //the whole response has been received, so we just print it out here
                     response.on('end', function () {
                         res = JSON.parse(str);
                         assert.nestedPropertyVal(res[1], 'name', 'test-cluster');
@@ -172,7 +166,7 @@ describe('Cluster-API', ()  => {
             it('has-bind-address', () =>{assert.nestedProperty(res[1],'spec.bind.address')});
             it('bind-address', () =>{assert.nestedPropertyVal(res[1],'spec.bind.address','127.0.0.1')});
             it('has-endpoints', () =>{assert.nestedProperty(res[1],'endpoints')});
-            //endpoint tests are located in an other test file named 20-api-endpoint-test
+            //endpoint tests are in a separate test file named 20-api-endpoint-test
         });
         context('delete',()=>{
             it('delete-cluster', (done)=>{
@@ -181,22 +175,162 @@ describe('Cluster-API', ()  => {
                     path: '/api/v1/clusters/test-cluster',
                     method: 'DELETE'
                 };
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/clusters',
+                    method: 'GET'
+                }
+                http.request(options).end();
                 let callback = function (response) {
                     let str = '';
-                    //another chunk of data has been received, so append it to `str`
                     response.on('data', function (chunk) {
                         str += chunk;
                     });
-                    //the whole response has been received, so we just print it out here
-                    response.on('end', function () {
+                    response.once('end', function () {
                         let res = JSON.parse(str);
+                        assert.isNotOk(res[1]);
                         done();
                     });
 
                 }
-                let req = http.request(options, callback).end();
+                http.request(options_get, callback).end();
             });
         });
 
+        context('add-check-delete multiple clusters', ()=>{
+            let res;
+            it('add-5-clusters',(done)=>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/clusters', method: 'POST'
+                    , headers: {'Content-Type' : 'text/x-json'}
+                }
+                for(let i = 1; i < 6; i++){
+                    let postData = JSON.stringify({
+                        'cluster':{
+                            name: `test-cluster-${i}`,
+                            spec: {protocol: 'UDP', port: 16000, bind: {port: 16000 + i, address: '127.0.0.1'}},
+                            endpoints: [{spec: {address: '127.0.0.1'}}]
+                        }
+                    });
+                    let req = http.request(options);
+                    req.once('error', (e) =>{
+                        log.error(`Error: ${e.message}`);
+                    })
+                    req.write(postData);
+                    req.end();
+                }
+                let options_get = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/clusters',
+                    method: 'GET'
+                };
+                let callback = function (response) {
+                    let str = '';
+                    response.on('data', function (chunk) {
+                        str += chunk;
+                    });
+                    response.once('end', function () {
+                        res = JSON.parse(str);
+                        assert.lengthOf(res,6);
+                        done();
+                    });
+
+                }
+                http.request(options_get, callback).end();
+            });
+
+            it('check-cluster-1', ()=>{ assert.nestedPropertyVal(res[1], 'name', 'test-cluster-1');});
+            it('check-cluster-2', ()=>{ assert.nestedPropertyVal(res[2], 'name', 'test-cluster-2');});
+            it('check-cluster-3', ()=>{ assert.nestedPropertyVal(res[3], 'name', 'test-cluster-3');});
+            it('check-cluster-4', ()=>{ assert.nestedPropertyVal(res[4], 'name', 'test-cluster-4');});
+            it('check-cluster-5', ()=>{ assert.nestedPropertyVal(res[5], 'name', 'test-cluster-5');});
+            it('delete-multiple-clusters', (done)=>{
+                let req;
+                for(let i = 1; i < 6; i++){
+                    let options = {
+                        host: 'localhost', port: 1234,
+                        path: `/api/v1/clusters/test-cluster-${i}`,
+                        method: 'DELETE'
+                    };
+                    req = http.request(options).end();
+
+                }
+                let callback = function (response) {
+                    let str = '';
+                    response.on('data', function (chunk) {
+                        str += chunk;
+                    });
+                    response.once('end', function () {
+                        res = JSON.parse(str);
+                        assert.lengthOf(res,1);
+                        done();
+                    });
+
+                }
+                let options_get = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/clusters',
+                    method: 'GET'
+                };
+                http.request(options_get, callback).end();
+            });
+        });
+
+        context('error',()=>{
+            it('add-existing-cluster', ()=>{
+                const postData = JSON.stringify({
+                    'cluster':{
+                        name: 'L7mpControllerCluster',
+                        spec: {protocol: 'UDP', port: 16000, bind: {port: 16001, address: '127.0.0.1'}},
+                        endpoints: [{spec: {address: '127.0.0.1'}}]
+                    }
+                });
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/clusters', method: 'POST'
+                    , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+                }
+                let req = http.request(options, (response)=>{
+                    response.setEncoding('utf8');
+                    let str = '';
+                    response.on('data', function (chunk) {
+                        str += chunk;
+                    });
+                    response.on('end', () =>{
+                        res = JSON.parse(str);
+                        assert.include(res.content,'Cannot add')
+                    });
+                });
+                req.once('error', (e) =>{
+                    log.error(`Error: ${e.message}`);
+                })
+                req.write(postData);
+                req.end();
+            });
+            it('delete-non-existing-cluster',()=>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: `/api/v1/clusters/non-existing-cluster`,
+                    method: 'DELETE'
+                };
+                let callback = function (response) {
+                    let str = '';
+                    response.on('data', function (chunk) {
+                        str += chunk;
+                    });
+                    response.once('end', function () {
+                        res = JSON.parse(str);
+                        assert.include(res.content,'Cannot delete')
+                    });
+
+                }
+                let req = http.request(options, callback);
+                req.once('error', (err)=>{
+                    console.log(err);
+                })
+                req.end();
+            });
+        });
     });
 });
