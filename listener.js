@@ -370,7 +370,7 @@ class WebSocketListener extends Listener {
 
         // this.emit('emit', this.getSession(metadata, duplex,
         //                                   { req: req, res: res }));
-        await this.emitSession(metadata, duplex, { req: req, res: res });
+        await this.emitSession(metadata, duplex);
     }
 
     // end(s, e){
