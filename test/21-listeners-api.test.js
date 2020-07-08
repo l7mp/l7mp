@@ -250,7 +250,7 @@ describe('Listeners API', ()  => {
             http.request(options_get, callback).end();
         });
 
-        it('check-listener-1', ()=>{ console.log(res); assert.nestedPropertyVal(res[1], 'name', 'test-listener-1');});
+        it('check-listener-1', ()=>{ assert.nestedPropertyVal(res[1], 'name', 'test-listener-1');});
         it('check-listener-2', ()=>{ assert.nestedPropertyVal(res[2], 'name', 'test-listener-2');});
         it('check-listener-3', ()=>{ assert.nestedPropertyVal(res[3], 'name', 'test-listener-3');});
         it('check-listener-4', ()=>{ assert.nestedPropertyVal(res[4], 'name', 'test-listener-4');});
@@ -287,4 +287,132 @@ describe('Listeners API', ()  => {
         });
     });
 
+    context('error',() => {
+        it('add-existing-listener', () => {
+            let res;
+            const postData = JSON.stringify({
+                "listener": {
+                    name: "controller-listener",   
+                    spec: { protocol: "UDP", port: 15000 },
+                    rules: [ {
+                        action: {
+                          route: {
+                            destination: "user-1-2-c",
+                            ingress: [
+                              { name: "Echo", spec: { protocol: "Echo" } }
+                            ],
+                            retry: { retry_on: "always", num_retries: 10, timeout: 2000 }
+                          }
+                        }
+                      }
+                    ]
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/listeners', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            let req = http.request(options, (response)=>{
+                response.setEncoding('utf8');
+                let str = '';
+                response.on('data', function (chunk) {
+                    str += chunk;
+                });
+                response.on('end', () =>{
+                    res = JSON.parse(str);
+                    assert.include(res.content,'Cannot add')
+                });
+            });
+            req.once('error', (e) =>{
+                log.error(`Error: ${e.message}`);
+            })
+            req.write(postData);
+            req.end();
+        });
+
+        it('add-empty-listener', () => {
+            let res;
+            const postData = JSON.stringify({ });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/listeners', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            let req = http.request(options, (response)=>{
+                response.setEncoding('utf8');
+                let str = '';
+                response.on('data', function (chunk) {
+                    str += chunk;
+                });
+                response.on('end', () =>{
+                    res = JSON.parse(str);
+                    assert.include(res.content,'Cannot add')
+                });
+            });
+            req.once('error', (e) =>{
+                log.error(`Error: ${e.message}`);
+            })
+            req.write(postData);
+            req.end();
+        });
+
+        it('without-rules', () => {
+            let res;
+            const postData = JSON.stringify({
+                "listener": {
+                    name: "test",   
+                    spec: { protocol: "UDP", port: 15000 },
+                    rules: [ {
+                      }
+                    ]
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/listeners', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            let req = http.request(options, (response)=>{
+                response.setEncoding('utf8');
+                let str = '';
+                response.on('data', function (chunk) {
+                    str += chunk;
+                });
+                response.on('end', () =>{
+                    res = JSON.parse(str);
+                    assert.include(res.content,'Cannot add')
+                });
+            });
+            req.once('error', (e) =>{
+                log.error(`Error: ${e.message}`);
+            })
+            req.write(postData);
+            req.end();
+        });
+
+        it('delete-non-existing-listener',()=>{
+            let res;
+            let options = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/listeners/non-existing-listener`,
+                method: 'DELETE'
+            };
+            let callback = function (response) {
+                let str = '';
+                response.on('data', function (chunk) {
+                    str += chunk;
+                });
+                response.once('end', function () {
+                    res = JSON.parse(str);
+                    assert.include(res.content,'Cannot delete')
+                });
+            }
+            let req = http.request(options, callback);
+            req.once('error', (err) => {
+                console.log(err);
+            })
+            req.end();
+        });
+    });
 });
