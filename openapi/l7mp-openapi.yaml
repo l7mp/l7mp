@@ -323,6 +323,7 @@ components:
             - $ref: '#/components/schemas/io.l7mp.api.v1.L7mpControllerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.DiscardClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.LoggerClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.SyncClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.JSONEncapClusterSpec'
@@ -337,6 +338,7 @@ components:
               L7mpController: '#/components/schemas/io.l7mp.api.v1.L7mpControllerSpec'
               Stdio: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
               Echo: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
+              Discard: '#/components/schemas/io.l7mp.api.v1.DiscardClusterSpec'
               Logger: '#/components/schemas/io.l7mp.api.v1.LoggerClusterSpec'
               Sync: '#/components/schemas/io.l7mp.api.v1.SyncClusterSpec'
               JSONEncap: '#/components/schemas/io.l7mp.api.v1.JSONEncapClusterSpec'
@@ -452,6 +454,18 @@ components:
           type: string
           enum:  # fixed value
             - Echo
+
+    io.l7mp.api.v1.DiscardClusterSpec:
+      description: A virtual cluster that discards everything it receives.
+      type: object
+      required:
+        - protocol
+      properties:
+        protocol:
+          description: The protocol, must be "Discard".
+          type: string
+          enum:  # fixed value
+            - Discard
 
     io.l7mp.api.v1.LoggerClusterSpec:
       description: A virtual cluster that logs everything that passes through it to a log file.
