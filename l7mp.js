@@ -569,6 +569,12 @@ class L7mp {
             throw new Error(`Cannot add route: ${e}`);
         }
 
+        if(this.getRoute(r.name)){
+            let e = `Route "${r.name}" already defined`;
+            log.warn('L7mp.addRoute', e);
+            throw new Error(`Cannot add route: ${e}`);
+        }
+
         if(typeof r.destination === 'object'){
             // inline cluster: create
             r.destination.name = r.destination.name ||
