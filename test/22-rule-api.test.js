@@ -3,7 +3,6 @@ const L7mp     = require('../l7mp.js').L7mp;
 const Rule         = require('../rule.js').Rule;
 const RuleList     = require('../rule.js').RuleList;
 
-
 let static_config = {
   "admin": {
     "log_level": "info",
@@ -50,7 +49,7 @@ describe('Rule API', ()  => {
     });
 
     context('create', () => {
-        it('conrroller-listener',         () => { assert.lengthOf(l7mp.listeners, 1); } );
+        it('controller-listener',         () => { assert.lengthOf(l7mp.listeners, 1); } );
     });
 
 });
