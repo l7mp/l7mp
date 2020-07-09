@@ -70,13 +70,14 @@ describe('JSONDecapCluster', () => {
         c = Cluster.create({name: 'JSONDecap', spec: {protocol: 'JSONDecap'}});
         it('runs', async () => { s = await c.stream({name:"test-session"}); assert.exists(s); });
         it('not-correct', (done) => {
-            s.stream.write('');
+            s.stream.write('dummy');
             s.stream.on('readable', () => {
                 let data = ''; let chunk;
                 while (null !== (chunk = s.stream.read())) {
                     data += chunk.toString('base64');
                 }
-                assert.equal(log.record[10].prefix, 'JSONDecapCluster.stream.transform:');
+                // decap cluster should slilently drop invalid data
+                assert.equal(data, '');
                 done();
             });
         });
