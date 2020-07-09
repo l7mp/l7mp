@@ -116,7 +116,7 @@ describe('UDPListener', ()  => {
         });
 
         context('I/O', () => {
-            it('read-1',  (done) => {
+            it('read-1-connect',  (done) => {
                 s1.source.stream.once('readable', () => {
                     let data = ''; let chunk;
                     while (null !== (chunk = s1.source.stream.read())) {
@@ -126,8 +126,8 @@ describe('UDPListener', ()  => {
                     done();
                 });
             });
-            it('read-2',  (done) => {
-                s2.source.stream.on('readable', () => {
+            it('read-2-connect',  (done) => {
+                s2.source.stream.once('readable', () => {
                     let data = ''; let chunk;
                     while (null !== (chunk = s2.source.stream.read())) {
                         data += chunk;
@@ -136,7 +136,7 @@ describe('UDPListener', ()  => {
                     done();
                 });
             });
-            it('read-3',  (done) => {
+            it('read-1',  (done) => {
                 s1.source.stream.once('readable', () => {
                     let data = ''; let chunk;
                     while (null !== (chunk = s1.source.stream.read())) {
@@ -147,14 +147,25 @@ describe('UDPListener', ()  => {
                 });
                 c1.send('test1');
             });
-            it('write',  (done) => {
+            it('read-2',  (done) => {
+                s2.source.stream.once('readable', () => {
+                    let data = ''; let chunk;
+                    while (null !== (chunk = s2.source.stream.read())) {
+                        data += chunk;
+                    }
+                    assert.equal(data, 'test2');
+                    done();
+                });
+                c2.send('test2');
+            });
+            it('write-1',  (done) => {
                 c1.once('message', (msg, rinfo) => {
                     assert.equal(msg.toString(), 'test1');
                     done();
                 })
                 s1.source.stream.write('test1');
             });
-            it('write2',  (done) => {
+            it('write-2',  (done) => {
                 c2.on('message', (msg, rinfo) => {
                     assert.equal(msg.toString(), 'test2');
                     done();
@@ -177,7 +188,7 @@ describe('UDPListener', ()  => {
                 })
                 c1.close()
             });
-            it('client-1-stream-end', (done) => {
+            it('client-2-stream-end', (done) => {
                 c2.on('close', () => {
                     assert.isOk(true);
                     done();
