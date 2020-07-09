@@ -422,7 +422,6 @@ describe('Routes API', ()  => {
         });
     });
 
-    // TODO: Test the same name problem. 
     context('error',() => {
         it('missing-required-property-name', () => {
             let res;
@@ -512,28 +511,5 @@ describe('Routes API', ()  => {
             req.write(postData);
             req.end();
         });
-
-        // it('controller-routes', (done) =>{
-        //     let res, str = ''; 
-        //     let options = {
-        //         host: 'localhost', port: 1234,
-        //         path: '/api/v1/routes',
-        //         method: 'GET'
-        //     };
-        //     let callback = function (response) {
-        //         str = '';
-        //         response.on('data', function (chunk) {
-        //             str += chunk;
-        //         });
-        //         response.on('end', function () {
-        //             res = JSON.parse(str);
-        //             console.log(res);
-        //             assert.instanceOf(res[0], Object);
-        //             done();
-        //         });
-        //     }
-        //     let req = http.request(options, callback).end();
-        // });
-
     });
 });
