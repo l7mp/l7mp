@@ -134,8 +134,6 @@ class L7mp {
         log.info(`Starting l7mp version: ${this.admin.version} Log-level: ${log.level}`,
                  'Strict mode:', l7mp.admin.strict ? 'enabled' : 'disabled');
 
-        dump(this.static_config, 10);
-
         try {
             if('clusters' in this.static_config){
                 this.static_config.clusters.forEach(
@@ -307,8 +305,7 @@ class L7mp {
             let l = this.listeners[i];
             if(l.options.removeOrphanSessions)
                 for(let s of this.sessions){
-                    let r = s.route;
-                    if(r && r.source.origin.name === l.name)
+                    if(s.source && s.source.origin.name === l.name)
                         this.deleteSession(s.name);
                 }
             l.close();
@@ -369,11 +366,10 @@ class L7mp {
             let c = this.clusters[i];
             if(c.options.removeOrphanSessions)
                 for(let s of this.sessions){
-                    let r = s.route;
-                    if(r.destination.origin.name === c.name ||
-                       r.chain.ingress.some(stage =>
+                    if(s.destination.origin.name === c.name ||
+                       s.chain.ingress.some(stage =>
                                             stage.origin.name === c.name) ||
-                       r.chain.egress.some(stage =>
+                       s.chain.egress.some(stage =>
                                            stage.origin.name === c.name))
                         this.deleteSession(s.name);
                 }
@@ -656,7 +652,7 @@ class L7mp {
             throw new NotFoundError(`Cannot add endpoint: ${e}`);
         }
 
-        ep = EndPoint.creatcl, e(ep);
+        ep = cl.addEndPoint(ep);
         this.endpoints.push(ep);
 
         return ep;
@@ -667,9 +663,17 @@ class L7mp {
         return this.endpoints.find( ({name}) => name === n );
     }
 
-    // internal, not to be called from the API
-    deleteEndPoint(n){
+    deleteEndPoint(c, n){
         log.silly('L7mp.deleteEndPoint:', n);
+
+        let cl = this.getCluster(c);
+        if(!cl){
+            let e = `Unknown cluster "${c}"`;
+            log.warn('L7mp.deleteEndPoint', e);
+            throw new NotFoundError(`Cannot delete endpoint: ${e}`);
+        }
+        cl.deleteEndPoint(n);
+
         let i = this.endpoints.findIndex(({name}) => name === n);
         if(i >= 0)
             this.endpoints.splice(i, 1);
@@ -738,7 +742,7 @@ class L7mp {
         });
 
         let status = await s.router();
-        log.silly(`Session "${s.name}": router responded with status:`, status.status);
+        log.silly(`Session "${s.name}": router finished, status:`, status.status);
 
         return s;
     }

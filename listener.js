@@ -370,7 +370,7 @@ class WebSocketListener extends Listener {
 
         // this.emit('emit', this.getSession(metadata, duplex,
         //                                   { req: req, res: res }));
-        await this.emitSession(metadata, duplex, { req: req, res: res });
+        await this.emitSession(metadata, duplex, {socket: socket, req: req});
     }
 
     // end(s, e){
@@ -391,40 +391,39 @@ class UDPListener extends Listener {
         super(l);
         this.type = 'datagram';
         // for singleton mode, we need both remote addr and port
-        if(l.spec.connect && l.spec.connect.address && l.spec.connect.port){
-            this.mode       = 'singleton';
-            this.connection = l.spec.options && l.spec.options.connection ?
-                l.spec.options.connection : 'immediate';
-            this.reuseaddr  = this.connection === 'ondemand';
-            log.info('UDPListener:', 'Singleton/Connected mode: remote:',
-                     `${this.spec.connect.address}:${this.spec.connect.port},`,
-                     `options.connection=${this.connection}`);
+        this.reuseaddr  = true;
+        if(!l.spec.options || !l.spec.options.mode){ // choose default
+            this.mode = l.spec.connect && l.spec.connect.address && l.spec.connect.port ?
+                'singleton' : 'server';
         } else {
-            this.mode       = 'server';
-            this.reuseaddr  = true;
-            this.connection = 'ondemand';
-            log.info('UDPListener:', 'Server/Unconnected mode');
+            if(l.spec.options.mode === 'singleton'){
+                if(!l.spec.connect || !l.spec.connect.address || !l.spec.connect.port){
+                    let err = 'Singleton mode requested but either '+
+                        'connect.address or connect.port is not defined or both: '+
+                        'no remote to connect to';
+                    log.warn('UDPListener: Error:', err);
+                    throw new Error(err);
+                }
+                this.mode = 'singleton';
+            } else {
+                this.mode = 'server';
+            }
         }
 
         this.local_address  = this.spec.address || '0.0.0.0';
         this.local_port     = this.spec.port || -1;
-        this.onConn         = this.onConnect.bind(this);
 
         this.socket = udp.createSocket({type: 'udp4',
                                         reuseAddr: this.reuseaddr});
         // eventDebug(this.socket);
+
+        log.info('UDPListener:', `${this.mode} mode: accepting connections from`,
+                 `${this.spec.connect && this.spec.connect.address ?
+                   this.spec.connect.address : '*'}:${this.spec.connect &&
+                   this.spec.connect.port ? this.spec.connect.port : '*'}`);
     }
 
-    run(){
-        if(this.mode === 'singleton')
-            return this.run_singleton();
-        else
-            return this.run_server();
-    }
-
-    async run_singleton(){
-        log.silly('UDPListener:run_singleton', `"${this.name}"`);
-
+    async run(){
         try {
             // emits socket.error if fails
             this.socket.bind({ port: this.local_port,
@@ -432,15 +431,24 @@ class UDPListener extends Listener {
             await pEvent(this.socket, 'listening',
                          { rejectionEvents: ['close', 'error'] });
         } catch(e){
-            throw new Error(`UDPListener.run_singleton: "${this.name}": `,
+            throw new Error(`UDPListener.run: "${this.name}": `,
                             `Could not bind to `+
                             `${this.local_address}:${this.local_port}`);
         }
 
-        log.verbose('UDPListener:run_singleton', `"${this.name}:"`,
+        log.verbose('UDPListener:run:', `"${this.name}:"`,
                     `bound to ${this.local_address}:${this.local_port}`);
 
-        // immediate: piggyback on the listener's socket
+        if(this.mode === 'singleton')
+            return this.runSingleton();
+        else
+            return this.runServer();
+    }
+
+    // SINGLETON
+    async runSingleton(){
+        log.silly('UDPListener:runSingleton', `"${this.name}"`);
+
         let connection = {
             socket:         this.socket,
             local_address:  this.local_address,
@@ -455,81 +463,88 @@ class UDPListener extends Listener {
             await pEvent(this.socket, 'connect',
                          { rejectionEvents: ['close', 'error'] });
         } catch(e){
-            throw new Error(`UDPListener.run_singleton: "${this.name}"/${this.connection}: `+
-                            `Could not connect to `+
-                            `${connection.remote_address}:`+
-                            `${connection.remote_port}`);
+            return Promise.reject(new Error(`UDPListener.runSingleton: "${this.name}"/${this.mode}: `+
+                                            `Could not connect to `+
+                                            `${connection.remote_address}:`+
+                                            `${connection.remote_port}`));
         }
 
-        log.verbose(`UDPListener.run_singleton: "${this.name}"/${this.connection}`,
+        log.verbose(`UDPListener.runSingleton: "${this.name}"/${this.mode}`,
                     `connected to remote`,
                     `${connection.remote_address}:`+
                     `${connection.remote_port} on`,
                     `${connection.local_address}:`+
                     `${connection.local_port}`);
 
-        if(this.connection === 'ondemand'){
-            this.socket.on('message', this.onConn);
-        } else {
-            return this.onRequest(connection);
-        }
+        this.onRequest(connection);
     }
 
-    async run_server(){
-        log.silly('UDPListener:run_server', `"${this.name}"`);
-
-        try {
-            // emits socket.error if fails
-            this.socket.bind({ port: this.local_port,
-                               address: this.local_address });
-            await pEvent(this.socket, 'listening',
-                         { rejectionEvents: ['close', 'error'] });
-        } catch(e){
-            throw new Error(`UDPListener.run_server: "${this.name}: "`+
-                            `Could not bind to `+
-                            `${this.local_address}:${this.local_port}`);
-        }
-
-        log.verbose('UDPListener:run_server', `"${this.name}:"`,
-                    `bound to ${this.local_address}:${this.local_port}`);
-
-        this.socket.on('message', this.onConn);
+    // SERVER
+    async runServer(){
+        log.silly('UDPListener:runServer', `"${this.name}"`);
+        this.onConn = this.onConnectServer.bind(this);
+        this.sessions = {};
+        this.socket.on('message', (msg, rinfo) => {
+            this.onConn(msg, rinfo).catch( (e) => { log.warn(e.message) });
+        });
     }
 
-    // ondemand!
-    async onConnect(msg, rinfo){
-        if(rinfo && this.mode === 'singleton' && (
-            rinfo.address !== this.spec.connect.address ||
-                rinfo.port !== this.spec.connect.port)){
-            let e = 'UDPListener:onConnect: Singleton/connected mode: '+
+    async onConnectServer(msg, rinfo){
+        // handle packets from known peers
+        let remote = `${rinfo.address}:${rinfo.port}`;
+        let s = this.sessions;
+        if(s[remote]){
+            // // this is a known remote, but we haven't done connecting its socket back
+            // if(s[remote].session){
+            //     log.silly('UDPListener:onConnectServer: Received packet for a known peer:',
+            //               `${remote}: session available, pushing packet to stream`);
+            //     // we already have a session, this packet has been waiting in the listener queue,
+            //     // send it right away (stream is already connected)
+            //     s[remote].session.source.stream.socket.emit('message', msg, rinfo);
+            // } else {
+            //     // we still don't have a session created, add message to the queue
+            //     log.silly('UDPListener:onConnectServer: Received packet for a known peer:',
+            //               `${remote}: session is still being set up, queuing packet`);
+            //     s[remote].conn.queue.push({msg: msg, rinfo: rinfo});
+            // }
+            // this is a known remote, emit the packet on its socket
+            log.silly('UDPListener:onConnectServer: Received message for a known peer:',
+                      `${remote}: re-emitting message`);
+            s[remote].emit('message', msg, rinfo);
+            return;
+        }
+
+        // handle half-connected listeners
+        if((this.spec.connect && this.spec.connect.address &&
+            rinfo.address !== this.spec.connect.address) ||
+           (this.spec.connect && this.spec.connect.port &&
+            rinfo.port !== this.spec.connect.port)){
+            let e = 'UDPListener:onConnectServer: Server/half-connected mode: '+
                 `"${this.name}:" packet received from unknown peer: `+
                 `${rinfo.address}:${rinfo.port}, expecting `+
-                `${this.spec.connect.address}:${this.spec.connect.port}`;
-            throw new Error(e);
+                `${this.spec.connect && this.spec.connect.address ?
+                 this.spec.connect.address : '*'}:${this.spec.connect &&
+                 this.spec.connect.port ? this.spec.connect.port : '*'}`;
+            return Promise.reject(new Error(e));
         }
 
         log.verbose('UDPListener.onConnect: new connection from',
                     `${rinfo.address}:${rinfo.port}`);
 
-        if(this.mode === 'singleton' && this.connection === 'ondemand'){
-            var socket = this.socket;
-            socket.removeListener("message", this.onConn);
-        } else {
-            // server mode: a new socket for this connection
-            var socket = udp.createSocket({type: 'udp4',
-                                           reuseAddr: this.reuseaddr});
-            // eventDebug(socket);
-            try {
-                // emits socket.error if fails
-                socket.bind({ port: this.local_port,
-                              address: this.local_address });
-                await pEvent(socket, 'listening',
-                             { rejectionEvents: ['close', 'error'] });
-            } catch(e){
-                throw new Error(`UDPListener.onConnect: "${this.name}"/server: `,
-                                `Could not bind to `+
-                                `${this.local_address}:${this.local_port}`);
-            }
+        // a new socket for this connection
+        var socket = udp.createSocket({type: 'udp4',
+                                       reuseAddr: this.reuseaddr});
+        // eventDebug(socket);
+        try {
+            // emits socket.error if fails
+            socket.bind({ port: this.local_port,
+                          address: this.local_address });
+            await pEvent(socket, 'listening',
+                         { rejectionEvents: ['close', 'error'] });
+        } catch(e){
+            throw new Error(`UDPListener.onConnectServer: "${this.name}"/server: `,
+                            `Could not bind to `+
+                            `${this.local_address}:${this.local_port}`);
         }
 
         let connection = {
@@ -538,31 +553,31 @@ class UDPListener extends Listener {
             local_port:     this.local_port,
             remote_address: rinfo.address,
             remote_port:    rinfo.port,
-            msg:            msg,
-            rinfo:          rinfo,
+            queue:          [{msg: msg, rinfo: rinfo}]
         };
 
-        if(this.mode === 'server'){
-            try{
-                connection.socket.connect(connection.remote_port,
-                                          connection.remote_address);
-                await pEvent(connection.socket, 'connect',
-                             { rejectionEvents: ['close', 'error'] });
+        try{
+            connection.socket.connect(connection.remote_port,
+                                      connection.remote_address);
+            await pEvent(connection.socket, 'connect',
+                         { rejectionEvents: ['close', 'error'] });
 
-                log.verbose(`UDPListener.onConnect: "${this.name}"`,
-                            `connected to remote`,
+            log.verbose(`UDPListener.onConnect: "${this.name}"`,
+                        `connected to remote`,
+                        `${connection.remote_address}:`+
+                        `${connection.remote_port} on`,
+                        `${connection.local_address}:`+
+                        `${connection.local_port}`);
+        } catch(e){
+            throw new Error('UDPListener.onConnectServer: '+
+                            `"${this.name}:" `+
+                            `Could not connect to `+
                             `${connection.remote_address}:`+
-                            `${connection.remote_port} on`,
-                            `${connection.local_address}:`+
-                            `${connection.local_port}`);
-            } catch(e){
-                throw new Error('UDPListener.onConnect: '+
-                                `"${this.name}:" `+
-                                `Could not connect to `+
-                                `${connection.remote_address}:`+
-                                `${connection.remote_port}`);
-            }
+                            `${connection.remote_port}`);
         }
+
+        // this.sessions[remote] = { conn: connection };
+        this.sessions[remote] = socket;
 
         return this.onRequest(connection);
     }
@@ -588,21 +603,44 @@ class UDPListener extends Listener {
             },
         };
 
-        if(conn.msg)
-            conn.socket.emit('message', conn.msg, conn.rinfo);
+        if(conn.queue && conn.queue.length > 0)
+            for(let msg of conn.queue)
+                conn.stream.socket.emit('message', msg.msg, msg.rinfo);
 
-        await this.emitSession(metadata, conn.stream);
-        // this.emit('emit', this.getSession(metadata, conn.stream));
-        // await this.router({
-        //     metadata: metadata,
-        //     listener: { origin: this.name, stream: conn.stream },
-        // });
+        let session = await this.emitSession(metadata, conn.stream);
+
+        let remote = `${conn.remote_address}:${conn.remote_port}`;
+        // if(this.sessions && this.sessions[remote]){
+        //     delete this.sessions[remote].conn;
+        //     this.sessions[remote].session = session;
+        //     conn.stream.on('close', () => {
+        //         log.silly('UDPListener.onRequest: server mode: received close event,',
+        //                  `removing remote ${remote} from session pool`);
+        //         delete this.sessions[remote];
+        //     });
+        //     conn.stream.on('error', () => {
+        //         log.silly('UDPListener.onRequest: server mode: received error event,',
+        //                   `removing remote ${remote} from session pool`);
+        //         delete this.sessions[remote];
+        //     });
+        // }
+        if(this.sessions && this.sessions[remote]){
+            this.sessions[remote].on('close', () => {
+                log.silly('UDPListener.onRequest: server mode: received close event,',
+                          `removing remote ${remote} from session pool`);
+                delete this.sessions[remote];
+            });
+            this.sessions[remote].on('error', () => {
+                log.silly('UDPListener.onRequest: server mode: received error event,',
+                          `removing remote ${remote} from session pool`);
+                delete this.sessions[remote];
+            });
+        }
     }
 
-    // do not close session, ie, this.socket for singleton/immediate
+    // do not close session, ie, this.socket for singleton
     close(){
-        if(this.mode === 'server' ||
-           (this.mode === 'server' && this.connection === 'ondemand')){
+        if(this.mode === 'server'){
             this.socket.close();
             this.socket.unref();
         }
@@ -673,7 +711,7 @@ class NetServerListener extends Listener {
                 },
             };
 
-        this.emitSession(metadata, socket);
+        await this.emitSession(metadata, socket);
         // this.emit('emit', this.getSession(metadata, socket));
         // await this.router({
         //     metadata: metadata,
@@ -752,8 +790,8 @@ class JSONSocketListener extends Listener {
         try {
             var header = JSON.parse(data);
         } catch(e){
-            log.warn('JSONSocketListener:', `${this.name}:`,
-                     `Invalid JSON headers`);
+            log.info('JSONSocketListener:', `${this.name}:`,
+                     `Invalid JSON header`);
             l.stream.end(JSON.stringify({
                 JSONSocketVersion: 1,
                 JSONSocketStatus: 400,
@@ -764,7 +802,7 @@ class JSONSocketListener extends Listener {
 
         // 3. if not a proper JSONSocket header, drop
         if(typeof header['JSONSocketVersion'] === 'undefined'){
-            log.warn('JSONSocketListener:', `${this.name}:`,
+            log.info('JSONSocketListener:', `${this.name}:`,
                      `No JSONSocket version info in header:`, dumper(header,5));
             l.stream.end(JSON.stringify({
                 JSONSocketVersion: 1,
@@ -776,7 +814,7 @@ class JSONSocketListener extends Listener {
         let version = header['JSONSocketVersion'];
 
         if(typeof version != "number" || !Number.isInteger(version)) {
-            log.warn('JSONSocketListener:', `${this.name}:`,
+            log.info('JSONSocketListener:', `${this.name}:`,
                      `JSONSocket version info is not numeric/integer in header:`,
                      dumper(header,5));
             l.stream.end(JSON.stringify({
@@ -788,7 +826,7 @@ class JSONSocketListener extends Listener {
         }
 
         if(version < 0 || version > 1) {
-            log.warn('JSONSocketListener:', `${this.name}:`,
+            log.info('JSONSocketListener:', `${this.name}:`,
                      `Unsupported JSONSocket version in header:`,
                      dumper(header,5));
             l.stream.end(JSON.stringify({
@@ -807,12 +845,12 @@ class JSONSocketListener extends Listener {
 
         m.name = `JSONSocket:${this.name}-` + this.getNewSessionId();
         if(m['JSONSocket'])
-            log.warn('JSONSocketListener:', `${this.name}:`,
+            log.info('JSONSocketListener:', `${this.name}:`,
                      `Will overwrite metadata in transport session`);
         m['JSONSocket'] = header;
         l.origin = this.name;
 
-        await this.emitSession(m, l.stream, {res: l.stream, error: this.error});
+        let session = await this.emitSession(m, l.stream, {res: l.stream, error: this.error});
 
         // ack
         l.stream.write(JSON.stringify({
@@ -820,6 +858,8 @@ class JSONSocketListener extends Listener {
             JSONSocketStatus: 200,
             JSONSocketMessage: "OK",
         }));
+
+        return session;
     }
 
     error(priv, err){

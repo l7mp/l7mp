@@ -7,9 +7,10 @@
 
 ** Misc: 0*-*
 *** TODO setAtPath/getAtPath
+*** TODO l7mp basic test
 
 ** EndPoint: 10-*
-*** TODO WebSocket
+*** DONE WebSocket
 *** TODO UDP
 *** TODO TCP
 *** TODO JSONSocket
@@ -18,14 +19,14 @@
 ** Cluster: 11-*
 *** TODO HTTP
 *** DONE WebSocket
-*** TODO UDP
+*** DONE UDP
 *** TODO TCP
 *** TODO UnixDomainSocket
 *** TODO JSONSocket
 *** DONE Echo
 *** DONE JSONEncap
 *** TODO JSONDecap
-*** TODO Sync
+*** UNFINISHED Sync
 *** DONE Test
 
 ** Listener: 12-*
@@ -34,7 +35,7 @@
 *** TODO UDP
 *** DONE TCP
 *** DONE JSONSocket
-*** TODO UnixDomainSocket
+*** DONE UnixDomainSocket
 *** TODO Test
 
 ** Route, Rule, RuleList: 13-*
@@ -47,3 +48,26 @@
 *** TODO Routing
 *** DONE Retry
 *** TODO LoadBalancing
+
+* API tests
+
+** Cluster & EndPoint API: 20-*
+*** TODO add/delete/list clusters via the API
+*** TODO add/delete/list endpoints to/from a cluster via the API
+*** TODO removeOrphanSessions test
+
+** Listener API: 21-*
+*** TODO add/delete/list listeners via the API
+*** TODO removeOrphanSessions test
+
+** Route, Rule, RuleList: 22-*
+*** TODO add/delete/list routes via the API
+*** TODO add/delete/list rulelists via the API
+*** TODO add/delete/list rules via the API
+*** TODO compound delete: deleting the route from a rule should remove the rule
+*** TODO compound delete: deleting the last rule from a rulelist should remove the rulelist
+*** TODO compound delete: deleting the rulelist from a listener should remove the listener (?)
+
+** Session API: 22-*
+*** TODO delete/list sessions
+*** TODO monitoring

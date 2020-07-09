@@ -23,88 +23,44 @@
 const Stream       = require('stream');
 const assert       = require('chai').assert;
 const EventEmitter = require('events').EventEmitter;
-const udp          = require('dgram');
+const Net          = require('net');
+const WebSocket    = require('ws');
 const L7mp         = require('../l7mp.js').L7mp;
 const Listener     = require('../listener.js').Listener;
 const Session      = require('../session.js').Session;
 
-describe('UDPListener', ()  => {
-    var l, s, c;
-    var readers = {};
-    var reader = (name, stream, done) => {
-        let f = () => {
-            let data = ''; let chunk;
-            while (null !== (chunk = stream.read())) {
-                data += chunk;
-            }
-            assert.equal(data, 'test');
-            done();
-        };
-        readers[name] = f;
-        return f;
-    };
-
+describe('WebSocketListener', () => {
+    var c, l, s; 
     before( () => {
         l7mp = new L7mp();
-        // l7mp.applyAdmin({ log_level: 'silly' });
-        l7mp.applyAdmin({ log_level: 'warn' });
+        l7mp.applyAdmin({ log_level: 'error' });
         l7mp.run(); // should return
     });
 
     context('create', () => {
-        it('created',      () => { l = Listener.create(
-            {
-                name: 'UDP',
-                spec:
-                    {
-                        protocol: 'UDP',
-                        port: 16000 ,
-                        address: '127.0.0.1',
-                        connect:
-                               {
-                                   address: '127.0.0.1',
-                                   port: 16001
-                               },
-                        options:
-                               {
-                                   mode: 'singleton'
-                               }
-                    }
-            });
-        assert.exists(l);
-        });
+        it('created',      () => { l = Listener.create( {name: 'WebSocket', spec: { protocol: 'WebSocket', port: 12345 }}); assert.exists(l); });
         it('object',       () => { assert.isObject(l); });
-        // TCPListener is not exported so we cannot check from here
         it('instanceOf',   () => { assert.instanceOf(l, Listener); });
         it('Emitter',      () => { assert.instanceOf(l, EventEmitter); });
         it('has-name',     () => { assert.property(l, 'name'); });
         it('has-spec',     () => { assert.property(l, 'spec'); });
-        it('has-protocol', () => { assert.nestedPropertyVal(l, 'spec.protocol', 'UDP'); });
-        it('has-port',     () => { assert.nestedPropertyVal(l, 'spec.port', 16000); });
-        it('can-emit',     () => { l.emitter=(x) =>{ s = x; return s; }; assert.isOk(true); });
+        it('has-protocol', () => { assert.nestedPropertyVal(l, 'spec.protocol', 'WebSocket'); });
+        it('has-port',     () => { assert.nestedPropertyVal(l, 'spec.port', 12345); });
+        it('can-listen',   () => { l.emitter = (x) => { s = x; }; assert.isOk(true); });
     });
 
-    context('#run-singleton', () => {
+    context('#run', () => {
         it('runs', () => { l.run(); assert.exists(l); });
     });
 
     context('#connect', () => {
-        it('ok',    (done) => { c = new udp.createSocket({type: "udp4", reuseAddr: true});
-            assert.isOk(c);
-            done(); });
-        it('listening',      (done) => {
-            c.once('listening', () =>{ assert.isOk(true)})
-            c.bind(16001, '127.0.0.1')
-            done();
-        })
-        it('connect-to-remote-host', (done) =>{
-            c.once('connect', () => { assert.isOk(true); done();})
-            c.connect(16000,'127.0.0.1');
-        })
-        it('address',        () => { assert.equal(c.address().address, '127.0.0.1'); });
-        it('port',           () => { assert.equal(c.address().port, 16001); });
-        it('remote-address', () => { assert.equal(c.remoteAddress().address, '127.0.0.1'); });
-        it('remote-port',    () => { assert.equal(c.remoteAddress().port, 16000); });
+        it('connect',    (done) => { c = new WebSocket('ws://127.0.0.1:12345'); assert.instanceOf(c, WebSocket); done(); });
+        // it('address',        () => { assert.equal(c.localAddress, '127.0.0.1'); });
+        // it('remote-address', () => { assert.equal(c.remoteAddress, '127.0.0.1'); });
+        // it('remote-port',    () => { assert.equal(c.remotePort, 54321); });
+        // it('isa stream',     () => { assert.instanceOf(c, Stream); });
+        // it('readable',       () => { assert.isOk(c.readable); });
+        // it('writeable',      () => { assert.isOk(c.writable); });
     });
 
     context('emits session', () => {
@@ -116,12 +72,14 @@ describe('UDPListener', ()  => {
         it('session-metadata-src-addr', () => { assert.match(s.metadata.IP.src_addr, /127.0.0.1/); });
         it('session-metadata-dst-addr', () => { assert.nestedProperty(s, 'metadata.IP.dst_addr'); });
         it('session-metadata-dst-addr', () => { assert.match(s.metadata.IP.dst_addr, /127.0.0.1/); });
-        it('session-metadata-UDP',      () => { assert.nestedProperty(s, 'metadata.UDP'); });
-        it('session-metadata-src-port', () => { assert.nestedProperty(s, 'metadata.UDP.src_port'); });
-        it('session-metadata-dst-port', () => { assert.nestedPropertyVal(s, 'metadata.UDP.dst_port', 16000); });
-        it('session-listener',          () => { assert.nestedPropertyVal(s, 'source.origin', 'UDP'); });
+        it('session-metadata-TCP',      () => { assert.nestedProperty(s, 'metadata.TCP'); });
+        it('session-metadata-src-port', () => { assert.nestedProperty(s, 'metadata.TCP.src_port'); });
+        it('session-metadata-dst-port', () => { assert.nestedPropertyVal(s, 'metadata.TCP.dst_port', 12345); });
+        it('session-metadata-http',     () => { assert.nestedProperty(s, 'metadata.HTTP'); });
+        it('session-metadata-http-version', () => { assert.nestedPropertyVal(s, 'metadata.HTTP.version', '1.1'); });
+        it('session-metadata-http-method', () => { assert.nestedProperty(s, 'metadata.HTTP.method'); });
+        it('session-listener',          () => { assert.nestedPropertyVal(s, 'source.origin', 'WebSocket'); });
         it('session-stream',            () => { assert.nestedProperty(s, 'source.stream'); });
-        it('session-stream',            () => { assert.nestedProperty(s, 'source.origin', 'UDP'); });
         it('session-stream',            () => { assert.instanceOf(s.source.stream, Stream) });
         it('session-stream-readable',   () => { assert.isOk(s.source.stream.readable); });
         it('session-stream-writeable',  () => { assert.isOk(s.source.stream.writable); });
@@ -140,10 +98,10 @@ describe('UDPListener', ()  => {
             c.send('test');
         });
         it('write',  (done) => {
-            c.on('message', (msg, rinfo) => {
-                assert.equal(msg.toString(), 'test');
+            c.on('message', data => {
+                assert.equal(data, 'test');
                 done();
-            })
+            });
             s.source.stream.write('test');
         });
         it('server-stream-end',  () => {
@@ -152,13 +110,7 @@ describe('UDPListener', ()  => {
             s.source.stream.destroy();
             assert.isOk(true);
         });
-        it('client-stream-end', (done) => {
-            c.on('close', () => {
-                assert.isOk(true);
-                done();
-            })
-            c.close()
-        })
+        it('client-stream-end',  () => { c.close(); assert.isOk(true); });
     });
 
     context('stop', () => {
@@ -166,6 +118,5 @@ describe('UDPListener', ()  => {
             l.close();
             assert.isOk(true);
         });
-
     });
-});
+}); 

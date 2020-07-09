@@ -5,7 +5,8 @@
 ** TODO Defer resolving named references (to clusters, routes, etc.) to runtime
 ** TODO Endpoint API: addEndpoint(cluster, new endpoint, optional name), deleteEndPoint(name)
 ** TODO Loadbalancer: Weighted/RoundRobin
-** TODO API validation: switch back!
+** DONE API validation: switch back!
+** TODO checkRoute
 
 * Importance: high
 
