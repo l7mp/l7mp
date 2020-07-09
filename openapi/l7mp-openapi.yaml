@@ -172,7 +172,7 @@ components:
 
     io.l7mp.api.v1.UDPListenerSpec:
       description: |
-        "A UDP listener that accepts UDP connections in the specified port. The listener may work in one of 2 possible modes. In Singleton mode, the listener also expects a fully qualified remote address-port pair (both connect.address or connect.port specified), connects back to the remote and stops accepting further connection requests. The parameter options.connection controls when the connection is created: with options.connection=immediate the listener connects at creation time, but with options.connection=ondemand the listener waits for the first packet from the specified remote to create the connection. In Server mode, the listener emits a new session for each UDP packet that belongs to a yet unseen connection (unknown IP 4-tuple). If a remote address or port is specified (one of connect.address or connect.port is specified), accept connections only from that remote address or port. Assumes connection=ondemand."
+        "A UDP listener that accepts UDP connections in the specified port. The listener may work in one of 2 possible modes. In Singleton mode, the listener also expects a fully qualified remote address-port pair (both connect.address or connect.port specified), connects back to the remote and stops accepting further connection requests. In Server mode, the listener emits a new session for each UDP packet that belongs to a yet unseen connection (unknown IP 4-tuple). If a remote address or port is specified (one of connect.address or connect.port is specified), accept connections only from that remote address or port. Default is Singleton if both connect.address and connect.port are specified, otherwise Server (override with options.mode)."
         - protocol: UDP
         - session ID: IP 5-tuple
         - type: datagram-stream
@@ -194,12 +194,12 @@ components:
         options:
           type: object
           properties:
-            connection:
-              description: Connect immediately as the listener is created ("immediate") or on the first packet received ("ondemand"). Valid only in "Singleton" mode.
+            mode:
+              description: Work in singleton mode (only a single session is handled by the listener to a known remote) or server mode (a new session is emitted for each new peer address/port pair).
               type: string
               enum:
-              - immediate
-              - ondemand
+              - server
+              - singleton
 
     io.l7mp.api.v1.TCPListenerSpec:
       description: |

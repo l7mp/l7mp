@@ -134,8 +134,6 @@ class L7mp {
         log.info(`Starting l7mp version: ${this.admin.version} Log-level: ${log.level}`,
                  'Strict mode:', l7mp.admin.strict ? 'enabled' : 'disabled');
 
-        dump(this.static_config, 10);
-
         try {
             if('clusters' in this.static_config){
                 this.static_config.clusters.forEach(
@@ -744,7 +742,7 @@ class L7mp {
         });
 
         let status = await s.router();
-        log.silly(`Session "${s.name}": router responded with status:`, status.status);
+        log.silly(`Session "${s.name}": router finished, status:`, status.status);
 
         return s;
     }
