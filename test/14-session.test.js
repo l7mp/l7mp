@@ -34,12 +34,12 @@ const PassThrough       = require('stream').PassThrough;
 const NotFoundError     = require('../error.js');
 
 function remove(){
-    l7mp.listeners.pop(); 
-    l7mp.clusters.pop(); 
-    l7mp.rules.pop(); 
+    l7mp.listeners.pop();
+    l7mp.clusters.pop();
+    l7mp.rules.pop();
     l7mp.rulelists.pop();
     l7mp.routes.pop();
-    l7mp.sessions.pop(); 
+    l7mp.sessions.pop();
 }
 
 describe('Session', () => {
@@ -78,21 +78,21 @@ describe('Session', () => {
             sess = new Session(x);
             l7mp.sessions.push(sess);
         });
-        after( () => { 
+        after( () => {
             remove();
         });
         it('init',          () => { assert.exists(sess); });
-        it('object',        () => { assert.isObject(sess); }); 
-        it('has-metadata',  () => { assert.property(sess, 'metadata'); }); 
+        it('object',        () => { assert.isObject(sess); });
+        it('has-metadata',  () => { assert.property(sess, 'metadata'); });
         it('has-name',      () => { assert.property(sess, 'name'); });
         it('has-source',    () => { assert.property(sess, 'source'); });
         it('type',          () => { assert.property(sess, 'type'); });
         it('has-events',    () => { assert.property(sess, 'events'); });
         it('event-object',  () => { assert.instanceOf(sess, Object); });
         it('event-length',  () => { assert.equal(sess.events.length, 1); });
-        it('event-status',  () => { assert.propertyVal(sess.events[0], 'event', 'INIT'); }); 
+        it('event-status',  () => { assert.propertyVal(sess.events[0], 'event', 'INIT'); });
         it('event-message', () => { assert.propertyVal(sess.events[0], 'message', 'Session Test-s initialized'); });
-        it('status',        () => { assert.propertyVal(sess, 'status', 'INIT'); }); 
+        it('status',        () => { assert.propertyVal(sess, 'status', 'INIT'); });
     });
 
     context('Create', () => {
@@ -124,12 +124,12 @@ describe('Session', () => {
             sess = new Session(x);
             l7mp.sessions.push(sess);
         });
-        after( () => { 
+        after( () => {
             remove();
         });
         after(                        () => { l7mp.sessions.pop(); });
         it('create',                  () => { sess.create(); assert.isOk(true); });
-        it('status',                  () => { assert.propertyVal(sess.source, 'status', 'READY'); }); 
+        it('status',                  () => { assert.propertyVal(sess.source, 'status', 'READY'); });
         it('origin',                  () => { assert.instanceOf(sess.source.session, Session); });
         it('last-conn',               () => { assert.isOk(sess.source.last_conn); });
         it('route',                   () => { assert.instanceOf(sess.route, Route); });
@@ -140,7 +140,7 @@ describe('Session', () => {
         it('route-retry-retry_on',    () => { assert.propertyVal(sess.route.retry, 'retry_on', 'never'); });
         it('route-retry-num_retries', () => { assert.propertyVal(sess.route.retry, 'num_retries', 0); });
         it('route-retry-timeout',     () => { assert.propertyVal(sess.route.retry, 'timeout', 2000); });
-        it('event-length',            () => { assert.equal(sess.events.length, 2); }); 
+        it('event-length',            () => { assert.equal(sess.events.length, 2); });
         it('event-status',            () => { assert.propertyVal(sess.events[1], 'event', 'LOOKUP SUCCESS'); });
     });
 
@@ -174,27 +174,27 @@ describe('Session', () => {
             s = new Session(x);
             l7mp.sessions.push(s);
         });
-        after( () => { 
+        after( () => {
             remove();
         });
         it('connect', async () => {
-            s.source = new Stage({session: s, origin: s.source.origin, stream: s.source.stream, source: true}); 
+            s.source = new Stage({session: s, origin: s.source.origin, stream: s.source.stream, source: true});
             s.route = r;
-            await s.source.connect(0, 2000); 
-            assert.isOk(true); 
+            await s.source.connect(0, 2000);
+            assert.isOk(true);
         });
         it('retriable',               () => { assert.isOk(s.source.retriable); });
         it('stream',                  () => { assert.instanceOf(s.source.stream, PassThrough); });
         it('last-connection',         () => { assert.notEqual(s.source.last_conn, 0); });
-        it('status',                  () => { assert.propertyVal(s.source, 'status', 'CONNECTED'); }); 
-        it('already-connected', async () => { 
+        it('status',                  () => { assert.propertyVal(s.source, 'status', 'CONNECTED'); });
+        it('already-connected', async () => {
             try {
                 await s.source.connect(0, 2000);
             } catch (e) {
                 assert.equal(e.status, 500);
             }
         });
-        it('finalize',          async () => { 
+        it('finalize',          async () => {
             s.source.status = 'FINALIZING';
             try {
                 await s.source.connect(0, 2000);
@@ -202,7 +202,7 @@ describe('Session', () => {
                 assert.equal(e.status, 200);
             }
         });
-        it('finalize',          async () => { 
+        it('finalize',          async () => {
             s.source.status = 'END';
             try {
                 await s.source.connect(0, 2000);
@@ -213,10 +213,10 @@ describe('Session', () => {
         it('set-event-handler',       () => { s.source.set_event_handlers(); assert.isOk(s.source.on_disc); });
         it('on_disc-close',           () => { assert.property(s.source.on_disc, 'close'); });
         it('on_disc-error',           () => { assert.property(s.source.on_disc, 'error'); });
-        it('pipe', () => { 
-            stage = new Stage({session: s, origin: s.source.origin, stream: s.source.stream, source: true}); 
+        it('pipe', () => {
+            stage = new Stage({session: s, origin: s.source.origin, stream: s.source.stream, source: true});
             to = s.source.pipe(stage)
-            assert.isOk(to); 
+            assert.isOk(to);
         });
         it('pipe-passthrough',        () => { assert.instanceOf(to, PassThrough); });
         it('reconnect', async () => {
@@ -254,11 +254,11 @@ describe('Session', () => {
             sess = new Session(x);
             l7mp.sessions.push(sess);
         });
-        after( () => { 
+        after( () => {
             remove();
         });
         it('connect-status', () => { sess.create(); sess.connected(); assert.propertyVal(sess, 'status', 'CONNECTED'); });
-        it('event-length',   () => { assert.equal(sess.events.length, 3); }); 
+        it('event-length',   () => { assert.equal(sess.events.length, 3); });
         it('event-status',   () => { assert.propertyVal(sess.events[2], 'event', 'CONNECT'); });
     });
 
@@ -292,18 +292,18 @@ describe('Session', () => {
             l7mp.sessions.push(sess);
             sess.create();
         });
-        after( () => { 
+        after( () => {
             remove();
         });
-        it('make-an-error', () => { 
+        it('make-an-error', () => {
             try {
-                sess.error(Error("Test"));                 
+                sess.error(Error("Test"));
             } catch (error) {
                 assert.isOk(true);
             }
         });
         it('error-status',  () => { assert.propertyVal(sess, 'status', 'FINALIZING'); })
-        it('event-length',  () => { assert.equal(sess.events.length, 3); }); 
+        it('event-length',  () => { assert.equal(sess.events.length, 3); });
         it('event-status',  () => { assert.propertyVal(sess.events[2], 'event', 'ERROR'); });
         it('event-message', () => { assert.propertyVal(sess.events[2], 'message', 'Test'); });
         it('event-content', () => { assert.instanceOf(sess.events[2].content, Error); });
@@ -339,18 +339,18 @@ describe('Session', () => {
             l7mp.sessions.push(sess);
             sess.create();
         });
-        after( () => { 
+        after( () => {
             remove();
         });
-        it('make-an-end', () => { 
+        it('make-an-end', () => {
             try {
-                sess.end(Error("Test"));                 
+                sess.end(Error("Test"));
             } catch (error) {
                 assert.isOk(true);
             }
         });
         it('end-status',  () => { assert.propertyVal(sess, 'status', 'FINALIZING'); })
-        it('event-length',  () => { assert.equal(sess.events.length, 3); }); 
+        it('event-length',  () => { assert.equal(sess.events.length, 3); });
         it('event-status',  () => { assert.propertyVal(sess.events[2], 'event', 'END'); });
         it('event-message', () => { assert.propertyVal(sess.events[2], 'message', 'Test'); });
         it('event-content', () => { assert.instanceOf(sess.events[2].content, Error); });
@@ -386,17 +386,17 @@ describe('Session', () => {
             sess = new Session(x);
             l7mp.sessions.push(sess);
         });
-        after( () => { 
+        after( () => {
             remove();
         });
-        it('router',      async () => { s = await sess.router(); assert.isOk(s); }); 
+        it('router',      async () => { s = await sess.router(); assert.isOk(s); });
         it('number-of-streams', () => { assert.property(s, 'num_streams'); });
         it('active_streams',    () => { assert.property(s, 'active_streams'); });
-        it('equal',             () => { assert.equal(s.num_streams, s.active_streams); }); 
+        it('equal',             () => { assert.equal(s.num_streams, s.active_streams); });
     });
 
     context('Lookup', () => {
-        var action; 
+        var action;
         let stage, sess, l, c, e, ru, rl, r;
         before( () => {
             l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
@@ -425,14 +425,14 @@ describe('Session', () => {
             sess = new Session(x);
             l7mp.sessions.push(sess);
         });
-        after( () => { 
+        after( () => {
             remove();
         });
         it('lookup', () => { action = sess.lookup('Test-rs'); assert.isOk(action); });
-        it('action', () => { assert.propertyVal(action, 'route', 'Test-r'); }); 
-        it('cannot-find-rulelist', (done) => { 
+        it('action', () => { assert.propertyVal(action, 'route', 'Test-r'); });
+        it('cannot-find-rulelist', (done) => {
             try {
-                action = sess.lookup('wrong'); 
+                action = sess.lookup('wrong');
             } catch(e) {
                 assert.isOk(true);
                 done();
@@ -442,7 +442,7 @@ describe('Session', () => {
             ruleList = RuleList.create({name: 'no-rule', rules: ['']});
             l7mp.rulelists.push(ruleList);
             try {
-                action = sess.lookup('no-rule'); 
+                action = sess.lookup('no-rule');
             } catch(e) {
                 assert.isOk(true);
                 done();
@@ -480,7 +480,7 @@ describe('Session', () => {
             l7mp.sessions.push(sess);
             sess.create();
         });
-        after( () => { 
+        after( () => {
             remove();
         });
         it('pipeline-init',  () => { assert.isOk(sess.pipeline_init()); });
@@ -488,7 +488,7 @@ describe('Session', () => {
         it('empty-egress',   () => { assert.isEmpty(sess.chain.egress); });
         it('destination',    () => { assert.instanceOf(sess.destination, Stage); });
         it('pipeline-init-ingess-egress', () => {
-            sess.route.ingress = ['Test-c']; 
+            sess.route.ingress = ['Test-c'];
             sess.route.egress = ['Test-c'];
             wait_list = sess.pipeline_init();
             assert.isOk(wait_list);
@@ -497,7 +497,7 @@ describe('Session', () => {
         it('wait-list-length', () => { assert.lengthOf(wait_list, 3); });
         it('ingress',          () => { assert.instanceOf(sess.chain.ingress[0], Stage); });
         it('egress',           () => { assert.instanceOf(sess.chain.egress[0], Stage); });
-        it('destination',      () => { assert.instanceOf(sess.destination, Stage); });        
+        it('destination',      () => { assert.instanceOf(sess.destination, Stage); });
     });
 
     context('Pipeline-Finish', () => {
@@ -531,7 +531,7 @@ describe('Session', () => {
             sess.create();
             sess.pipeline_init();
         });
-        after( () => { 
+        after( () => {
             remove();
         });
         it('pipeline-finish', () => {
@@ -552,7 +552,7 @@ describe('Session', () => {
             }
         });
         it('chain-loop', () => {
-            sess.route.ingress = ['Test-c']; 
+            sess.route.ingress = ['Test-c'];
             sess.route.egress = ['Test-c'];
             wait_list = sess.pipeline_init();
             sess.chain.egress[0].stream = new PassThrough();
@@ -598,34 +598,34 @@ describe('Session', () => {
             sess.create();
             sess.pipeline_init();
         });
-        after( () => { 
+        after( () => {
             remove();
         });
         it('single-events', () => {
             sess.destination.stream = new PassThrough();
             try {
-                sess.pipeline_event_handlers();                 
+                sess.pipeline_event_handlers();
             } catch (error) {
-                asssert.fail(error); 
+                asssert.fail(error);
             }
         });
         it('source-has-on_disc', () => { assert.property(sess.source, 'on_disc'); });
-        it('destination-has-on_disc', () => { assert.property(sess.destination, 'on_disc'); }); 
+        it('destination-has-on_disc', () => { assert.property(sess.destination, 'on_disc'); });
         it('with-chain', () => {
-            sess.route.ingress = ['Test-c']; 
+            sess.route.ingress = ['Test-c'];
             sess.route.egress = ['Test-c'];
             wait_list = sess.pipeline_init();
             sess.chain.egress[0].stream = new PassThrough();
             sess.chain.ingress[0].stream = new PassThrough();
             sess.destination.stream = new PassThrough();
             try {
-                sess.pipeline_event_handlers();                
+                sess.pipeline_event_handlers();
             } catch (error) {
                 console.log(error);
             }
         });
         it('source-has-on_disc', () => { assert.property(sess.source, 'on_disc'); });
-        it('destination-has-on_disc', () => { assert.property(sess.destination, 'on_disc'); }); 
+        it('destination-has-on_disc', () => { assert.property(sess.destination, 'on_disc'); });
         it('ingress-has-on_disc' , () => { assert.property(sess.chain.ingress[0], 'on_disc'); });
         it('egress-has-on_disc' , () => { assert.property(sess.chain.egress[0], 'on_disc'); });
     });
@@ -660,53 +660,53 @@ describe('Session', () => {
             l7mp.sessions.push(sess);
             sess.create();
         });
-        after( () => { 
+        after( () => {
             remove();
         });
-        it('source', () => { 
-            let s = sess.get_stages(); 
+        it('source', () => {
+            let s = sess.get_stages();
             if (s.length == 1){
                 assert.equal(sess.source, s[0]);
             } else {
-                assert.fail("The returned list length not equal 1"); 
+                assert.fail("The returned list length not equal 1");
             }
         });
-        it('destination-source', () => { 
-            sess.pipeline_init(); 
-            let s = sess.get_stages(); 
+        it('destination-source', () => {
+            sess.pipeline_init();
+            let s = sess.get_stages();
             if (s.length == 2){
                 assert.equal(sess.source, s[0]);
                 assert.equal(sess.destination, s[1]);
             } else {
-                assert.fail("The returned list length not equal 2"); 
+                assert.fail("The returned list length not equal 2");
             }
         });
         it('egress', () => {
             sess.route.egress = ['Test-c'];
-            sess.pipeline_init(); 
+            sess.pipeline_init();
             sess.destination = undefined;
-            let s = sess.get_stages(); 
+            let s = sess.get_stages();
             if (s.length == 2){
                 assert.equal(sess.source, s[0]);
                 assert.equal(sess.chain.egress[0], s[1]);
             } else {
-                assert.fail("The returned list length not equal 2"); 
+                assert.fail("The returned list length not equal 2");
             }
         });
         it('ingress', () => {
             sess.route.egress = undefined;
             sess.route.ingress = ['Test-c'];
-            sess.pipeline_init(); 
+            sess.pipeline_init();
             sess.destination = undefined;
-            let s = sess.get_stages(); 
+            let s = sess.get_stages();
             if (s.length == 2){
                 assert.equal(sess.source, s[0]);
                 assert.equal(sess.chain.ingress[0], s[1]);
             } else {
-                assert.fail("The returned list length not equal 2"); 
+                assert.fail("The returned list length not equal 2");
             }
         });
-    }); 
+    });
 
     context('Pipeline', () => {
         let sess, l, c, e, ru, rl, r;
@@ -738,14 +738,14 @@ describe('Session', () => {
             l7mp.sessions.push(sess);
             sess.create();
         });
-        after( () => { 
+        after( () => {
             remove();
         });
         it('pipeline', async () => { sess = await sess.pipeline(); assert.isOk(sess); });
         it('has-num-stresms', () => { assert.property(sess, 'num_streams'); });
         it('has-active_streams',    () => { assert.property(sess, 'active_streams'); });
         it('source-has-on_disc', () => { assert.property(sess.source, 'on_disc'); });
-        it('destination-has-on_disc', () => { assert.property(sess.destination, 'on_disc'); }); 
+        it('destination-has-on_disc', () => { assert.property(sess.destination, 'on_disc'); });
         it('connected-status', () => { assert.propertyVal(sess, 'status', 'CONNECTED'); });
     });
 
@@ -779,9 +779,9 @@ describe('Session', () => {
             l7mp.sessions.push(sess);
             sess.create();
         });
-        after( () => { 
+        after( () => {
             remove();
-        }); 
+        });
         it('not-ready', () => {
             stage = new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true});
             try {
@@ -798,8 +798,8 @@ describe('Session', () => {
             sess.active_streams = 1;
             sess.status = 'CONNECTED';
             stage.set_event_handlers();
-            stage.status = 'READY'; 
-            stage.origin.status = 'INIT'; 
+            stage.status = 'READY';
+            stage.origin.status = 'INIT';
             try {
                 sess.disconnect(stage, Error('Test'));
             } catch (error) {
@@ -818,11 +818,11 @@ describe('Session', () => {
             l7mp.sessions.push(sess);
             sess.create();
             sess.active_streams = 1;
-            sess.num_streams = 1; 
+            sess.num_streams = 1;
             sess.route.retry.retry_on = 'disconnect';
             sess.route.retry.num_retries = 1;
             stage.status = 'READY';
-            stage.retriable = true; 
+            stage.retriable = true;
             stage.origin = 'Test-c';
             sess.destination = stage;
             try {
@@ -867,52 +867,43 @@ describe('Session', () => {
             l7mp.sessions.push(sess);
             sess.create();
         });
-        afterEach( () => { 
+        afterEach( () => {
             remove();
         });
         it('Error-on-source', () => {
             stage = new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true});
-            sess.route.ingress = ['Test-c']; 
+            sess.route.ingress = ['Test-c'];
             sess.route.egress = ['Test-c'];
             sess.pipeline_init();
             sess.chain.egress[0].id = sess.source.id;
-            sess.chain.egress.push(stage); 
+            sess.chain.egress.push(stage);
             sess.destination = stage;
-            sess.destination.id = 1;  
+            sess.destination.id = 1;
             sess.stream = new PassThrough();
-            try {
-                sess.repipe(sess.source);
-            } catch (error) {
-                assert.fail(error);
-            }
+            // listener socket cannot be repiped
+            assert.isNotOk(sess.repipe(sess.source));
         });
-        it('Error-on-destination', () => {
-            stage = new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true});
-            sess.destination = stage; 
-            sess.chain.ingress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true}));
-            sess.chain.ingress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true}));
-            sess.chain.egress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true}));
-            sess.chain.egress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true}));
-            sess.stream = new PassThrough();
-            try {
-                sess.repipe(stage);
-            } catch (error) {
-                assert.fail(error);
-            }
+        it('Error-on-destination', (done) => {
+            stage = new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: false});
+            sess.destination = stage;
+            sess.chain.ingress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: false}));
+            sess.chain.ingress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: false}));
+            sess.chain.egress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: false}));
+            sess.chain.egress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: false}));
+            stage.stream = new PassThrough();
+            stage.stream.on('pipe', (src) => {assert.isOk(true); done()});
+            sess.repipe(stage);
         });
-        it('Error-on-ingress', () => {
-            stage = new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true});
-            sess.destination = new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true});
-            sess.chain.ingress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true}));
+        it('Error-on-ingress-chain', (done) => {
+            stage = new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: false});
+            sess.destination = new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: false});
+            sess.chain.ingress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: false}));
             sess.chain.ingress.push(stage);
-            sess.chain.egress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true}));
-            sess.chain.egress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true}));
-            sess.stream = new PassThrough();
-            try {
-                sess.repipe(stage);
-            } catch (error) {
-                assert.fail(error);
-            }
+            sess.chain.egress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: false}));
+            sess.chain.egress.push(new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: false}));
+            stage.stream = new PassThrough();
+            stage.stream.on('pipe', (src) => {assert.isOk(true); done()});
+            sess.repipe(stage);
         });
     });
 
@@ -946,12 +937,12 @@ describe('Session', () => {
             l7mp.sessions.push(sess);
             sess.create();
         });
-        afterEach( () => { 
+        afterEach( () => {
             remove();
         });
         it('destroy', () => { assert.equal(sess.destroy(), 1); });
         it('with-retry', () => { sess.source.status = 'RETRYING'; assert.equal(sess.destroy(), 0); });
-        it('on_disc', () => { 
+        it('on_disc', () => {
             sess.source.set_event_handlers();
             assert.equal(sess.destroy(), 1);
         });
