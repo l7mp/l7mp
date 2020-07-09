@@ -51,7 +51,7 @@ describe('UDPCluster', () => {
 
     context('endpoins', () => {
         var c = Cluster.create({name: 'UDP', spec: {protocol: 'UDP', port: 54321}});
-        var e; 
+        var e;
         it('add',                 () => { e = c.addEndPoint({name: 'UDP', spec: {address: '127.0.0.1'}}); assert.isOk(e); });
         it('exists',              () => { assert.lengthOf(c.endpoints, 1); });
         it('instanceOf',          () => { assert.instanceOf(e, EndPoint); });
@@ -82,10 +82,10 @@ describe('UDPCluster', () => {
             s = await c.stream({route:{retry:{timeout:1000}}});
             assert.isOk(s);
         });
-        it('exists',     () => { assert.isOk(s.stream); });
-        it('instanceOf', () => { assert.instanceOf(s.stream, Stream); });
-        it('readable',   () => { assert.isOk(s.stream.readable); });
-        it('writeable',  () => { assert.isOk(s.stream.writable); });
+        it('exists',       () => { assert.isOk(s.stream); });
+        it('instanceOf',   () => { assert.instanceOf(s.stream, Stream); });
+        it('readable',     () => { assert.isOk(s.stream.readable); });
+        it('writeable',    () => { assert.isOk(s.stream.writable); });
         it('has-endpoint', () => { assert.isObject(s.endpoint); });
         it('correct-byte-stream', () => {
             let client = UDP.createSocket("udp4")
@@ -99,10 +99,7 @@ describe('UDPCluster', () => {
                 done();
             })
             client.send(message,16001, "127.0.0.1" , (err, bytes) => {
-                if(err) {
-                    client.close();
-                    s.close();
-                }
+                client.close();
             });
         });
         it('Not-found-endpoint', async () => {
@@ -116,7 +113,7 @@ describe('UDPCluster', () => {
                 assert.isOk(true);
             });
         });
-        it('close', (done) =>{
+        it('stream-close', (done) =>{
             s.stream.on('close', ()=>{
                 assert.isOk(true);
                 done();
