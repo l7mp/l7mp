@@ -62,7 +62,7 @@ describe('Routes API', ()  => {
         l7mp = new L7mp();
         l7mp.static_config = static_config;
         l7mp.applyAdmin({ log_level: 'warn' });
-        l7mp.run(); 
+        l7mp.run();
     });
 
     after(() => {
@@ -71,7 +71,7 @@ describe('Routes API', ()  => {
     });
 
     context('get-routes', () => {
-        let res, str = ''; 
+        let res, str = '';
         it('controller-routes', (done) =>{
             let options = {
                 host: 'localhost', port: 1234,
@@ -106,7 +106,7 @@ describe('Routes API', ()  => {
         it('add-routes', (done) =>{
             const postData = JSON.stringify({
                 "route": {
-                    name: "test-route",   
+                    name: "test-route",
                     destination: 'l7mp-controller'
                   }
             });
@@ -164,7 +164,7 @@ describe('Routes API', ()  => {
             it('retry-timeout',     () => { assert.nestedPropertyVal(res[1], 'retry.timeout', 2000); });
         });
         context('delete',()=>{
-            let res, str = ''; 
+            let res, str = '';
             it('delete-route', (done)=>{
                 let options = {
                     host: 'localhost', port: 1234,
@@ -199,7 +199,7 @@ describe('Routes API', ()  => {
         it('add-routes', (done) =>{
             const postData = JSON.stringify({
                 "route": {
-                    name: "test-route",   
+                    name: "test-route",
                     destination: {
                         name: 'test-cluster',
                         spec: {protocol: 'UDP', port: 16000, bind: {port: 16001, address: '127.0.0.1'}},
@@ -277,7 +277,7 @@ describe('Routes API', ()  => {
             it('retry-num_retries', () => { assert.nestedPropertyVal(res[1], 'retry.num_retries', 1); });
             it('retry-timeout',     () => { assert.nestedPropertyVal(res[1], 'retry.timeout', 1000); });
         });
-        
+
         context('check-cluster',()=>{
             it('cluster-name', (done) =>{
                 let options = {
@@ -313,7 +313,7 @@ describe('Routes API', ()  => {
         });
 
         context('delete',()=>{
-            let res, str = ''; 
+            let res, str = '';
             it('delete-route', (done)=>{
                 let options = {
                     host: 'localhost', port: 1234,
@@ -354,7 +354,7 @@ describe('Routes API', ()  => {
             for(let i = 1; i < 6; i++){
                 const postData = JSON.stringify({
                     "route": {
-                        name: `test-route-${i}`,   
+                        name: `test-route-${i}`,
                         destination: 'l7mp-controller'
                       }
                 });
@@ -481,18 +481,18 @@ describe('Routes API', ()  => {
             req.write(postData);
             req.end();
         });
-        it('add-existing-route', () => {
+        it('add-existing-route', (done) => {
             let res;
             const postData = JSON.stringify({
                 "route": {
-                    name: "controller-listener-RuleList-0-Rule-0-Route-0",   
+                    name: "controller-listener-RuleList-0-Rule-0-Route-0",
                     destination: 'l7mp-controller'
                   }
             });
             let options = {
                 host: 'localhost', port: 1234,
-                path: '/api/v1/routes', method: 'POST'
-                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+                path: '/api/v1/routes', method: 'POST',
+                headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
             }
             let req = http.request(options, (response)=>{
                 response.setEncoding('utf8');
@@ -502,7 +502,8 @@ describe('Routes API', ()  => {
                 });
                 response.on('end', () =>{
                     res = JSON.parse(str);
-                    assert.include(res.content,'Cannot add')
+                    assert.equal(res.status, 400);
+                    done();
                 });
             });
             req.once('error', (e) =>{
