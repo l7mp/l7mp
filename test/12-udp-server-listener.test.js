@@ -166,7 +166,7 @@ describe('UDPListener', ()  => {
                 s1.source.stream.write('test1');
             });
             it('write-2',  (done) => {
-                c2.on('message', (msg, rinfo) => {
+                c2.once('message', (msg, rinfo) => {
                     assert.equal(msg.toString(), 'test2');
                     done();
                 })
@@ -179,10 +179,11 @@ describe('UDPListener', ()  => {
                 c2.removeAllListeners();
                 s1.source.stream.destroy();
                 s2.source.stream.destroy();
+                l7mp.sessions.splice(0,2);
                 assert.isOk(true);
             });
             it('client-1-stream-end', (done) => {
-                c1.on('close', () => {
+                c1.once('close', () => {
                     assert.isOk(true);
                     done();
                 })
@@ -194,6 +195,39 @@ describe('UDPListener', ()  => {
                     done();
                 })
                 c2.close()
+            });
+        });
+
+        context('sessions', ()=>{
+            it('burst-from-client',(done)=>{
+                c1 = new udp.createSocket({type: "udp4", reuseAddr: true});
+                c1.on('connect',  () => {
+                    for(let i = 0; i < 10; i++){
+                        c1.send('connect');
+                    }
+                    done();
+                });
+                c1.on('listening',()=>{
+                    c1.connect(16000,'127.0.0.1');
+                })
+                c1.bind(16001, '127.0.0.1');
+            });
+            it('no-duplicate-sessions-on-fast-init', ()=>{
+                assert.lengthOf(l7mp.sessions,1);
+            });
+            it('server-stream-end',  () => {
+                l7mp.sessions[0].source.stream.removeAllListeners();
+                c1.removeAllListeners();
+                l7mp.sessions[0].source.stream.destroy();
+                l7mp.sessions.splice(0,2);
+                assert.isOk(true);
+            });
+            it('client-stream-end', (done) => {
+                c1.once('close', () => {
+                    assert.isOk(true);
+                    done();
+                })
+                c1.close()
             });
         });
 
