@@ -7,7 +7,7 @@ const Listener     = require('../listener.js').Listener;
 const Session      = require('../session.js').Session;
 
 describe('UDPListener', ()  => {
-    var l, s, c1, c2, s1, s2;
+    var l, s;
     var readers = {};
     var reader = (name, stream, done) => {
         let f = () => {
@@ -24,7 +24,7 @@ describe('UDPListener', ()  => {
 
     before( () => {
         l7mp = new L7mp();
-        l7mp.applyAdmin({ log_level: 'silly' });
+        l7mp.applyAdmin({ log_level: 'error' });
         l7mp.run(); // should return
     });
     context('singleton', () => {
