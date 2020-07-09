@@ -18,7 +18,7 @@
 
 ** Cluster: 11-*
 *** TODO HTTP
-*** TODO WebSocket
+*** DONE WebSocket
 *** DONE UDP
 *** TODO TCP
 *** TODO UnixDomainSocket
