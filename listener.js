@@ -114,7 +114,7 @@ class HTTPListener extends Listener {
     }
 
     run(){
-        this.server = http.createServer( this.onRequest );
+        this.server = http.createServer();
 
         this.server.on('error', (e) => {
             log.warn('HTTPListener.new: Error:', e);
