@@ -25,7 +25,7 @@ describe('UDPListener', ()  => {
     before( () => {
         l7mp = new L7mp();
         // l7mp.applyAdmin({ log_level: 'silly' });
-        l7mp.applyAdmin({ log_level: 'error' });
+        l7mp.applyAdmin({ log_level: 'warn' });
         l7mp.run(); // should return
     });
 
@@ -45,7 +45,7 @@ describe('UDPListener', ()  => {
                                },
                         options:
                                {
-                                   connections: 'ondemand'
+                                   mode: 'singleton'
                                }
                     }
             });
@@ -59,11 +59,11 @@ describe('UDPListener', ()  => {
         it('has-spec',     () => { assert.property(l, 'spec'); });
         it('has-protocol', () => { assert.nestedPropertyVal(l, 'spec.protocol', 'UDP'); });
         it('has-port',     () => { assert.nestedPropertyVal(l, 'spec.port', 16000); });
-        it('can-listen',   () => { l.emitter=(x) =>{ s = x }; assert.isOk(true); });
+        it('can-emit',     () => { l.emitter=(x) =>{ s = x; return s; }; assert.isOk(true); });
     });
 
     context('#run-singleton', () => {
-        it('runs', () => { l.run_singleton(); assert.exists(l); });
+        it('runs', () => { l.run(); assert.exists(l); });
     });
 
     context('#connect', () => {
@@ -76,14 +76,13 @@ describe('UDPListener', ()  => {
             done();
         })
         it('connect-to-remote-host', (done) =>{
-            c.once('connect', () => { assert.isOk(true)})
+            c.once('connect', () => { assert.isOk(true); done();})
             c.connect(16000,'127.0.0.1');
-            done();
         })
         it('address',        () => { assert.equal(c.address().address, '127.0.0.1'); });
-        it('port',    () => { assert.equal(c.address().port, 16001); });
+        it('port',           () => { assert.equal(c.address().port, 16001); });
         it('remote-address', () => { assert.equal(c.remoteAddress().address, '127.0.0.1'); });
-        it('remote-port', () => { assert.equal(c.remoteAddress().port, 16000); });
+        it('remote-port',    () => { assert.equal(c.remoteAddress().port, 16000); });
     });
 
     context('emits session', () => {
