@@ -278,7 +278,11 @@ describe('Cluster-API', ()  => {
         });
 
         context('error',()=>{
+ api-cluster-test
             it('add-existing-cluster', (done)=>{
+
+            it('add-existing-cluster', ()=>{
+ master
                 const postData = JSON.stringify({
                     'cluster':{
                         name: 'L7mpControllerCluster',
@@ -299,8 +303,12 @@ describe('Cluster-API', ()  => {
                     });
                     response.on('end', () =>{
                         res = JSON.parse(str);
+ api-cluster-test
                         assert.include(res.status,400)
                         done();
+
+                        assert.include(res.content,'Cannot add')
+ master
                     });
                 });
                 req.once('error', (e) =>{
@@ -309,7 +317,11 @@ describe('Cluster-API', ()  => {
                 req.write(postData);
                 req.end();
             });
+ api-cluster-test
             it('delete-non-existing-cluster',(done)=>{
+
+            it('delete-non-existing-cluster',()=>{
+ master
                 let options = {
                     host: 'localhost', port: 1234,
                     path: `/api/v1/clusters/non-existing-cluster`,
@@ -322,8 +334,12 @@ describe('Cluster-API', ()  => {
                     });
                     response.once('end', function () {
                         res = JSON.parse(str);
+ api-cluster-test
                         assert.include(res.status,400);
                         done();
+
+                        assert.include(res.content,'Cannot delete')
+ master
                     });
 
                 }

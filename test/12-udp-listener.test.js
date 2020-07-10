@@ -1,3 +1,25 @@
+// L7mp: A programmable L7 meta-proxy
+//
+// Copyright 2020 by its authors.
+// Some rights reserved. See AUTHORS.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the 'Software'), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+// ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 const Stream       = require('stream');
 const assert       = require('chai').assert;
 const EventEmitter = require('events').EventEmitter;
@@ -25,7 +47,7 @@ describe('UDPListener', ()  => {
     before( () => {
         l7mp = new L7mp();
         // l7mp.applyAdmin({ log_level: 'silly' });
-        l7mp.applyAdmin({ log_level: 'error' });
+        l7mp.applyAdmin({ log_level: 'warn' });
         l7mp.run(); // should return
     });
 
@@ -45,7 +67,7 @@ describe('UDPListener', ()  => {
                                },
                         options:
                                {
-                                   connections: 'ondemand'
+                                   mode: 'singleton'
                                }
                     }
             });
@@ -59,11 +81,11 @@ describe('UDPListener', ()  => {
         it('has-spec',     () => { assert.property(l, 'spec'); });
         it('has-protocol', () => { assert.nestedPropertyVal(l, 'spec.protocol', 'UDP'); });
         it('has-port',     () => { assert.nestedPropertyVal(l, 'spec.port', 16000); });
-        it('can-listen',   () => { l.emitter=(x) =>{ s = x }; assert.isOk(true); });
+        it('can-emit',     () => { l.emitter=(x) =>{ s = x; return s; }; assert.isOk(true); });
     });
 
     context('#run-singleton', () => {
-        it('runs', () => { l.run_singleton(); assert.exists(l); });
+        it('runs', () => { l.run(); assert.exists(l); });
     });
 
     context('#connect', () => {
@@ -76,14 +98,13 @@ describe('UDPListener', ()  => {
             done();
         })
         it('connect-to-remote-host', (done) =>{
-            c.once('connect', () => { assert.isOk(true)})
+            c.once('connect', () => { assert.isOk(true); done();})
             c.connect(16000,'127.0.0.1');
-            done();
         })
         it('address',        () => { assert.equal(c.address().address, '127.0.0.1'); });
-        it('port',    () => { assert.equal(c.address().port, 16001); });
+        it('port',           () => { assert.equal(c.address().port, 16001); });
         it('remote-address', () => { assert.equal(c.remoteAddress().address, '127.0.0.1'); });
-        it('remote-port', () => { assert.equal(c.remoteAddress().port, 16000); });
+        it('remote-port',    () => { assert.equal(c.remoteAddress().port, 16000); });
     });
 
     context('emits session', () => {

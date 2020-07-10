@@ -134,8 +134,6 @@ class L7mp {
         log.info(`Starting l7mp version: ${this.admin.version} Log-level: ${log.level}`,
                  'Strict mode:', l7mp.admin.strict ? 'enabled' : 'disabled');
 
-        dump(this.static_config, 10);
-
         try {
             if('clusters' in this.static_config){
                 this.static_config.clusters.forEach(
@@ -569,6 +567,12 @@ class L7mp {
             throw new Error(`Cannot add route: ${e}`);
         }
 
+        if(this.getRoute(r.name)){
+            let e = `Route "${r.name}" already defined`;
+            log.warn('L7mp.addRoute', e);
+            throw new Error(`Cannot add route: ${e}`);
+        }
+
         if(typeof r.destination === 'object'){
             // inline cluster: create
             r.destination.name = r.destination.name ||
@@ -744,7 +748,7 @@ class L7mp {
         });
 
         let status = await s.router();
-        log.silly(`Session "${s.name}": router responded with status:`, status.status);
+        log.silly(`Session "${s.name}": router finished, status:`, status.status);
 
         return s;
     }

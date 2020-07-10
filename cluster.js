@@ -836,6 +836,32 @@ class EchoCluster extends Cluster {
     }
 };
 
+class DiscardCluster extends Cluster {
+    constructor(c) {
+        super( {
+            name:         c.name || 'DiscardCluster',
+            spec:         { protocol: 'Discard'},
+            type:         'datagram',
+        } );
+    }
+
+    toJSON(){
+        log.silly('DiscardCluster.toJSON:', `"${this.name}"`);
+        return {
+            name:         this.name,
+            spec:         this.spec,
+        };
+    }
+
+    stream(s){
+        log.silly('DiscardCluster.stream', `Session: ${s.name}`);
+        return Promise.resolve({
+            stream: miss.through.obj( (arg, enc, cb) => cb() ),
+            endpoint: this.virtualEndPoint()
+        });
+    }
+};
+
 class LoggerCluster extends Cluster {
     constructor(c) {
         super( {
@@ -950,9 +976,10 @@ class JSONDecapCluster extends Cluster {
                 (arg, enc, cb) => {
                     let buffer = arg instanceof Buffer;
                     arg = buffer ? arg : arg.toString(enc);
+                    var ret = '';
                     try {
                         let json = JSON.parse(arg);
-                        var ret = Buffer.from(json.payload, 'base64') || "";
+                        ret = Buffer.from(json.payload, 'base64') || "";
                     } catch(e){
                         log.info('JSONDecapCluster.stream.transform:',
                                  `Invalid JSON payload`,
@@ -1027,6 +1054,7 @@ Cluster.create = (c) => {
     case 'JSONSocket':       return new JSONSocketCluster(c);
     case 'Stdio':            return new StdioCluster(c);
     case 'Echo':             return new EchoCluster(c);
+    case 'Discard':          return new DiscardCluster(c);
     case 'Logger':           return new LoggerCluster(c);
     case 'JSONEncap':        return new JSONEncapCluster(c);
     case 'JSONDecap':        return new JSONDecapCluster(c);
