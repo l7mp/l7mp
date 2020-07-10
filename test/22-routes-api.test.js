@@ -61,7 +61,7 @@ describe('Routes API', ()  => {
     before( () => {
         l7mp = new L7mp();
         l7mp.static_config = static_config;
-        l7mp.applyAdmin({ log_level: 'warn' });
+        l7mp.applyAdmin({ log_level: 'error' });
         l7mp.run();
     });
 
@@ -485,7 +485,7 @@ describe('Routes API', ()  => {
             let res;
             const postData = JSON.stringify({
                 "route": {
-                    name: "controller-listener-RuleList-0-Rule-0-Route-0",
+                    name: `${l7mp.routes[0].name}`,
                     destination: 'l7mp-controller'
                   }
             });
