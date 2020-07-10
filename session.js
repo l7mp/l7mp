@@ -374,7 +374,7 @@ class Session {
             var status = await this.pipeline();
         } catch(err){
             if(log.level === 'silly') dump(err, 6);
-            let msg = `Could not route session "${this.name}": ${err.message}: Reason: ` +
+            let msg = `Could not route session "${this.name}": ${err.message}: ` +
                 err.content || "";
             log.warn(`Session.router:`, msg);
             this.error(err);
