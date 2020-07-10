@@ -137,7 +137,12 @@ class L7mp {
         try {
             if('clusters' in this.static_config){
                 this.static_config.clusters.forEach(
-                    (c) => this.addCluster(c)
+                    (c) => this.addCluster(c).catch((e) => {
+                        log.silly(dumper(e, 6));
+                        log.error(`Could not initialize static configuration`,
+                                  e.code ? `${e.code}: ${e.message}` : e.message
+                                 );
+                    })
                 );
             }
 
@@ -323,7 +328,7 @@ class L7mp {
     // Cluster API
     //
     ////////////////////////////////////////////////////
-    addCluster(c) {
+    async addCluster(c) {
         log.info('L7mp.addCluster', dumper(c, 8));
 
         let schema = {
@@ -351,6 +356,8 @@ class L7mp {
 
         c = Cluster.create(c);
         this.clusters.push(c);
+
+        await c.run();
         return c;
     }
 

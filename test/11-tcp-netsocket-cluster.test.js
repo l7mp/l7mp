@@ -37,7 +37,8 @@ describe('TCP-NetSocketCluster', ()  => {
 
     context('create', () => {
         var c;
-        it('runs',         () => { assert.exists(c = Cluster.create({name: 'TCP', spec: {protocol: 'TCP'}})); });
+        it('created',      () => { assert.exists(c = Cluster.create({name: 'TCP', spec: {protocol: 'TCP'}})); });
+        it('runs',   async () => { await c.run(); assert.isObject(c); });
         it('object',       () => { assert.isObject(c); });
         // EchoCluster is not exported so we cannot check from here
         it('instanceOf',   () => { assert.instanceOf(c, Cluster); });
@@ -46,9 +47,9 @@ describe('TCP-NetSocketCluster', ()  => {
         it('has-protocol', () => { assert.deepPropertyVal(c, 'spec', {protocol: 'TCP'}); });
     });
 
-    context('endpoints', () => {
+    context('endpoints', async () => {
         var c = Cluster.create({name: 'TCP', spec: {protocol: 'TCP'}});
-
+        await c.run();
         var e;
         it('add',                 () => { e = c.addEndPoint({name: 'TCPNetSocket', spec: {address: '127.0.0.1'}}); assert.isOk(e); });
         it('exists',              () => { assert.lengthOf(c.endpoints, 1); });
@@ -70,7 +71,8 @@ describe('TCP-NetSocketCluster', ()  => {
     context('stream()', () => {
         var c = Cluster.create({name: 'TCP', protocol: 'TCP', spec: {protocol: 'TCP', port: 16000 , bind: {address: "127.0.0.1", port: 16000}}});
         var e = c.addEndPoint({name: 'TCPNetSocket', spec: {address: '127.0.0.1'}})
-        it('runs', async   () => { s = await c.stream({route:{retry:{timeout:1000}}})});
+        it('runs', async   () => { await c.run(); assert.isOk(c);});
+        it('stream', async () => { s = await c.stream({route:{retry:{timeout:1000}}})});
         it('returns ok',   () => { assert.isOk(s.stream); });
         it('isa stream',   () => { assert.instanceOf(s.stream, Stream); });
         it('readable',     () => { assert.isOk(s.stream.readable); });

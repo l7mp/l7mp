@@ -36,11 +36,12 @@ describe('TestCluster', ()  => {
     });
 
     context('create', () => {
-        it('runs',         () => {
+        it('runs',    async () => {
             c = Cluster.create({
                 name: 'Test',
                 spec: {protocol: 'Test'},
             });
+            await c.run();
             assert.exists(c);
         });
         it('object',       () => { assert.isObject(c); });

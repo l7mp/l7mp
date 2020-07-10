@@ -35,9 +35,9 @@ describe('SyncCluster', () => {
     });
 
     context('create', () => {
-        var c, e; 
+        var c, e;
         c = Cluster.create({name: 'Sync', spec: {protocol: 'Sync', query: 'test/test/test'}});
-        it('runs',                     () => { assert.exists(c); });
+        it('runs',   async             () => { c.run(); assert.exists(c); });
         it('object',                   () => { assert.isObject(c); });
         it('instanceOf',               () => { assert.instanceOf(c, Cluster); });
         it('has-name',                 () => { assert.property(c, 'name'); });
@@ -46,17 +46,17 @@ describe('SyncCluster', () => {
         it('has-protocol',             () => { assert.propertyVal(c, 'protocol', 'Sync'); });
         it('load-balancer',            () => { assert.property(c, 'loadbalancer'); });
         it('load-balancer-instanceof', () => { assert.instanceOf(c.loadbalancer, LoadBalancer); });
-        it('has-query',                () => { assert.property(c, 'query'); }); 
-        it('equals',                   () => { assert.equal(c.query, 'test/test/test'); }); 
+        it('has-query',                () => { assert.property(c, 'query'); });
+        it('equals',                   () => { assert.equal(c.query, 'test/test/test'); });
     });
 
     context('addEndPoint', () => {
-        var c, e; 
+        var c, e;
         c = Cluster.create({name: 'Sync', spec: {protocol: 'Sync', query: 'test/test/test'}});
         c.protocol = 'Test'
-        console.log(c);
         e = c.addEndPoint({name: 'Test', spec: {}});
-        it('runs',             () => { assert.exists(e); });
+        it('runs', async () => { await c.run(); assert.isOk(c);});
+        it('endpoint-ok',      () => { assert.exists(e); });
         it('object',           () => { assert.isObject(e); });
         it('instanceOf',       () => { assert.instanceOf(e, EndPoint); });
         it('has-name',         () => { assert.property(e, 'name'); });
@@ -76,7 +76,7 @@ describe('SyncCluster', () => {
 
     // TODO: Finish the stream test
     // context('stream', () => {
-    //     var c, e, s; 
+    //     var c, e, s;
     //     c = Cluster.create({name: 'Sync', spec: {protocol: 'Sync', query: 'test/test/test'}});
     //     c.protocol = 'Test'
     //     console.log(c);

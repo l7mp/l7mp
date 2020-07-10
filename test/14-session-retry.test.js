@@ -23,6 +23,7 @@
 const udp          = require('dgram');
 const Stream       = require('stream');
 const assert       = require('chai').assert;
+const pEvent       = require('p-event');
 const EventEmitter = require('events').EventEmitter;
 const Net          = require('net');
 const L7mp         = require('../l7mp.js').L7mp;
@@ -40,7 +41,7 @@ const delay        = require('delay');
 
 describe('Rerty', ()  => {
     var l, e, c, s, r, ru, rl, u;
-    before( () => {
+    before( async () => {
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'error' });
         // l7mp.applyAdmin({ log_level: 'silly' });
@@ -51,6 +52,7 @@ describe('Rerty', ()  => {
         l7mp.listeners.push(l);
         c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'},
                              endpoints: [{ name: 'Test-e', spec: {}}]});
+        await c.run();
         e = c.endpoints[0];
         l7mp.clusters.push(c);
         ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
@@ -713,9 +715,10 @@ describe('Rerty', ()  => {
 
     context('2-retry-disconnect-fail-kill-session', () => {
         var du = new DuplexPassthrough();
-        it('route', (done) => {
+        it('route', async () => {
             c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'},
                                  endpoints: [{ name: 'Test-e', spec: {}}]});
+            await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
             r = Route.create({
@@ -734,8 +737,8 @@ describe('Rerty', ()  => {
             l7mp.sessions.push(s);
             s.create();
             e.mode = ['ok', 'fail', 'fail']; e.round = 0; e.timeout=0;
-            s.on('connect', () => { assert.isOk(true); done()});
-            s.router();
+            s.on('connect', () => { assert.isOk(true); return Promise.resolve()});
+            await s.router();
         });
         it('re-connect-fail', (done) => {
             s.removeAllListeners();
@@ -828,7 +831,7 @@ describe('Rerty', ()  => {
     });
 
     context('jsonsocket-retry', () => {
-        beforeEach((done) => {
+        beforeEach(async () => {
             if(s) s.end();
             l7mp.clusters.splice(0, 1);
             c = Cluster.create({
@@ -839,6 +842,7 @@ describe('Rerty', ()  => {
                       },
                 endpoints: [{ name: 'Test-e', spec: {address: '127.0.0.1'}}],
             });
+            await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
             l7mp.routes.splice(0, 1);
@@ -853,20 +857,22 @@ describe('Rerty', ()  => {
             });
             l7mp.routes.push(r);
             u = new udp.createSocket('udp4');
-            u.bind(54321, async () => {
-                u.once('message', (msg, rinfo) => {
-                    u.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}),
-                           rinfo.port, rinfo.address);
-                    u.on('message', (msg, rinfo) => { u.send(msg, rinfo.port, rinfo.address); });
-                });
-                du = new DuplexPassthrough()
-                let x = { metadata: {name: 'Test-s'},
-                          source: { origin: l.name, stream: du.right }};
-                s = new Session(x);
-                l7mp.sessions.push(s);
-                s.create();
-                s.router().then(() => done());
+            await pEvent(u.bind(54321), 'listening', {
+                rejectionEvents: ['close', 'error'],
+                    multiArgs: false, timeout: 1000,
             });
+            u.once('message', (msg, rinfo) => {
+                u.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}),
+                       rinfo.port, rinfo.address);
+                u.on('message', (msg, rinfo) => { u.send(msg, rinfo.port, rinfo.address); });
+            });
+            du = new DuplexPassthrough()
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
+            l7mp.sessions.push(s);
+            s.create();
+            await s.router();
         });
         afterEach(() => { u.close(); s.destroy(); l7mp.sessions.splice(0, 1); du.destroy(); });
 

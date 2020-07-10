@@ -51,10 +51,11 @@ describe('Session', () => {
 
     context('Init', () => {
         let stage, sess, l, c, e, ru, rl, r;
-        before( () => {
+        before( async () => {
             l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
             l7mp.listeners.push(l);
             c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
             ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
@@ -97,10 +98,11 @@ describe('Session', () => {
 
     context('Create', () => {
         let stage, sess, l, c, e, ru, rl, r;
-        before( () => {
+        before( async () => {
             l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
             l7mp.listeners.push(l);
             c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
             ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
@@ -147,10 +149,11 @@ describe('Session', () => {
     context('Stage-Connect', () => {
         let s, to;
         let stage, l, c, e, ru, rl, r;
-        before( () => {
+        before( async () => {
             l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
             l7mp.listeners.push(l);
             c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
             ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
@@ -227,10 +230,11 @@ describe('Session', () => {
 
     context('Connected', () => {
         let stage, sess, l, c, e, ru, rl, r;
-        before( () => {
+        before( async () => {
             l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
             l7mp.listeners.push(l);
             c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
             ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
@@ -264,10 +268,11 @@ describe('Session', () => {
 
     context('Error', () => {
         let sess, l, c, e, ru, rl, r;
-        before( () => {
+        before( async () => {
             l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
             l7mp.listeners.push(l);
             c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
             ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
@@ -311,10 +316,11 @@ describe('Session', () => {
 
     context('End', () => {
         let sess, l, c, e, ru, rl, r;
-        before( () => {
+        before( async () => {
             l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
             l7mp.listeners.push(l);
             c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
             ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
@@ -359,10 +365,11 @@ describe('Session', () => {
     context('Router', () => {
         let s;
         let stage, sess, l, c, e, ru, rl, r;
-        before( () => {
+        before( async () => {
             l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
             l7mp.listeners.push(l);
             c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
             ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
@@ -398,10 +405,11 @@ describe('Session', () => {
     context('Lookup', () => {
         var action;
         let stage, sess, l, c, e, ru, rl, r;
-        before( () => {
+        before( async () => {
             l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
             l7mp.listeners.push(l);
             c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
             ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
@@ -452,10 +460,11 @@ describe('Session', () => {
 
     context('Pipeline-Init', () => {
         let wait_list, sess, l, c, e, ru, rl, r;
-        before( () => {
+        before( async () => {
             l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
             l7mp.listeners.push(l);
             c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
             ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
@@ -502,10 +511,11 @@ describe('Session', () => {
 
     context('Pipeline-Finish', () => {
         let sess, l, c, e, ru, rl, r;
-        before( () => {
+        before( async () => {
             l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
             l7mp.listeners.push(l);
             c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
             ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
@@ -569,10 +579,11 @@ describe('Session', () => {
 
     context('Pipeline-Event-Handler', () => {
         let sess, l, c, e, ru, rl, r;
-        before( () => {
+        before( async () => {
             l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
             l7mp.listeners.push(l);
             c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
             ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
@@ -632,10 +643,11 @@ describe('Session', () => {
 
     context('Get-Stages', () => {
         let sess, l, c, e, ru, rl, r;
-        before( () => {
+        before( async () => {
             l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
             l7mp.listeners.push(l);
             c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
             ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
@@ -710,10 +722,11 @@ describe('Session', () => {
 
     context('Pipeline', () => {
         let sess, l, c, e, ru, rl, r;
-        before( () => {
+        before( async () => {
             l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
             l7mp.listeners.push(l);
             c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
             ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
@@ -751,10 +764,11 @@ describe('Session', () => {
 
     context('Disconnect', () => {
         let stage, sess, l, c, e, ru, rl, r;
-        before( () => {
+        before( async () => {
             l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
             l7mp.listeners.push(l);
             c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
             ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
@@ -839,10 +853,11 @@ describe('Session', () => {
 
     context('Repipe', () => {
         let stage, sess, l, c, e, ru, rl, r;
-        beforeEach( () => {
+        beforeEach( async () => {
             l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
             l7mp.listeners.push(l);
             c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
             ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
@@ -909,10 +924,11 @@ describe('Session', () => {
 
     context('Destroy', () => {
         let stage, sess, l, c, e, ru, rl, r;
-        beforeEach( () => {
+        beforeEach(async () => {
             l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
             l7mp.listeners.push(l);
             c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}, endpoints: [{ name: 'Test-e', spec: {}}]});
+            await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
             ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
