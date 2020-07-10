@@ -60,7 +60,7 @@ describe('Listeners API', ()  => {
     before( () => {
         l7mp = new L7mp();
         l7mp.static_config = static_config;
-        l7mp.applyAdmin({ log_level: 'warn' });
+        l7mp.applyAdmin({ log_level: 'error' });
         l7mp.run(); 
     });
 
@@ -242,7 +242,7 @@ describe('Listeners API', ()  => {
                 });
                 response.once('end', function () {
                     res = JSON.parse(str);
-                    assert.lengthOf(res,6);
+                    assert.lengthOf(res, 6);
                     done();
                 });
 
@@ -321,7 +321,7 @@ describe('Listeners API', ()  => {
                 });
                 response.on('end', () =>{
                     res = JSON.parse(str);
-                    assert.include(res.content,'Cannot add')
+                    assert.equal(res.status, 400);
                 });
             });
             req.once('error', (e) =>{
@@ -347,7 +347,7 @@ describe('Listeners API', ()  => {
                 });
                 response.on('end', () =>{
                     res = JSON.parse(str);
-                    assert.include(res.content,'Cannot add')
+                    assert.equal(res.status, 400);
                 });
             });
             req.once('error', (e) =>{
@@ -381,7 +381,7 @@ describe('Listeners API', ()  => {
                 });
                 response.on('end', () =>{
                     res = JSON.parse(str);
-                    assert.include(res.content,'Cannot add')
+                    assert.equal(res.status, 400);
                 });
             });
             req.once('error', (e) =>{
@@ -405,7 +405,7 @@ describe('Listeners API', ()  => {
                 });
                 response.once('end', function () {
                     res = JSON.parse(str);
-                    assert.include(res.content,'Cannot delete')
+                    assert.equal(res.status, 400);
                 });
             }
             let req = http.request(options, callback);
