@@ -201,6 +201,42 @@ class L7mpOpenAPI {
             }
         });
 
+        // Rule API
+        this.api.registerHandler('getRules', (ctx, req, res) => {
+            log.verbose("L7mp.api.getRules");
+            res.status = new Response(l7mp.rules);
+        });
+
+        this.api.registerHandler('getRule', (ctx, req, res) => {
+            log.verbose("L7mp.api.getRule");
+            let result = l7mp.getRule(ctx.request.params.name);
+            if(result){
+                res.status = new Response(result);
+            } else {
+                res.status = new BadRequestError('No such rule');
+            }
+        });
+
+        this.api.registerHandler('addRule', async (ctx, req, res) => {
+            log.verbose("L7mp.api.addRule");
+            try {
+                let result = await l7mp.addRule(req.body.rule);
+                res.status = new Ok();
+            } catch(e) {
+                res.status = new BadRequestError(e.message);
+            }
+        });
+
+        this.api.registerHandler('deleteRule', (ctx, req, res) => {
+            log.verbose("L7mp.api.deleteRule");
+            try {
+                l7mp.deleteRule(ctx.request.params.name);
+                res.status = new Ok();
+            } catch(e) {
+                res.status = new BadRequestError(e.message);
+            }
+        });
+
         // RuleList API
         this.api.registerHandler('getRuleLists', (ctx, req, res) => {
             log.verbose("L7mp.api.getRuleLists");
@@ -220,7 +256,7 @@ class L7mpOpenAPI {
         this.api.registerHandler('addRuleList', async (ctx, req, res) => {
             log.verbose("L7mp.api.addRuleList");
             try {
-                let result = await l7mp.addRuleList(req.body.rulelist);
+                let result = l7mp.addRuleList(req.body.rulelist);
                 res.status = new Ok();
             } catch(e) {
                 res.status = new BadRequestError(e.message);
@@ -231,6 +267,58 @@ class L7mpOpenAPI {
             log.verbose("L7mp.api.deleteRuleList");
             try {
                 l7mp.deleteRuleList(ctx.request.params.name);
+                res.status = new Ok();
+            } catch(e) {
+                res.status = new BadRequestError(e.message);
+            }
+        });
+
+        this.api.registerHandler('getRuleFromRuleList', (ctx, req, res) => {
+            log.verbose("L7mp.api.getRuleFromRuleList");
+            let rulelist = l7mp.getRuleList(ctx.request.params.name);
+            if(!rulelist){
+                res.status = new BadRequestError('No such rule list');
+                return;
+            }
+            let position = ctx.request.params.position;
+            if(position < 0 || position >= rulelist.rules.length){
+                res.status = new BadRequestError(`No rule at position ${position} in RuleList`);
+                return;
+            }
+            let name = rulelist.rules[position];
+            let result = l7mp.getRule(name);
+            if(result){
+                res.status = new Response(result);
+            } else {
+                res.status = new NotFoundError(`Invalid rule "${name}" at position "${position}" in RuleList`);
+                return;
+            }
+        });
+
+        this.api.registerHandler('addRuleToRuleList', async (ctx, req, res) => {
+            log.verbose("L7mp.api.addRuleToRuleList");
+            let rulelist = l7mp.getRuleList(ctx.request.params.name);
+            if(!rulelist){
+                res.status = new BadRequestError('No such rule list');
+                return;
+            }
+            try {
+                l7mp.addRuleToRuleList(rulelist, req.body.rule, ctx.request.params.position);
+                res.status = new Ok();
+            } catch(e) {
+                res.status = new BadRequestError(e.message);
+            }
+        });
+
+        this.api.registerHandler('deleteRuleFromRuleList', (ctx, req, res) => {
+            log.verbose("L7mp.api.deleteRuleFromRuleList");
+            let rulelist = l7mp.getRuleList(ctx.request.params.name);
+            if(!rulelist){
+                res.status = new BadRequestError('No such rule list');
+                return;
+            }
+            try {
+                l7mp.deleteRuleFromRuleList(rulelist, ctx.request.params.position);
                 res.status = new Ok();
             } catch(e) {
                 res.status = new BadRequestError(e.message);
@@ -340,8 +428,9 @@ class L7mpOpenAPI {
                 let valid = ctx.api.validateResponse(res.response,
                                                      ctx.operation, res.status.status);
                 if (valid.errors) {
-                    log.silly('l7mp.openapi: postResponseHandler failed:',
-                             `Response: ${dumper(res.status.content,2)}`);
+                    log.silly('l7mp.openapi: postResponseHandler failed on response:',
+                              dumper(res.status, 6), ',',
+                              `Error: ${dumper(res.status.content, 6)}`);
                     res.status = new InternalError(valid.errors);
                     res.status.message = 'Internal Server Error: Response validation failed';
                     res.response = {

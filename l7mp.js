@@ -493,25 +493,11 @@ class L7mp {
             throw new Error(`Cannot add RuleList: ${e}`);
         }
 
-        r = RuleList.create(r);
-        this.rulelists.push(r);
+        let rl = RuleList.create(r);
+        this.rulelists.push(rl);
 
-        for(let i = 0; i < r.rules.length; i++){
-            let rule = r.rules[i];
-            if(typeof rule === 'object'){
-                // inline rule: create
-                rule.name = rule.name ||
-                    this.newName(`${r.name}-Rule-${Rule.index++}`, this.getRule);
-                this.addRule(rule);
-                r.rules[i] = rule.name;
-            }
-
-            if(typeof r.rules[i] !== 'string'){
-                let e = `Invalid rule`;
-                log.warn(`L7mp.addRule:`, e );
-                throw new Error(`Cannot add rule: ${e}`);
-            }
-        }
+        for(let i = 0; i < r.rules.length; i++)
+            this.addRuleToRuleList(rl, r.rules[i], i);
 
         return r;
     }
@@ -536,6 +522,54 @@ class L7mp {
             log.warn(`L7mp.deleteRuleList:`, e );
             throw new Error(`Cannot delete RuleList: ${e}`);
         }
+    }
+
+    // must be called with a ref to rulelist!
+    addRuleToRuleList(rl, rule, pos) {
+        log.info(`L7mp.addRuleToRuleList: position ${pos}:`, dumper(rule, 8));
+
+        if(!(rl instanceof RuleList)){
+            let e = `Invalid rulelist`;
+            log.warn(`L7mp.addRuleToRuleList:`, e );
+            throw new Error(`Cannot add rule to rulelist: ${e}`);
+        }
+
+        if(pos < 0 || pos > rl.length){
+            res.status = new Error(`Cannot insert rule at position ${pos} into rulelist`);
+            return;
+        }
+
+        let name = rule;
+        if(typeof rule === 'object'){
+            // inline rule: create
+            name = rule.name = rule.name ||
+                this.newName(`${rl.name}-Rule-${Rule.index++}`, this.getRule);
+            this.addRule(rule);
+        } else if(typeof rule !== 'string'){
+            let e = `Invalid rule`;
+            log.warn(`L7mp.addRule:`, e );
+            throw new Error(`Cannot add rule to rulelist: ${e}`);
+        }
+
+        rl.rules.splice(pos, 0, name);
+    }
+
+    // must be called with a ref to rulelist!
+    deleteRuleFromRuleList(rl, pos) {
+        log.info(`L7mp.deleteRuleFromRuleList: position ${pos}`);
+
+        if(!(rl instanceof RuleList)){
+            let e = `Invalid rulelist`;
+            log.warn(`L7mp.addRuleToRuleList:`, e );
+            throw new Error(`Cannot add rule to rulelist: ${e}`);
+        }
+
+        if(pos < 0 || pos >= rl.length){
+            res.status = new Error(`Cannot delete rule at position ${pos} in rulelist`);
+            return;
+        }
+
+        rl.rules.splice(pos, 1);
     }
 
     ////////////////////////////////////////////////////
