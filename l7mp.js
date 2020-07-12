@@ -246,7 +246,7 @@ class L7mp {
                 required: true,
             },
             rules: {
-                validate: (value) => value instanceof Array,
+                validate: (value) => (value instanceof Array) || (typeof value === 'string'),
                 required: true,
             }
         };
