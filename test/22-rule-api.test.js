@@ -58,11 +58,11 @@ let static_config = {
 
 describe('Rule API', ()  => {
     var e, s;
-    before( () => {
+    before( async () => {
         l7mp = new L7mp();
         l7mp.static_config = static_config;
-        l7mp.applyAdmin({ log_level: 'warn' });
-        l7mp.run(); // should return
+        l7mp.applyAdmin({ log_level: 'warn', strict: true });
+        await l7mp.run(); // should return
     });
 
     after(() => {

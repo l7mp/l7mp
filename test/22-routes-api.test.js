@@ -58,11 +58,11 @@ let static_config = {
 
 describe('Routes API', ()  => {
     var e, s;
-    before( () => {
+    before( async () => {
         l7mp = new L7mp();
         l7mp.static_config = static_config;
-        l7mp.applyAdmin({ log_level: 'error' });
-        l7mp.run();
+        l7mp.applyAdmin({ log_level: 'error', strict: true  });
+        await l7mp.run();
     });
 
     after(() => {
@@ -443,7 +443,7 @@ describe('Routes API', ()  => {
                 });
                 response.on('end', () =>{
                     res = JSON.parse(str);
-                    assert.include(res.content,'Cannot add')
+                    assert.equal(res.status, 400);
                 });
             });
             req.once('error', (e) =>{
@@ -472,7 +472,7 @@ describe('Routes API', ()  => {
                 });
                 response.on('end', () =>{
                     res = JSON.parse(str);
-                    assert.include(res.content,'Cannot add')
+                    assert.equal(res.status, 422)
                 });
             });
             req.once('error', (e) =>{

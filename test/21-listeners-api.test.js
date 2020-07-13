@@ -56,12 +56,14 @@ let static_config = {
 };
 
 describe('Listeners API', ()  => {
-    
-    before( () => {
+
+    before( async () => {
         l7mp = new L7mp();
         l7mp.static_config = static_config;
-        l7mp.applyAdmin({ log_level: 'error' });
-        l7mp.run(); 
+        l7mp.applyAdmin({ log_level: 'error', strict: true  });
+        // l7mp.applyAdmin({ log_level: 'silly', strict: true });
+        await l7mp.run();
+        return Promise.resolve();
     });
 
     after(() => {
@@ -70,7 +72,7 @@ describe('Listeners API', ()  => {
     });
 
     context('get-listeners', () => {
-        let res, str = ''; 
+        let res, str = '';
         it('controller-listener', (done) =>{
             let options = {
                 host: 'localhost', port: 1234,
@@ -101,7 +103,7 @@ describe('Listeners API', ()  => {
         it('add-listener', (done) =>{
             const postData = JSON.stringify({
                 "listener": {
-                    name: "test-listener",   
+                    name: "test-listener",
                     spec: { protocol: "UDP", port: 15000 },
                     rules: [ {
                         action: {
@@ -166,7 +168,7 @@ describe('Listeners API', ()  => {
             it('has-rules',           () => { assert.nestedProperty(res[1], 'rules'); });
         });
         context('delete',()=>{
-            let res, str = ''; 
+            let res, str = '';
             it('delete-listener', (done)=>{
                 let options = {
                     host: 'localhost', port: 1234,
@@ -207,7 +209,7 @@ describe('Listeners API', ()  => {
             for(let i = 1; i < 6; i++){
                 const postData = JSON.stringify({
                     "listener": {
-                        name: `test-listener-${i}`,   
+                        name: `test-listener-${i}`,
                         spec: { protocol: "UDP", port: 15000 },
                         rules: [ {
                             action: {
@@ -292,7 +294,7 @@ describe('Listeners API', ()  => {
             let res;
             const postData = JSON.stringify({
                 "listener": {
-                    name: "controller-listener",   
+                    name: "controller-listener",
                     spec: { protocol: "UDP", port: 15000 },
                     rules: [ {
                         action: {
@@ -347,7 +349,7 @@ describe('Listeners API', ()  => {
                 });
                 response.on('end', () =>{
                     res = JSON.parse(str);
-                    assert.equal(res.status, 400);
+                    assert.equal(res.status, 422);
                 });
             });
             req.once('error', (e) =>{
@@ -361,7 +363,7 @@ describe('Listeners API', ()  => {
             let res;
             const postData = JSON.stringify({
                 "listener": {
-                    name: "test",   
+                    name: "test",
                     spec: { protocol: "UDP", port: 15000 },
                     rules: [ {
                       }
@@ -381,7 +383,7 @@ describe('Listeners API', ()  => {
                 });
                 response.on('end', () =>{
                     res = JSON.parse(str);
-                    assert.equal(res.status, 400);
+                    assert.equal(res.status, 422);
                 });
             });
             req.once('error', (e) =>{
