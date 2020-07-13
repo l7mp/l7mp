@@ -233,24 +233,26 @@ describe('Listeners API', ()  => {
                 req.write(postData);
                 req.end();
             }
-            let options_get = {
-                host: 'localhost', port: 1234,
-                path: '/api/v1/listeners',
-                method: 'GET'
-            };
-            let callback = function (response) {
-                let str = '';
-                response.on('data', function (chunk) {
-                    str += chunk;
-                });
-                response.once('end', function () {
-                    res = JSON.parse(str);
-                    assert.lengthOf(res, 6);
-                    done();
-                });
-
-            }
-            http.request(options_get, callback).end();
+            // leave some room for l7mp to process the delete requests
+            setTimeout(() => {
+                let options_get = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners',
+                    method: 'GET'
+                };
+                let callback = function (response) {
+                    let str = '';
+                    response.on('data', function (chunk) {
+                        str += chunk;
+                    });
+                    response.once('end', function () {
+                        res = JSON.parse(str);
+                        assert.lengthOf(res, 6);
+                        done();
+                    });
+                }
+                http.request(options_get, callback).end();
+            }, 500);
         });
 
         it('check-listener-1', ()=>{ assert.nestedPropertyVal(res[1], 'name', 'test-listener-1');});

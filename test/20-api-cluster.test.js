@@ -283,7 +283,7 @@ describe('Cluster-API', ()  => {
                         method: 'GET'
                     };
                     http.request(options_get, callback).end();
-                }, 200);
+                }, 500);
             });
         });
 

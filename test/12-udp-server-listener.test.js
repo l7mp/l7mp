@@ -23,10 +23,10 @@ describe('UDPListener', ()  => {
         return f;
     };
 
-    before( () => {
+    before( async () => {
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'error'});
-        l7mp.run(); // should return
+        await l7mp.run();
     });
 
     /*
