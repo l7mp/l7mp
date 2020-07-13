@@ -55,8 +55,6 @@ class L7mpOpenAPI {
             handlers: {},
         });
 
-        this.api.init();
-
         // general config API
         this.api.registerHandler('getConf', (ctx, req, res) => {
             log.verbose("L7mp.api.getConf");
@@ -131,10 +129,10 @@ class L7mpOpenAPI {
             }
         });
 
-        this.api.registerHandler('addCluster', (ctx, req, res) => {
+        this.api.registerHandler('addCluster', async (ctx, req, res) => {
             log.verbose("L7mp.api.addCluster");
             try {
-                let result = l7mp.addCluster(req.body.cluster);
+                let result = await l7mp.addCluster(req.body.cluster);
                 res.status = new Ok();
             } catch(e) {
                 res.status = new BadRequestError(e.message);
@@ -354,6 +352,11 @@ class L7mpOpenAPI {
                 }
             }
         });
+    }
+
+    init(){
+        log.silly('l7mp.openapi: init');
+        return this.api.init();
     }
 
     async handleRequest(s, body, stream){

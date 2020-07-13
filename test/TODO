@@ -13,24 +13,24 @@
 *** DONE WebSocket
 *** TODO UDP
 *** TODO TCP
-*** TODO JSONSocket
+*** DONE JSONSocket
 *** DONE Test
 
 ** Cluster: 11-*
 *** TODO HTTP
-*** TODO WebSocket
-*** TODO UDP
+*** DONE WebSocket
+*** DONE UDP
 *** TODO TCP
 *** TODO UnixDomainSocket
 *** TODO JSONSocket
 *** DONE Echo
 *** DONE JSONEncap
 *** TODO JSONDecap
-*** TODO Sync
+*** UNFINISHED Sync
 *** DONE Test
 
 ** Listener: 12-*
-*** TODO HTTP
+*** DONE HTTP
 *** TODO WebSocket
 *** TODO UDP
 *** DONE TCP
@@ -39,12 +39,12 @@
 *** TODO Test
 
 ** Route, Rule, RuleList: 13-*
-*** TODO Route
+*** UNFINISHED Route
 *** TODO Rule
 *** TODO RuleList
 
 ** Session: routing, retry, load-balancing: 14-*
-*** TODO Session
+*** DONE Session
 *** TODO Routing
 *** DONE Retry
 *** TODO LoadBalancing

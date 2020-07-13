@@ -114,7 +114,7 @@ class HTTPListener extends Listener {
     }
 
     run(){
-        this.server = http.createServer( this.onRequest );
+        this.server = http.createServer();
 
         this.server.on('error', (e) => {
             log.warn('HTTPListener.new: Error:', e);
@@ -362,14 +362,6 @@ class WebSocketListener extends Listener {
             },
         };
 
-        // await this.router({
-        //     metadata: metadata,
-        //     listener: { origin: this.name, stream: duplex },
-        //     priv: { socket: socket, req: req, end: this.end },
-        // });
-
-        // this.emit('emit', this.getSession(metadata, duplex,
-        //                                   { req: req, res: res }));
         await this.emitSession(metadata, duplex, {socket: socket, req: req});
     }
 

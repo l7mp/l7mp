@@ -456,6 +456,10 @@ class Cluster {
         };
     }
 
+    async run(){
+        return;
+    }
+
     addEndPoint(e){
         log.silly('Cluster.addEndPoint:', dumper(e));
         let ep = EndPoint.create(this, e);
@@ -758,6 +762,11 @@ class L7mpControllerCluster extends Cluster {
         this.retriable = false;
     }
 
+    async run(){
+        log.silly('L7mpControllerCluster.run');
+        return this.openapi.init();
+    }
+
     toJSON(){
         log.silly('L7mpControllerCluster.toJSON:', `"${this.name}"`);
         return {
@@ -976,9 +985,10 @@ class JSONDecapCluster extends Cluster {
                 (arg, enc, cb) => {
                     let buffer = arg instanceof Buffer;
                     arg = buffer ? arg : arg.toString(enc);
+                    var ret = '';
                     try {
                         let json = JSON.parse(arg);
-                        var ret = Buffer.from(json.payload, 'base64') || "";
+                        ret = Buffer.from(json.payload, 'base64') || "";
                     } catch(e){
                         log.info('JSONDecapCluster.stream.transform:',
                                  `Invalid JSON payload`,
