@@ -656,7 +656,7 @@ class L7mp {
     // EndPoint API
     //
     ////////////////////////////////////////////////////
-    addEndPoint(c, ep){
+    async addEndPoint(c, ep){
         log.silly('L7mp.addEndPoint:', dumper(ep, 6));
 
         let schema = {

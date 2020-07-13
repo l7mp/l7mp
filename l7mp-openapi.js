@@ -391,7 +391,7 @@ class L7mpOpenAPI {
 
         // Miscellaneous API endpoints
         this.api.register('validationFail', (ctx, req, res) => {
-            log.verbose("L7mp.api.validationFail");
+            log.verbose("L7mp.api.validationFail: operation", ctx.operation.operationId);
             res.status = new ValidationError(ctx.validation.errors);
         });
 
