@@ -213,7 +213,7 @@ socat - udp:localhost:15000,sourceport=15001
 Then, start a [[https://github.com/vi/websocat][=websocat=]] receiver:
 
 #+BEGIN_SRC sh
-websocat ws-l:16000 -
+websocat -Eb ws-l:127.0.0.1:16000 -
 #+END_SRC
 
 What you type in the sender should appear at the receiver and the l7mp proxy should report
