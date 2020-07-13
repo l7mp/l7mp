@@ -46,7 +46,8 @@ describe('UDPListener', ()  => {
 
     before( () => {
         l7mp = new L7mp();
-        l7mp.applyAdmin({ log_level: 'silly' });
+        // l7mp.applyAdmin({ log_level: 'silly' });
+        l7mp.applyAdmin({ log_level: 'error' });
         l7mp.run(); // should return
     });
     context('singleton', () => {
