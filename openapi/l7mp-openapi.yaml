@@ -108,11 +108,11 @@ components:
           description: The name of a match-action table or an inline list of match-action rules (required).
           # REMOVED CHECKING DUE TO VALIDATION ERRORS IN oneOf(string,object/array)
           # oneOf:
-          # anyOf:
-          #   - type: string  # reference to a named RuleList
-          #   - type: array
-          #     items:
-          #       $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+          anyOf:
+            - type: string  # reference to a named RuleList
+            - type: array
+              items:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
           #   # - $ref: '#/components/schemas/io.l7mp.api.v1.RuleList'
         options:
           description: Optional features.
