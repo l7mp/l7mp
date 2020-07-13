@@ -662,7 +662,6 @@ class L7mp {
         let schema = {
             name: {
                 validate: (value) => /^\S+?$/.test(value),
-                required: true,
             },
             spec: {
                 validate: (value) => value instanceof Object,
