@@ -26,7 +26,7 @@ const Rule       = require('../rule.js').Rule;
 const RuleList   = require('../rule.js').RuleList;
 
 describe('RuleList', () => {
-    var r; 
+    var r;
     before( () => {
         l7mp = new L7mp();
         // l7mp.applyAdmin({ log_level: 'silly' });
@@ -35,17 +35,24 @@ describe('RuleList', () => {
     });
 
     context('Create', () => {
+        // created with an empty rule
         it('created', () => {
-            var rule = new Rule({name: 'Test', match: true, action: 'test', stats: {total_applied: 0}});
             r = RuleList.create({
-                name: 'Test List', 
-                rules: [rule]
-            }); 
+                name: 'Test List',
+                rules: []
+            });
         });
         it('has-name',     () => { assert.property(r, 'name'); });
         it('object',       () => { assert.instanceOf(r, RuleList); });
-        it('rules-object', () => { assert.instanceOf(r.rules, Object); });
-        it('length',       () => { assert.equal(r.rules.length, 1); }); 
+        it('rules-array',  () => { assert.instanceOf(r.rules, Array); });
+        it('length',       () => { assert.equal(r.rules.length, 0); });
+        it('add-rule',     () => {
+            var rule = Rule.create({ name: 'Test', match: true, action: 'test'});
+            r.rules.push(rule);
+            assert.isOk(true);
+        });
+        it('rules-array',  () => { assert.instanceOf(r.rules, Array); });
+        it('length',       () => { assert.equal(r.rules.length, 1); });
         it('rule-object',  () => { assert.instanceOf(r.rules[0], Rule); });
     });
 });
