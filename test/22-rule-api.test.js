@@ -64,6 +64,7 @@ describe('Rule API', ()  => {
         l7mp.static_config = static_config;
         l7mp.applyAdmin({ log_level: 'warn', strict: true });
         await l7mp.run(); // should return
+        return Promise.resolve();
     });
 
     after(() => {
