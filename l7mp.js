@@ -374,11 +374,11 @@ class L7mp {
             let c = this.clusters[i];
             if(c.options.removeOrphanSessions)
                 for(let s of this.sessions){
-                    if(s.destination.origin.name === c.name ||
+                    if(s.destination.origin === c.name ||
                        s.chain.ingress.some(stage =>
-                                            stage.origin.name === c.name) ||
+                                            stage.origin === c.name) ||
                        s.chain.egress.some(stage =>
-                                           stage.origin.name === c.name))
+                                           stage.origin === c.name))
                         this.deleteSession(s.name);
                 }
             this.clusters.splice(i, 1);
