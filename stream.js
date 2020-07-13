@@ -80,7 +80,8 @@ class DatagramStream extends Duplex {
         });
 
         socket.on('close', () => {
-            log.silly('DatagramStream.onclose');
+            log.silly('DatagramStream.onclose: Closing connection to',
+                      `${this.remote.address}:${this.remote.port}`);
             this.emit('close');
         });
 
@@ -112,10 +113,15 @@ class DatagramStream extends Duplex {
     destroy(){ this.end(); }
 
     end(msg){
+        log.silly('DatagramStream.end:', `Ending connection to`,
+                  `${this.remote.address}:${this.remote.port}`);
+        if(msg)this.socket.send(msg, 0, msg.length);
         setImmediate( () => {
-            if(msg)this.socket.send(msg);
-            this.socket.emit('end');
-            try{this.socket.close()}catch(e){/*nop*/};
+            // this.socket.emit('end');
+            try{this.socket.close()}catch(e){
+                // log.silly(dumper(e, 6));
+                log.warn('DatagramStream.end: Probably harmless: Cannot end stream:', e.message);
+            };
         });
     }
 };
