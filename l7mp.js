@@ -277,9 +277,9 @@ class L7mp {
                                    this.getRuleList);
             this.addRuleList(rl);
             li.rules = rl.name;
-        }
-
-        if(typeof li.rules !== 'string'){
+        } else if(typeof l.rules === 'string'){
+            li.rules = l.rules;
+        } else {
             let e = `Invalid RuleList`;
             log.warn(`L7mp.addListener:`, e );
             throw new Error(`Cannot add listener: ${e}`);
@@ -310,8 +310,9 @@ class L7mp {
             let l = this.listeners[i];
             if(l.options.removeOrphanSessions)
                 for(let s of this.sessions){
-                    if(s.source && s.source.origin.name === l.name)
-                        this.deleteSession(s.name);
+                    if(s.source && s.source.origin === l.name){
+                        s.end(new Error("Normal end: Listener deleted from API"));
+                    }
                 }
             l.close();
 
@@ -745,10 +746,11 @@ class L7mp {
         });
 
         // normal end
-        s.on('end', (msg) => {
-            log.info(`Session "${s.name}": ending normally`);
+        s.on('end', (err) => {
+            log.info(`Session "${s.name}":`, err ? err.message : `Ending normally`);
         });
 
+        // immediate end
         s.on('destroy', () => {
             log.info(`Session "${s.name}": destroyed`);
             setImmediate(() => this.deleteSession(s.name));
