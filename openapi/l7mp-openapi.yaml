@@ -829,11 +829,8 @@ components:
       maximum: 65535
 
     io.l7mp.api.v1.Parameter.AddressPortPair:
-      description: A pair of a network layer (IP/IPv6) address/domain name and a transport layer port.
+      description: A network layer (IP/IPv6) address/domain name and/or a transport layer port.
       type: object
-      required:
-        - address
-        - port
       properties:
         address:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
