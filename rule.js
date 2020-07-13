@@ -195,7 +195,7 @@ module.exports.Rule = Rule;
 class RuleList {
     constructor(rs){
         this.name   = rs.name;
-        this.rules  = [];
+        this.rules  = rs.rules;
     }
 
     toJSON(){
