@@ -541,7 +541,7 @@ class Session {
         from.status = 'READY';
         chain.forEach( (to) => {
             log.silly("Session.pipeline:", `${dir} pipe:`,
-                      `${from.origin} -> ${to.origin.name}`);
+                      `${from.origin} -> ${to.origin}`);
             from.pipe(to);
             from.status = 'READY';
             from = to;
@@ -763,7 +763,7 @@ class Session {
 
         this.status = 'FINALIZING';
         this.emit('end', err);
-        this.emit('destroy', err);
+        this.destroy();
     }
 
     // return 1 of route/session can be deleted (i.e., no retry is
@@ -806,7 +806,7 @@ class Session {
                 }
                 if(stage.status !== 'END' && stream){
                     stream.end();
-                    stream.destroy();
+                    // stream.destroy();
                     deleted++;
                 }
             } catch(err){
