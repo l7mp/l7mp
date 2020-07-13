@@ -179,11 +179,11 @@ class L7mpOpenAPI {
             }
         });
 
-        this.api.registerHandler('addEndPoint', (ctx, req, res) => {
+        this.api.registerHandler('addEndPoint', async (ctx, req, res) => {
             log.verbose("L7mp.api.addEndPoint");
             try {
-                let result = l7mp.addEndPoint(ctx.request.params.cluster_name,
-                                              req.body.endpoint);
+                let result = await l7mp.addEndPoint(ctx.request.params.cluster_name,
+                                                    req.body.endpoint);
                 res.status = new Ok();
             } catch(e) {
                 res.status = new BadRequestError(e.message);
@@ -256,7 +256,7 @@ class L7mpOpenAPI {
         this.api.registerHandler('addRuleList', async (ctx, req, res) => {
             log.verbose("L7mp.api.addRuleList");
             try {
-                let result = l7mp.addRuleList(req.body.rulelist);
+                let result = await l7mp.addRuleList(req.body.rulelist);
                 res.status = new Ok();
             } catch(e) {
                 res.status = new BadRequestError(e.message);
@@ -303,7 +303,7 @@ class L7mpOpenAPI {
                 return;
             }
             try {
-                l7mp.addRuleToRuleList(rulelist, req.body.rule, ctx.request.params.position);
+                await l7mp.addRuleToRuleList(rulelist, req.body.rule, ctx.request.params.position);
                 res.status = new Ok();
             } catch(e) {
                 res.status = new BadRequestError(e.message);

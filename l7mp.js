@@ -130,52 +130,31 @@ class L7mp {
         }
     }
 
-    run(){
+    async run(){
         log.info(`Starting l7mp version: ${this.admin.version} Log-level: ${log.level}`,
                  'Strict mode:', l7mp.admin.strict ? 'enabled' : 'disabled');
 
         try {
-            if('clusters' in this.static_config){
-                this.static_config.clusters.forEach(
-                    (c) => this.addCluster(c).catch((e) => {
-                        log.silly(dumper(e, 6));
-                        log.error(`Could not initialize static configuration`,
-                                  e.code ? `${e.code}: ${e.message}` : e.message
-                                 );
-                    })
-                );
-            }
+            let p = [];
+            if('clusters' in this.static_config)
+                this.static_config.clusters.map((c) => p.push(this.addCluster(c)));
 
-            if('listeners' in this.static_config){
-                this.static_config.listeners.forEach(
-                    (l) => this.addListener(l).catch((e) => {
-                        log.silly(dumper(e, 6));
-                        log.error(`Could not initialize static configuration`,
-                                  e.code ? `${e.code}: ${e.message}` : e.message
-                                 );
-                    })
-                );
-            }
+            if('listeners' in this.static_config)
+                this.static_config.listeners.map((l) => p.push(this.addListener(l)));
 
-            if('rulelists' in this.static_config){
-                this.static_config.rulelists.forEach(
-                    (r) => this.addRuleList(r)
-                );
-            }
+            if('rulelists' in this.static_config)
+                this.static_config.rulelists.map((r) => p.push(this.addRuleList(r)));
 
-            if('rules' in this.static_config){
-                this.static_config.rules.forEach(
-                    (r) => this.addRule(r)
-                );
-            }
+            if('rules' in this.static_config)
+                this.static_config.rules.map((r) => p.push(this.addRule(r)));
 
-            if('routes' in this.static_config){
-                this.static_config.routes.forEach(
-                    (r) => this.addRoute(r)
-                );
-            }
+            if('routes' in this.static_config)
+                this.static_config.routes.map((r) => p.push(this.addRoute(r)));
+
+            await Promise.all(p);
+
         } catch(e) {
-            console.log(dumper(e, 6));
+            log.silly(dumper(e, 6));
             log.error(`Could not initialize static configuration:`,
                       e.code ? `${e.code}: ${e.message}` : e.message);
         }
@@ -275,7 +254,7 @@ class L7mp {
             rl.rules = l.rules;
             rl.name = this.newName(`${li.name}-RuleList-${RuleList.index++}`,
                                    this.getRuleList);
-            this.addRuleList(rl);
+            await this.addRuleList(rl);
             li.rules = rl.name;
         } else if(typeof l.rules === 'string'){
             li.rules = l.rules;
@@ -395,7 +374,7 @@ class L7mp {
     //
     ////////////////////////////////////////////////////
 
-    addRule(r) {
+    async addRule(r) {
         log.info('L7mp.addRule:', dumper(r, 8));
 
         let schema = {
@@ -430,7 +409,7 @@ class L7mp {
                 // inline route: create
                 route.name = route.name ||
                     this.newName(`${r.name}-Route-${Route.index++}`, this.getRoute);
-                this.addRoute(route);
+                await this.addRoute(route);
                 r.action.route = route.name;
             }
 
@@ -467,7 +446,7 @@ class L7mp {
     //
     ////////////////////////////////////////////////////
 
-    addRuleList(r) {
+    async addRuleList(r) {
         log.info('L7mp.addRuleList', dumper(r, 8));
 
         let schema = {
@@ -493,11 +472,15 @@ class L7mp {
             throw new Error(`Cannot add RuleList: ${e}`);
         }
 
+        // rules are added in a separate run
+        let rules = Array.from(r.rules);
+        r.rules = [];
+
         let rl = RuleList.create(r);
         this.rulelists.push(rl);
 
-        for(let i = 0; i < r.rules.length; i++)
-            this.addRuleToRuleList(rl, r.rules[i], i);
+        for(let i = 0; i < rules.length; i++)
+            await this.addRuleToRuleList(rl, rules[i], i);
 
         return r;
     }
@@ -525,7 +508,7 @@ class L7mp {
     }
 
     // must be called with a ref to rulelist!
-    addRuleToRuleList(rl, rule, pos) {
+    async addRuleToRuleList(rl, rule, pos) {
         log.info(`L7mp.addRuleToRuleList: position ${pos}:`, dumper(rule, 8));
 
         if(!(rl instanceof RuleList)){
@@ -544,7 +527,7 @@ class L7mp {
             // inline rule: create
             name = rule.name = rule.name ||
                 this.newName(`${rl.name}-Rule-${Rule.index++}`, this.getRule);
-            this.addRule(rule);
+            await this.addRule(rule);
         } else if(typeof rule !== 'string'){
             let e = `Invalid rule`;
             log.warn(`L7mp.addRule:`, e );
@@ -578,7 +561,7 @@ class L7mp {
     //
     ////////////////////////////////////////////////////
 
-    addRoute(r){
+    async addRoute(r){
         log.silly('L7mp.addRoute:', dumper(r, 6));
 
         // accept ols-style API
@@ -619,7 +602,7 @@ class L7mp {
             // inline cluster: create
             r.destination.name = r.destination.name ||
                 this.newName(`${r.name}-Cluster-${Cluster.index++}`, this.getCluster);
-            this.addCluster(r.destination);
+            await this.addCluster(r.destination);
             r.destination = r.destination.name;
         }
 
@@ -638,7 +621,7 @@ class L7mp {
                     // inline cluster: create
                     c.name = c.name ||
                         this.newName(`${r.name}-${dir}-Cluster-${Cluster.index++}`, this.getCluster);
-                    this.addCluster(c);
+                    await this.addCluster(c);
                     r[dir][i] = c.name;
                 }
                 if(typeof r[dir][i] !== 'string'){
