@@ -33,36 +33,37 @@ describe('WebSocketCluster', () => {
     before( () => {
         wss = new WebSocket.Server({ port: 8080 });
         wss.on("connection", ws => {
-            ws.on("message", data => {        
+            ws.on("message", data => {
                 ws.send(data);
             });
-        }); 
+        });
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'error' });
         l7mp.run(); // should return
     });
+    after(() => { setImmediate( () => wss.close()); });
 
     context('create', () => {
         c = Cluster.create({name: 'WebSocket', spec: {protocol: 'WebSocket'}});
-        it('runs',             () => { assert.exists(c); });
+        it('runs',       async () => { await c.run(); assert.isObject(c); });
         it('object',           () => { assert.isObject(c); });
         it('instanceOf',       () => { assert.instanceOf(c, Cluster); });
         it('has-name',         () => { assert.property(c, 'name'); });
         it('has-spec',         () => { assert.property(c, 'spec'); });
         it('has-protocol',     () => { assert.deepPropertyVal(c, 'spec', {protocol: 'WebSocket'}); });
-        it('has-loadbalancer', () => { assert.property(c, 'loadbalancer'); }); 
+        it('has-loadbalancer', () => { assert.property(c, 'loadbalancer'); });
         it('has-policy',       () => { assert.instanceOf(c.loadbalancer, LoadBalancer); });
         it('has-type',         () => { assert.property(c, 'type'); });
         it('has-retry',        () => { assert.deepPropertyVal(c, 'retriable', true); });
         it('has-options',      () => { assert.deepPropertyVal(c, 'options', {removeOrphanSessions: true}); });
-        it('has-objectmode',   () => { assert.property(c, 'objectMode'); }); 
+        it('has-objectmode',   () => { assert.property(c, 'objectMode'); });
     });
 
     context('addEndPoint', () => {
         c = Cluster.create({name: 'WebSocket', spec: {protocol: 'WebSocket'}});
-        c.addEndPoint({name: 'Test', spec: {address: '127.0.0.1'}}); 
+        c.addEndPoint({name: 'Test', spec: {address: '127.0.0.1'}});
         var endpoint = c.endpoints[0];
-        it('runs',             () => { assert.exists(c.endpoints); });
+        it('runs',       async () => { await c.run(); assert.isObject(c); });
         it('object',           () => { assert.isObject(endpoint); });
         it('instanceOf',       () => { assert.instanceOf(endpoint, EndPoint); });
         it('has-name',         () => { assert.property(endpoint, 'name'); });
@@ -83,8 +84,8 @@ describe('WebSocketCluster', () => {
     context('addEndPoint-with-bind', () => {
         c = Cluster.create({name: 'WebSocket', spec: {protocol: 'WebSocket'}});
         c.addEndPoint({
-            name: 'Test', 
-            spec: { 
+            name: 'Test',
+            spec: {
                 address: '127.0.0.1',
                 bind: {
                     address: '127.0.0.1',
@@ -93,7 +94,7 @@ describe('WebSocketCluster', () => {
             }
         });
         var endpoint = c.endpoints[0];
-        it('runs',             () => { assert.exists(c.endpoints); });
+        it('runs',       async () => { await c.run(); assert.isObject(c); });
         it('object',           () => { assert.isObject(endpoint); });
         it('instanceOf',       () => { assert.instanceOf(endpoint, EndPoint); });
         it('has-name',         () => { assert.property(endpoint, 'name'); });
@@ -113,9 +114,12 @@ describe('WebSocketCluster', () => {
 
     context('stream', () => {
         var c = Cluster.create({name: 'WebSocket', spec: {protocol: 'WebSocket'}});
-        c.addEndPoint({name: 'Test', spec: {address: '127.0.0.1'}}); 
+        c.addEndPoint({name: 'Test', spec: {address: '127.0.0.1'}});
         var s;
-        it('runs', async   () => { s = await c.stream({route: {retry: {timeout: 1000}}, metadata: {HTTP: {url: {host: '127.0.0.1', port: 8080}}}});});
+        it('runs',   async () => { await c.run(); assert.isObject(c); });
+        it('stream', async () => {
+            s = await c.stream({route: {retry: {timeout: 1000}}, metadata: {HTTP: {url: {host: '127.0.0.1', port: 8080}}}});
+        });
         it('returns ok',   () => { assert.isOk(s.stream); });
         it('isa stream',   () => { assert.instanceOf(s.stream, Stream); });
         it('readable',     () => { assert.isOk(s.stream.readable); });
@@ -132,18 +136,48 @@ describe('WebSocketCluster', () => {
             });
             s.stream.write('test');
         });
-        it('Not-found-endpoint', async () => {
+        it('close', (done) =>{
+            // end() will flush the stream, emits an empty string, which makes the test in the
+            // above "readable" listener to be rerun with an empty 'data' and fail
+            s.stream.removeAllListeners();
+            s.stream.on('finish', ()=>{
+                assert.isOk(true);
+                done();
+            });
+            s.stream.end('');
+        });
+        it('runs', async   () => {
+            s = await c.stream({route: {retry: {timeout: 1000}},
+                                metadata: {HTTP: {url: {host: '127.0.0.1', port: 8080}}}});
+        });
+        it('correct-datagram-stream', (done) => {
+            s.stream.on('readable', () => {
+                let data = s.stream.read();
+                assert.equal(data, 'test');
+                done();
+            });
+            s.stream.write('test');
+        });
+        it('close', (done) =>{
+            s.stream.removeAllListeners();
+            s.stream.on('finish', ()=>{
+                assert.isOk(true);
+                done();
+            });
+            s.stream.end();
+        });
+        it('not-found-endpoint', async () => {
             c.loadbalancer.update([undefined]);
             return await c.stream({name: 'WebSocket'})
                     .then(() => assert(false))
                     .catch(() => assert(true));
         });
-        it('fail-timeout', async () => {
-            s = await c.stream({route:{retry:{timeout:100}}}).
-                catch(() => { assert.isOk(true);});
+        it('runs', async   () => {
+            c.loadbalancer.update([c.endpoints[0]]);
+            s = await c.stream({route: {retry: {timeout: 1000}}, metadata: {HTTP: {url: {host: '127.0.0.1', port: 8080}}}});
         });
-        it('runs', async   () => { c.loadbalancer.update([c.endpoints[0]]); s = await c.stream({route: {retry: {timeout: 1000}}, metadata: {HTTP: {url: {host: '127.0.0.1', port: 8080}}}});});
         it('close', (done) =>{
+            s.stream.removeAllListeners();
             s.stream.on('finish', ()=>{
                 assert.isOk(true);
                 done();

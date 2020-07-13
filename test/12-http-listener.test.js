@@ -30,12 +30,12 @@ const Listener     = require('../listener.js').Listener;
 const Session      = require('../session.js').Session;
 
 describe('HTTPListener', () => {
-    var l, s, c;
+    var l, s, c, req;
 
     before( () => {
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'error' });
-        l7mp.run(); 
+        l7mp.run();
     });
 
     context('create', () => {
@@ -51,10 +51,9 @@ describe('HTTPListener', () => {
     });
 
     context('#run', () => {
-        it('runs', () => { 
-            l.run(); 
-            http.get('http:localhost:12345'); 
-            assert.exists(l); 
+        it('runs', () => {
+            l.run();
+            assert.exists(l);
         });
     });
 
@@ -65,10 +64,14 @@ describe('HTTPListener', () => {
         it('remote-port',    () => { assert.equal(c.remotePort, 12345); });
         it('isa stream',     () => { assert.instanceOf(c, Stream); });
         it('readable',       () => { assert.isOk(c.readable); });
-        it('writeable',      () => { assert.isOk(c.writable); });
+        it('writeable',      () => { assert.isOk(c.writable); c.destroy();});
     });
 
     context('emits session', () => {
+        it('http-connect', (done) => {
+            req = http.get('http:localhost:12345').on('error', (e) => { assert.fail(); });
+            setImmediate( () => { assert.isOk(true); done() });
+        });
         it('emits',                        () => { assert.isOk(s); });
         it('session-metadata',             () => { assert.property(s, 'metadata'); });
         it('session-metadata-name',        () => { assert.nestedProperty(s, 'metadata.name'); });
@@ -94,6 +97,9 @@ describe('HTTPListener', () => {
     context('stop', () => {
         it('stop-server',  () => {
             l.close();
+            req.removeAllListeners();
+            req.on('error', () => { /* do nothing */ });
+            req.socket.destroy();
             assert.isOk(true);
         });
     });

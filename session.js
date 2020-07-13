@@ -374,7 +374,7 @@ class Session {
             var status = await this.pipeline();
         } catch(err){
             if(log.level === 'silly') dump(err, 6);
-            let msg = `Could not route session "${this.name}": ${err.message}: Reason: ` +
+            let msg = `Could not route session "${this.name}": ${err.message}: ` +
                 err.content || "";
             log.warn(`Session.router:`, msg);
             this.error(err);
@@ -674,8 +674,10 @@ class Session {
                   `stream: ${stage.origin}`);
 
         // was error on source?
-        if(stage.id === this.source.id)
-            log.error('Session.disconnect: Internal error: repipe called on listener');
+        if(stage.id === this.source.id){
+            log.warn('Session.disconnect: Internal error: repipe called on listener');
+            return false;
+        }
 
         // was error on destination?
         if(stage.id === this.destination.id){
@@ -690,14 +692,14 @@ class Session {
 
             log.silly('Session.repipe:', `Session ${this.name}:`,
                       `destination stage "${stage.origin}" repiped`);
-            return;
+            return true;
         }
 
         // was error on ingress?
         let i = this.chain.ingress.findIndex(r => r.id === stage.id);
         if(i >= 0){
             let from = i === 0 ? this.source : this.chain.ingress[i-1];
-            from.pipe(this);
+            from.pipe(stage);
             let to = i === this.chain.ingress.length - 1 ?
                 this.destination : this.chain.ingress[i+1];
             stage.pipe(to);
@@ -705,7 +707,7 @@ class Session {
 
             log.silly('Stage.repipe:', `Session ${this.name}:`,
                       `ingress chain repiped on cluster "${stage.origin}"`);
-            return;
+            return true;
         }
 
         i = this.chain.egress.findIndex(r => r.id === stage.id);
@@ -715,7 +717,7 @@ class Session {
                       `${stage.origin}`);
 
         let from = i === 0 ? this.destination : this.chain.egress[i-1];
-        from.pipe(this);
+        from.pipe(stage);
         let to = i === this.chain.egress - 1 ?
             this.source : this.chain.egress[i+1];
         stage.pipe(to);
@@ -724,7 +726,7 @@ class Session {
         log.silly('Session.repipe:', `Session ${this.name}:`,
                   `egress chain repiped on cluster "${stage.origin}"`);
 
-        return;
+        return true;
     }
 
     // state transitions
@@ -841,3 +843,6 @@ class Session {
 util.inherits(Session, EventEmitter);
 
 module.exports.Session = Session;
+
+// export Stage just for testing purposes
+module.exports.Stage   = Stage;

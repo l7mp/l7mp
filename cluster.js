@@ -456,6 +456,10 @@ class Cluster {
         };
     }
 
+    async run(){
+        return;
+    }
+
     addEndPoint(e){
         log.silly('Cluster.addEndPoint:', dumper(e));
         let ep = EndPoint.create(this, e);
@@ -756,6 +760,11 @@ class L7mpControllerCluster extends Cluster {
         });
         this.openapi = new L7mpOpenAPI();
         this.retriable = false;
+    }
+
+    async run(){
+        log.silly('L7mpControllerCluster.run');
+        return this.openapi.init();
     }
 
     toJSON(){
