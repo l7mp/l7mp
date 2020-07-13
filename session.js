@@ -109,12 +109,10 @@ class Stage {
 
             let cluster = l7mp.getCluster(this.origin);
             if(!cluster)
-                fail(new NotFoundError(`Cannot find cluster "${this.origin}"`), attempt);
+                throw new NotFoundError(`Cannot find cluster "${this.origin}"`);
+                // fail(new NotFoundError(`Cannot find cluster "${this.origin}"`), attempt);
             this.retriable = cluster.retriable;
 
-            // return pTimeout(cluster.stream(this.session), timeout,
-            //                 `Connect stream timed out after ${timeout} msec`).
-            //     then(
             return cluster.stream(this.session).
                 then((ret) => {
                     log.verbose("Stage.connect:", `Session: ${this.session.name}:`,
