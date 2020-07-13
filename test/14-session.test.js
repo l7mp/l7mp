@@ -355,8 +355,8 @@ describe('Session', () => {
                 assert.isOk(true);
             }
         });
-        it('end-status',  () => { assert.propertyVal(sess, 'status', 'FINALIZING'); })
-        it('event-length',  () => { assert.equal(sess.events.length, 3); });
+        it('end-status',    () => { assert.propertyVal(sess, 'status', 'DESTROYED'); })
+        it('event-length',  () => { assert.equal(sess.events.length, 4); });
         it('event-status',  () => { assert.propertyVal(sess.events[2], 'event', 'END'); });
         it('event-message', () => { assert.propertyVal(sess.events[2], 'message', 'Test'); });
         it('event-content', () => { assert.instanceOf(sess.events[2].content, Error); });
