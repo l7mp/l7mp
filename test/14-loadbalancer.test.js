@@ -90,7 +90,11 @@ describe('LoadBalancing', () => {
         it('update-es', () => {
             hl.update([
                 EndPoint.create({protocol: 'Test'}, {name: 'Test1', spec: {address: 'localhost1'}}),
-                EndPoint.create({protocol: 'Test'}, {name: 'Test2', spec: {address: 'localhost2'}})
+                EndPoint.create({protocol: 'Test'}, {name: 'Test2', spec: {address: 'localhost2'}}),
+                EndPoint.create({protocol: 'Test'}, {name: 'Test3', spec: {address: 'localhost3'}}),
+                EndPoint.create({protocol: 'Test'}, {name: 'Test4', spec: {address: 'localhost4'}}),
+                EndPoint.create({protocol: 'Test'}, {name: 'Test5', spec: {address: 'localhost5'}}),
+                EndPoint.create({protocol: 'Test'}, {name: 'Test6', spec: {address: 'localhost6'}})
             ]);
             assert.exists(hl.keys['localhost1']);
             assert.exists(hl.keys['localhost2']);
@@ -99,6 +103,12 @@ describe('LoadBalancing', () => {
         it('apply', () => { 
             e = hl.apply({name: 'test', metadata: {key: 'localhost1'}}); 
             assert.instanceOf(e, EndPoint); 
+        });
+        it('multiple-apply', () => {
+            for (let i = 0; i < 10; i++){
+                let tmp = hl.apply({name: 'test', metadata: {key: 'localhost1'}});
+                assert.equal(tmp, e); 
+            }
         });
         it('name', () => { assert.equal(e.name, 'Test1'); });
     });
