@@ -63,7 +63,7 @@ describe('Rule API', ()  => {
     before( async() => {
         l7mp = new L7mp();
         l7mp.static_config = static_config;
-        l7mp.applyAdmin({ log_level: 'silly' , strict: true});
+        l7mp.applyAdmin({ log_level: 'error' , strict: true});
         await l7mp.run(); // should return
     });
 
@@ -131,6 +131,7 @@ describe('Rule API', ()  => {
             const postData = JSON.stringify({
                 'endpoint':
                     {
+                        name: 'test-cluster-EndPoint-0',
                         spec: { port: 15000, address: '127.0.0.1'}
                     }
             });
@@ -216,6 +217,7 @@ describe('Rule API', ()  => {
                 let postData = JSON.stringify({
                     'endpoint':
                         {
+                            name: `test-cluster-EndPoint-${i}`,
                             spec: { port: 15000 + i, address: '127.0.0.1'}
                         }
                 });
@@ -239,7 +241,6 @@ describe('Rule API', ()  => {
                 response.once('end', function () {
                     res = JSON.parse(str);
                     assert.lengthOf(res,5);
-                    console.log(res)
                     done();
                 });
 
@@ -286,18 +287,19 @@ describe('Rule API', ()  => {
         });
     });
     context('error',()=>{
-        it('add-existing-cluster', (done)=>{
+        it('add-existing-endpoint', (done)=>{
             //name should be test-cluster-EndPoint-6
             const postData = JSON.stringify({
                 'endpoint':
                     {
+                        name:'test-cluster-EndPoint-exists' ,
                         spec: { port: 15000, address: '127.0.0.1'}
                     }
             });
             const postData_1 = JSON.stringify({
                 'endpoint':
                     {
-                        name:'test-cluster-EndPoint-6' ,
+                        name:'test-cluster-EndPoint-exists' ,
                         spec: { port: 15000, address: '127.0.0.1'}
                     }
             });
@@ -332,6 +334,7 @@ describe('Rule API', ()  => {
             req_1.end();
         });
 
+        //TODO: should be deleted
         it('has-endpoint', (done) =>{
             let options = {
                 host: 'localhost', port: 1234,
@@ -345,7 +348,6 @@ describe('Rule API', ()  => {
                 });
                 response.on('end', function () {
                     res = JSON.parse(str);
-                    console.log(res)
                     assert.lengthOf(res, 1);
                     done();
                 });
@@ -374,7 +376,7 @@ describe('Rule API', ()  => {
         //     }
         //     let req = http.request(options, callback);
         //     req.once('error', (err)=>{
-        //         console.log(err);
+        //         log.error(err);
         //     })
         //     req.end();
         // });
