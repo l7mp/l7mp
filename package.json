@@ -18,7 +18,8 @@
         "openapi/l7mp-openapi.yaml"
     ],
     "scripts": {
-        "test": "mocha"
+        "test": "mocha",
+        "lint": "eslint ."
     },
     "bin": {
         "l7mp": "l7mp-proxy.js"
@@ -27,7 +28,10 @@
         "type": "git",
         "url": "https://github.com/rg0now/l7mp.git"
     },
-    "keywords": [],
+    "keywords": [
+        "eslint",
+        "eslintplugin"
+    ],
     "author": "",
     "license": "MIT",
     "homepage": "https://github.com/rg0now/l7mp",
@@ -50,7 +54,9 @@
         "yamljs": "^0.3.0"
     },
     "devDependencies": {
-        "mocha": "^7.2.0",
-        "chai": "^4.2.0"
+        "chai": "^4.2.0",
+        "eslint": "^7.4.0",
+        "eslint-plugin-notice": "^0.9.10",
+        "mocha": "^7.2.0"
     }
 }
