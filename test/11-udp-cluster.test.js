@@ -38,7 +38,7 @@ describe('UDPCluster', () => {
 
     context('create', () => {
         var c = Cluster.create({name: 'UDP', spec: {protocol: 'UDP', port: 54321}});
-        it('runs',                     () => {assert.exists(c); });
+        it('runs',          async      () => { await c.run(); assert.exists(c); });
         it('object',                   () => { assert.isObject(c); });
         it('instanceOf',               () => { assert.instanceOf(c, Cluster); });
         it('has-name',                 () => { assert.property(c, 'name'); });
@@ -52,6 +52,7 @@ describe('UDPCluster', () => {
     context('endpoins', () => {
         var c = Cluster.create({name: 'UDP', spec: {protocol: 'UDP', port: 54321}});
         var e;
+        it('runs',          async () => { await c.run(); assert.isOk(c);});
         it('add',                 () => { e = c.addEndPoint({name: 'UDP', spec: {address: '127.0.0.1'}}); assert.isOk(e); });
         it('exists',              () => { assert.lengthOf(c.endpoints, 1); });
         it('instanceOf',          () => { assert.instanceOf(e, EndPoint); });
@@ -71,8 +72,9 @@ describe('UDPCluster', () => {
 
     context('stream', () => {
         var s, e, c;
-        before( () => {
+        before( async () => {
             c = Cluster.create({name: 'UDP', spec: {protocol: 'UDP' ,port: 16000, bind: {address: "127.0.0.1", port: 16001}}});
+            await c.run();
             e = c.addEndPoint(EndPoint.create(
                 {protocol: 'UDP', spec: {protocol: 'UDP' ,port: 16000, bind: {address: "127.0.0.1", port: 16001}}},
                 {name: 'UDP', spec: {address: "127.0.0.1"}}));

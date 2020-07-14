@@ -12,14 +12,15 @@ describe('JSONSocket', () => {
     });
 
     context('create', () => {
-        it('runs',         () => {
+        it('runs', async  () => {
             c = Cluster.create({
                 name: 'JSONSocket',
                 spec: {protocol: 'JSONSocket',
                        transport: { protocol: 'UDP', port: 54321 },
                       },
             });
-            assert.exists(e = EndPoint.create(c.transport, {name: 'Test', spec: {address: '127.0.0.1'}})); 
+            await c.run();
+            assert.exists(e = EndPoint.create(c.transport, {name: 'Test', spec: {address: '127.0.0.1'}}));
         });
         it('object',       () => { assert.isObject(e); });
         it('instanceOf',   () => { assert.instanceOf(e, EndPoint); });

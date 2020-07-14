@@ -58,11 +58,13 @@ let static_config = {
 
 describe('Routes API', ()  => {
     var e, s;
-    before( () => {
+    before( async function () {
+        this.timeout(5000);
         l7mp = new L7mp();
         l7mp.static_config = static_config;
-        l7mp.applyAdmin({ log_level: 'warn' });
-        l7mp.run();
+        l7mp.applyAdmin({ log_level: 'error', strict: true  });
+        await l7mp.run();
+        return Promise.resolve();
     });
 
     after(() => {
@@ -443,7 +445,7 @@ describe('Routes API', ()  => {
                 });
                 response.on('end', () =>{
                     res = JSON.parse(str);
-                    assert.include(res.content,'Cannot add')
+                    assert.equal(res.status, 400);
                 });
             });
             req.once('error', (e) =>{
@@ -472,7 +474,7 @@ describe('Routes API', ()  => {
                 });
                 response.on('end', () =>{
                     res = JSON.parse(str);
-                    assert.include(res.content,'Cannot add')
+                    assert.equal(res.status, 422)
                 });
             });
             req.once('error', (e) =>{
@@ -485,7 +487,7 @@ describe('Routes API', ()  => {
             let res;
             const postData = JSON.stringify({
                 "route": {
-                    name: "controller-listener-RuleList-0-Rule-0-Route-0",
+                    name: `${l7mp.routes[0].name}`,
                     destination: 'l7mp-controller'
                   }
             });

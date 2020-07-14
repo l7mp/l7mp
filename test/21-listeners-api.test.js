@@ -56,12 +56,15 @@ let static_config = {
 };
 
 describe('Listeners API', ()  => {
-    
-    before( () => {
+
+    before( async function () {
+        this.timeout(5000);
         l7mp = new L7mp();
         l7mp.static_config = static_config;
-        l7mp.applyAdmin({ log_level: 'warn' });
-        l7mp.run(); 
+        l7mp.applyAdmin({ log_level: 'error', strict: true  });
+        // l7mp.applyAdmin({ log_level: 'silly', strict: true });
+        await l7mp.run();
+        return Promise.resolve();
     });
 
     after(() => {
@@ -70,7 +73,7 @@ describe('Listeners API', ()  => {
     });
 
     context('get-listeners', () => {
-        let res, str = ''; 
+        let res, str = '';
         it('controller-listener', (done) =>{
             let options = {
                 host: 'localhost', port: 1234,
@@ -101,7 +104,7 @@ describe('Listeners API', ()  => {
         it('add-listener', (done) =>{
             const postData = JSON.stringify({
                 "listener": {
-                    name: "test-listener",   
+                    name: "test-listener",
                     spec: { protocol: "UDP", port: 15000 },
                     rules: [ {
                         action: {
@@ -166,7 +169,7 @@ describe('Listeners API', ()  => {
             it('has-rules',           () => { assert.nestedProperty(res[1], 'rules'); });
         });
         context('delete',()=>{
-            let res, str = ''; 
+            let res, str = '';
             it('delete-listener', (done)=>{
                 let options = {
                     host: 'localhost', port: 1234,
@@ -207,7 +210,7 @@ describe('Listeners API', ()  => {
             for(let i = 1; i < 6; i++){
                 const postData = JSON.stringify({
                     "listener": {
-                        name: `test-listener-${i}`,   
+                        name: `test-listener-${i}`,
                         spec: { protocol: "UDP", port: 15000 },
                         rules: [ {
                             action: {
@@ -230,24 +233,26 @@ describe('Listeners API', ()  => {
                 req.write(postData);
                 req.end();
             }
-            let options_get = {
-                host: 'localhost', port: 1234,
-                path: '/api/v1/listeners',
-                method: 'GET'
-            };
-            let callback = function (response) {
-                let str = '';
-                response.on('data', function (chunk) {
-                    str += chunk;
-                });
-                response.once('end', function () {
-                    res = JSON.parse(str);
-                    assert.lengthOf(res,6);
-                    done();
-                });
-
-            }
-            http.request(options_get, callback).end();
+            // leave some room for l7mp to process the delete requests
+            setTimeout(() => {
+                let options_get = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners',
+                    method: 'GET'
+                };
+                let callback = function (response) {
+                    let str = '';
+                    response.on('data', function (chunk) {
+                        str += chunk;
+                    });
+                    response.once('end', function () {
+                        res = JSON.parse(str);
+                        assert.lengthOf(res, 6);
+                        done();
+                    });
+                }
+                http.request(options_get, callback).end();
+            }, 500);
         });
 
         it('check-listener-1', ()=>{ assert.nestedPropertyVal(res[1], 'name', 'test-listener-1');});
@@ -292,7 +297,7 @@ describe('Listeners API', ()  => {
             let res;
             const postData = JSON.stringify({
                 "listener": {
-                    name: "controller-listener",   
+                    name: "controller-listener",
                     spec: { protocol: "UDP", port: 15000 },
                     rules: [ {
                         action: {
@@ -321,7 +326,7 @@ describe('Listeners API', ()  => {
                 });
                 response.on('end', () =>{
                     res = JSON.parse(str);
-                    assert.include(res.content,'Cannot add')
+                    assert.equal(res.status, 400);
                 });
             });
             req.once('error', (e) =>{
@@ -347,7 +352,7 @@ describe('Listeners API', ()  => {
                 });
                 response.on('end', () =>{
                     res = JSON.parse(str);
-                    assert.include(res.content,'Cannot add')
+                    assert.equal(res.status, 422);
                 });
             });
             req.once('error', (e) =>{
@@ -361,7 +366,7 @@ describe('Listeners API', ()  => {
             let res;
             const postData = JSON.stringify({
                 "listener": {
-                    name: "test",   
+                    name: "test",
                     spec: { protocol: "UDP", port: 15000 },
                     rules: [ {
                       }
@@ -381,7 +386,7 @@ describe('Listeners API', ()  => {
                 });
                 response.on('end', () =>{
                     res = JSON.parse(str);
-                    assert.include(res.content,'Cannot add')
+                    assert.equal(res.status, 422);
                 });
             });
             req.once('error', (e) =>{
@@ -405,7 +410,7 @@ describe('Listeners API', ()  => {
                 });
                 response.once('end', function () {
                     res = JSON.parse(str);
-                    assert.include(res.content,'Cannot delete')
+                    assert.equal(res.status, 400);
                 });
             }
             let req = http.request(options, callback);

@@ -79,6 +79,7 @@ class Stage {
     connect(num_retries, timeout){
         const fail = (err, a) => {
             err.stage = this;
+            // log.silly(dumper(err, 6));
             log.silly(`Stage.connect.fail: Session "${this.session.name}":`,
                       `stage "${this.origin}" at attempt ${a}: ${err.content}`);
             throw new pRetry.AbortError(err);
@@ -109,12 +110,10 @@ class Stage {
 
             let cluster = l7mp.getCluster(this.origin);
             if(!cluster)
-                fail(new NotFoundError(`Cannot find cluster "${this.origin}"`), attempt);
+                throw new NotFoundError(`Cannot find cluster "${this.origin}"`);
+                // fail(new NotFoundError(`Cannot find cluster "${this.origin}"`), attempt);
             this.retriable = cluster.retriable;
 
-            // return pTimeout(cluster.stream(this.session), timeout,
-            //                 `Connect stream timed out after ${timeout} msec`).
-            //     then(
             return cluster.stream(this.session).
                 then((ret) => {
                     log.verbose("Stage.connect:", `Session: ${this.session.name}:`,
@@ -373,10 +372,9 @@ class Session {
             this.create();
             var status = await this.pipeline();
         } catch(err){
-            if(log.level === 'silly') dump(err, 6);
-            let msg = `Could not route session "${this.name}": ${err.message}: Reason: ` +
-                err.content || "";
-            log.warn(`Session.router:`, msg);
+            // log.silly(`Session.router: Error:`, dumper(err, 6));
+            let msg = `Could not route session "${this.name}": ` + (err.content || "");
+            log.info(`Session.router:`, msg);
             this.error(err);
             this.events.push({ event: 'ERROR',
                                timestamp: new Date().toISOString(),
@@ -458,8 +456,8 @@ class Session {
             var resolved_list = await Promise.all(wait_list);
         } catch(error){
             log.silly(error);
-            let err = `Pipeline setup failed for session `+
-                `"${this.name}": ${error.message}`;
+            let err = `Pipeline setup failed for session "${this.name}": ${error.message}: ` +
+                (error.content || "");
             // log.verbose(err);
 
             this.events.push({ event: 'ERROR',
@@ -541,7 +539,7 @@ class Session {
         from.status = 'READY';
         chain.forEach( (to) => {
             log.silly("Session.pipeline:", `${dir} pipe:`,
-                      `${from.origin} -> ${to.origin.name}`);
+                      `${from.origin} -> ${to.origin}`);
             from.pipe(to);
             from.status = 'READY';
             from = to;
@@ -763,7 +761,7 @@ class Session {
 
         this.status = 'FINALIZING';
         this.emit('end', err);
-        this.emit('destroy', err);
+        this.destroy();
     }
 
     // return 1 of route/session can be deleted (i.e., no retry is
@@ -806,7 +804,7 @@ class Session {
                 }
                 if(stage.status !== 'END' && stream){
                     stream.end();
-                    stream.destroy();
+                    // stream.destroy();
                     deleted++;
                 }
             } catch(err){

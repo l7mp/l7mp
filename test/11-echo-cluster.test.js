@@ -34,7 +34,8 @@ describe('EchoCluster', ()  => {
 
     context('create', () => {
         var c;
-        it('runs',         () => { assert.exists(c = Cluster.create({name: 'Echo', spec: {protocol: 'Echo'}})); });
+        it('created',      () => { assert.exists(c = Cluster.create({name: 'Echo', spec: {protocol: 'Echo'}})); });
+        it('runs',   async () => { await c.run(); assert.isOk(true);});
         it('object',       () => { assert.isObject(c); });
         // EchoCluster is not exported so we cannot check from here
         it('instanceOf',   () => { assert.instanceOf(c, Cluster); });
@@ -46,7 +47,8 @@ describe('EchoCluster', ()  => {
     context('stream()', () => {
         var c = Cluster.create({name: 'Echo', spec: {protocol: 'Echo'}});
         var s;
-        it('runs', async   () => { s = await c.stream({name:"test-session"}); });
+        it('runs', async   () => { await c.run(); assert.isOk(c); });
+        it('stream', async () => { s = await c.stream({name:"test-session"}); });
         it('returns ok',   () => { assert.isOk(s.stream); });
         it('isa stream',   () => { assert.instanceOf(s.stream, Stream); });
         it('readable',     () => { assert.isOk(s.stream.readable); });

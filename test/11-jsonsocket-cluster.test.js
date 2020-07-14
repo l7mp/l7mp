@@ -39,7 +39,7 @@ describe('JSONSocketCluster', ()  => {
     });
 
     context('create - UDP', () => {
-        it('runs',         () => {
+        it('created', () => {
             c = Cluster.create({
                 name: 'JSONSocket',
                 spec: {protocol: 'JSONSocket',
@@ -49,6 +49,7 @@ describe('JSONSocketCluster', ()  => {
             });
             assert.exists(c);
         });
+        it('runs', async    () => { await c.run(); assert.isOk(true); });
         it('object',        () => { assert.isObject(c); });
         it('instanceOf',    () => { assert.instanceOf(c, Cluster); });
         it('has-name',      () => { assert.property(c, 'name'); });
@@ -159,6 +160,7 @@ describe('JSONSocketCluster', ()  => {
             });
             assert.exists(c);
         });
+        it('runs', async      () => { await c.run(); assert.isOk(true); });
         it('object',          () => { assert.isObject(c); });
         it('endpoint-re-add', () => { e = c.addEndPoint({name:'JSONSocket', spec:{address:'127.0.0.1'}}); assert.isOk(e); });
         it('stream-metadata-1', async () => {
@@ -361,7 +363,7 @@ describe('JSONSocketCluster', ()  => {
     });
 
     context('create - UDP - inline endpoints', () => {
-        it('runs',         () => {
+        it('created',         () => {
             c = Cluster.create({
                 name: 'JSONSocket',
                 spec: {protocol: 'JSONSocket',
@@ -371,6 +373,7 @@ describe('JSONSocketCluster', ()  => {
             });
             assert.exists(c);
         });
+        it('runs',            async    () => { await c.run(); assert.isOk(true); });
         it('object',                   () => { assert.isObject(c); });
         it('instanceOf',               () => { assert.instanceOf(c, Cluster); });
         it('has-name',                 () => { assert.property(c, 'name'); });

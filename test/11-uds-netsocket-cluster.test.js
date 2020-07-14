@@ -53,7 +53,8 @@ describe('UDS-NetSocketCluster', ()  => {
 
     context('create', () => {
         var c;
-        it('runs',         () => { assert.exists(c = Cluster.create({name: 'UnixDomainSocket', spec: {protocol: 'UnixDomainSocket'}})); });
+        it('created',      () => { assert.exists(c = Cluster.create({name: 'UnixDomainSocket', spec: {protocol: 'UnixDomainSocket'}})); });
+        it('runs',   async () => { await c.run(); assert.isObject(c); });
         it('object',       () => { assert.isObject(c); });
         // EchoCluster is not exported so we cannot check from here
         it('instanceOf',   () => { assert.instanceOf(c, Cluster); });
@@ -65,6 +66,7 @@ describe('UDS-NetSocketCluster', ()  => {
     context('endpoints', () => {
         var c = Cluster.create({name: 'UnixDomainSocket', spec: {protocol: 'UnixDomainSocket'}});
         var e;
+        it('runs',          async () => { await c.run(); assert.isOk(c);});
         it('add',                 () => { e = c.addEndPoint({name: 'UDSNetSocket', spec: {address: '/tmp/unixSocket.sock'}}); assert.isOk(e); });
         it('exists',              () => { assert.lengthOf(c.endpoints, 1); });
         it('instanceOf',          () => { assert.instanceOf(e, EndPoint); });
@@ -85,7 +87,8 @@ describe('UDS-NetSocketCluster', ()  => {
     context('stream()', () => {
         var c = Cluster.create({name: 'UnixDomainSocket',protocol: 'UnixDomainSocket', spec: {protocol: 'UnixDomainSocket'}});
         var e = c.addEndPoint({name: 'UDSNetSocket', spec: {address: '/tmp/unixSocket.sock'}})
-        it('runs', async   () => { s = await c.stream({ route:{retry:{timeout:1000}}})});
+        it('runs',   async () => { await c.run();; assert.isOk(c);});
+        it('stream', async () => { s = await c.stream({ route:{retry:{timeout:1000}}}); assert.isOk(s);});
         it('returns ok',   () => { assert.isOk(s.stream); });
         it('isa stream',   () => { assert.instanceOf(s.stream, Stream); });
         it('readable',     () => { assert.isOk(s.stream.readable); });
@@ -98,9 +101,11 @@ describe('UDS-NetSocketCluster', ()  => {
             });
             s.stream.end();
         });
+        it('unlink',  async () => {
+            fs.unlink('/tmp/unixSocket.sock', () => { return Promise.resolve() });
+        });
         it('correct-byte-stream',  async () => {
             // create an UDS echo server
-            fs.unlink('/tmp/unixSocket.sock', () => {});
             const server = net.createServer((c) => { c.pipe(c); });
             server.listen('/tmp/unixSocket.sock');
             s = await c.stream({ route:{retry:{timeout:1000}}});
@@ -115,7 +120,7 @@ describe('UDS-NetSocketCluster', ()  => {
             });
             s.stream.write('test');
         });
-        it('Not-found-endpoint', async () => {
+        it('not-found-endpoint', async () => {
             c.loadbalancer.update([undefined]);
             return await c.stream({route:{retry:{timeout:1000}}})
                 .then(() => assert(false))

@@ -35,7 +35,8 @@ describe('JSONDecapCluster', () => {
 
     context('create', () => {
         var c;
-        it('runs',         () => { assert.exists(c = Cluster.create({name: 'JSONDecap', spec: {protocol: 'JSONDecap'}})); });
+        it('created',      () => { assert.exists(c = Cluster.create({name: 'JSONDecap', spec: {protocol: 'JSONDecap'}})); });
+        it('runs',   async () => { await c.run(); assert.isOk(true); });
         it('object',       () => { assert.isObject(c); });
         it('instanceOf',   () => { assert.instanceOf(c, Cluster); });
         it('has-name',     () => { assert.property(c, 'name'); });
@@ -46,7 +47,8 @@ describe('JSONDecapCluster', () => {
     context('stream()', () => {
         var c, s;
         c = Cluster.create({name: 'JSONDecap', spec: {protocol: 'JSONDecap'}});
-        it('runs', async () => { s = await c.stream({name:"test-session"}); assert.exists(s); });
+        it('runs', async () => { await c.run(); assert.isOk(true);});
+        it('stream',async() => { s = await c.stream({name:"test-session"}); assert.exists(s); });
         it('returns ok', () => { assert.isOk(s.stream); });
         it('isa stream', () => { assert.instanceOf(s.stream, Stream); });
         it('readable',   () => { assert.isOk(s.stream.readable); });
@@ -68,7 +70,8 @@ describe('JSONDecapCluster', () => {
     context('stream()-with-invalid-json' , () => {
         var c, s;
         c = Cluster.create({name: 'JSONDecap', spec: {protocol: 'JSONDecap'}});
-        it('runs', async () => { s = await c.stream({name:"test-session"}); assert.exists(s); });
+        it('runs',   async () => { await c.run(); assert.isOk(true); });
+        it('stream', async () => { s = await c.stream({name:"test-session"}); assert.exists(s); });
         it('not-correct', (done) => {
             s.stream.write('dummy');
             s.stream.on('readable', () => {

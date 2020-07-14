@@ -130,47 +130,31 @@ class L7mp {
         }
     }
 
-    run(){
+    async run(){
         log.info(`Starting l7mp version: ${this.admin.version} Log-level: ${log.level}`,
                  'Strict mode:', l7mp.admin.strict ? 'enabled' : 'disabled');
 
         try {
-            if('clusters' in this.static_config){
-                this.static_config.clusters.forEach(
-                    (c) => this.addCluster(c)
-                );
-            }
+            let p = [];
+            if('clusters' in this.static_config)
+                this.static_config.clusters.map((c) => p.push(this.addCluster(c)));
 
-            if('listeners' in this.static_config){
-                this.static_config.listeners.forEach(
-                    (l) => this.addListener(l).catch((e) => {
-                        log.silly(dumper(e, 6));
-                        log.error(`Could not initialize static configuration`,
-                                  e.code ? `${e.code}: ${e.message}` : e.message
-                                 );
-                    })
-                );
-            }
+            if('listeners' in this.static_config)
+                this.static_config.listeners.map((l) => p.push(this.addListener(l)));
 
-            if('rulelists' in this.static_config){
-                this.static_config.rulelists.forEach(
-                    (r) => this.addRuleList(r)
-                );
-            }
+            if('rulelists' in this.static_config)
+                this.static_config.rulelists.map((r) => p.push(this.addRuleList(r)));
 
-            if('rules' in this.static_config){
-                this.static_config.rules.forEach(
-                    (r) => this.addRule(r)
-                );
-            }
+            if('rules' in this.static_config)
+                this.static_config.rules.map((r) => p.push(this.addRule(r)));
 
-            if('routes' in this.static_config){
-                this.static_config.routes.forEach(
-                    (r) => this.addRoute(r)
-                );
-            }
+            if('routes' in this.static_config)
+                this.static_config.routes.map((r) => p.push(this.addRoute(r)));
+
+            await Promise.all(p);
+
         } catch(e) {
-            console.log(dumper(e, 6));
+            log.silly(dumper(e, 6));
             log.error(`Could not initialize static configuration:`,
                       e.code ? `${e.code}: ${e.message}` : e.message);
         }
@@ -241,7 +225,7 @@ class L7mp {
                 required: true,
             },
             rules: {
-                validate: (value) => value instanceof Array,
+                validate: (value) => (value instanceof Array) || (typeof value === 'string'),
                 required: true,
             }
         };
@@ -270,11 +254,11 @@ class L7mp {
             rl.rules = l.rules;
             rl.name = this.newName(`${li.name}-RuleList-${RuleList.index++}`,
                                    this.getRuleList);
-            this.addRuleList(rl);
+            await this.addRuleList(rl);
             li.rules = rl.name;
-        }
-
-        if(typeof li.rules !== 'string'){
+        } else if(typeof l.rules === 'string'){
+            li.rules = l.rules;
+        } else {
             let e = `Invalid RuleList`;
             log.warn(`L7mp.addListener:`, e );
             throw new Error(`Cannot add listener: ${e}`);
@@ -305,8 +289,9 @@ class L7mp {
             let l = this.listeners[i];
             if(l.options.removeOrphanSessions)
                 for(let s of this.sessions){
-                    if(s.source && s.source.origin.name === l.name)
-                        this.deleteSession(s.name);
+                    if(s.source && s.source.origin === l.name){
+                        s.end(new Error("Normal end: Listener deleted from API"));
+                    }
                 }
             l.close();
 
@@ -323,7 +308,7 @@ class L7mp {
     // Cluster API
     //
     ////////////////////////////////////////////////////
-    addCluster(c) {
+    async addCluster(c) {
         log.info('L7mp.addCluster', dumper(c, 8));
 
         let schema = {
@@ -351,6 +336,8 @@ class L7mp {
 
         c = Cluster.create(c);
         this.clusters.push(c);
+
+        await c.run();
         return c;
     }
 
@@ -366,11 +353,11 @@ class L7mp {
             let c = this.clusters[i];
             if(c.options.removeOrphanSessions)
                 for(let s of this.sessions){
-                    if(s.destination.origin.name === c.name ||
+                    if(s.destination.origin === c.name ||
                        s.chain.ingress.some(stage =>
-                                            stage.origin.name === c.name) ||
+                                            stage.origin === c.name) ||
                        s.chain.egress.some(stage =>
-                                           stage.origin.name === c.name))
+                                           stage.origin === c.name))
                         this.deleteSession(s.name);
                 }
             this.clusters.splice(i, 1);
@@ -387,7 +374,7 @@ class L7mp {
     //
     ////////////////////////////////////////////////////
 
-    addRule(r) {
+    async addRule(r) {
         log.info('L7mp.addRule:', dumper(r, 8));
 
         let schema = {
@@ -422,7 +409,7 @@ class L7mp {
                 // inline route: create
                 route.name = route.name ||
                     this.newName(`${r.name}-Route-${Route.index++}`, this.getRoute);
-                this.addRoute(route);
+                await this.addRoute(route);
                 r.action.route = route.name;
             }
 
@@ -459,7 +446,7 @@ class L7mp {
     //
     ////////////////////////////////////////////////////
 
-    addRuleList(r) {
+    async addRuleList(r) {
         log.info('L7mp.addRuleList', dumper(r, 8));
 
         let schema = {
@@ -485,25 +472,15 @@ class L7mp {
             throw new Error(`Cannot add RuleList: ${e}`);
         }
 
-        r = RuleList.create(r);
-        this.rulelists.push(r);
+        // rules are added in a separate run
+        let rules = Array.from(r.rules);
+        r.rules = [];
 
-        for(let i = 0; i < r.rules.length; i++){
-            let rule = r.rules[i];
-            if(typeof rule === 'object'){
-                // inline rule: create
-                rule.name = rule.name ||
-                    this.newName(`${r.name}-Rule-${Rule.index++}`, this.getRule);
-                this.addRule(rule);
-                r.rules[i] = rule.name;
-            }
+        let rl = RuleList.create(r);
+        this.rulelists.push(rl);
 
-            if(typeof r.rules[i] !== 'string'){
-                let e = `Invalid rule`;
-                log.warn(`L7mp.addRule:`, e );
-                throw new Error(`Cannot add rule: ${e}`);
-            }
-        }
+        for(let i = 0; i < rules.length; i++)
+            await this.addRuleToRuleList(rl, rules[i], i);
 
         return r;
     }
@@ -530,13 +507,61 @@ class L7mp {
         }
     }
 
+    // must be called with a ref to rulelist!
+    async addRuleToRuleList(rl, rule, pos) {
+        log.info(`L7mp.addRuleToRuleList: position ${pos}:`, dumper(rule, 8));
+
+        if(!(rl instanceof RuleList)){
+            let e = `Invalid rulelist`;
+            log.warn(`L7mp.addRuleToRuleList:`, e );
+            throw new Error(`Cannot add rule to rulelist: ${e}`);
+        }
+
+        if(pos < 0 || pos > rl.length){
+            res.status = new Error(`Cannot insert rule at position ${pos} into rulelist`);
+            return;
+        }
+
+        let name = rule;
+        if(typeof rule === 'object'){
+            // inline rule: create
+            name = rule.name = rule.name ||
+                this.newName(`${rl.name}-Rule-${Rule.index++}`, this.getRule);
+            await this.addRule(rule);
+        } else if(typeof rule !== 'string'){
+            let e = `Invalid rule`;
+            log.warn(`L7mp.addRule:`, e );
+            throw new Error(`Cannot add rule to rulelist: ${e}`);
+        }
+
+        rl.rules.splice(pos, 0, name);
+    }
+
+    // must be called with a ref to rulelist!
+    deleteRuleFromRuleList(rl, pos) {
+        log.info(`L7mp.deleteRuleFromRuleList: position ${pos}`);
+
+        if(!(rl instanceof RuleList)){
+            let e = `Invalid rulelist`;
+            log.warn(`L7mp.addRuleToRuleList:`, e );
+            throw new Error(`Cannot add rule to rulelist: ${e}`);
+        }
+
+        if(pos < 0 || pos >= rl.length){
+            res.status = new Error(`Cannot delete rule at position ${pos} in rulelist`);
+            return;
+        }
+
+        rl.rules.splice(pos, 1);
+    }
+
     ////////////////////////////////////////////////////
     //
     // Route API
     //
     ////////////////////////////////////////////////////
 
-    addRoute(r){
+    async addRoute(r){
         log.silly('L7mp.addRoute:', dumper(r, 6));
 
         // accept ols-style API
@@ -577,7 +602,7 @@ class L7mp {
             // inline cluster: create
             r.destination.name = r.destination.name ||
                 this.newName(`${r.name}-Cluster-${Cluster.index++}`, this.getCluster);
-            this.addCluster(r.destination);
+            await this.addCluster(r.destination);
             r.destination = r.destination.name;
         }
 
@@ -596,7 +621,7 @@ class L7mp {
                     // inline cluster: create
                     c.name = c.name ||
                         this.newName(`${r.name}-${dir}-Cluster-${Cluster.index++}`, this.getCluster);
-                    this.addCluster(c);
+                    await this.addCluster(c);
                     r[dir][i] = c.name;
                 }
                 if(typeof r[dir][i] !== 'string'){
@@ -631,13 +656,12 @@ class L7mp {
     // EndPoint API
     //
     ////////////////////////////////////////////////////
-    addEndPoint(c, ep){
+    async addEndPoint(c, ep){
         log.silly('L7mp.addEndPoint:', dumper(ep, 6));
 
         let schema = {
             name: {
                 validate: (value) => /^\S+?$/.test(value),
-                required: true,
             },
             spec: {
                 validate: (value) => value instanceof Object,
@@ -648,6 +672,12 @@ class L7mp {
         let e = validate(ep, schema);
         if(e){
             log.warn('L7mp.addEndPoint:', e);
+            throw new Error(`Cannot add endpoint: ${e}`);
+        }
+
+        if(this.getEndPoint(ep.name)){
+            let e = `Endpoint "${ep.name}" already defined`;
+            log.warn('L7mp.addEndpoint', e);
             throw new Error(`Cannot add endpoint: ${e}`);
         }
 
@@ -738,10 +768,11 @@ class L7mp {
         });
 
         // normal end
-        s.on('end', (msg) => {
-            log.info(`Session "${s.name}": ending normally`);
+        s.on('end', (err) => {
+            log.info(`Session "${s.name}":`, err ? err.message : `Ending normally`);
         });
 
+        // immediate end
         s.on('destroy', () => {
             log.info(`Session "${s.name}": destroyed`);
             setImmediate(() => this.deleteSession(s.name));

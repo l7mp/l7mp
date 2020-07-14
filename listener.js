@@ -423,7 +423,7 @@ class UDPListener extends Listener {
             await pEvent(this.socket, 'listening',
                          { rejectionEvents: ['close', 'error'] });
         } catch(e){
-            throw new Error(`UDPListener.run: "${this.name}": `,
+            throw new Error(`UDPListener.run: "${this.name}": `+
                             `Could not bind to `+
                             `${this.local_address}:${this.local_port}`);
         }

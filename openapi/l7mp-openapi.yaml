@@ -106,12 +106,11 @@ components:
               JSONSocket: '#/components/schemas/io.l7mp.api.v1.JSONSocketListenerSpec'
         rules:
           description: The name of a match-action table or an inline list of match-action rules (required).
-          # REMOVED CHECKING DUE TO VALIDATION ERRORS IN oneOf(string,object/array)
-          # oneOf:
-          #   - type: string  # reference to a named RuleList
-          #   - type: array
-          #     items:
-          #       $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+          anyOf:
+            - type: string  # reference to a named RuleList
+            - type: array
+              items:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
           #   # - $ref: '#/components/schemas/io.l7mp.api.v1.RuleList'
         options:
           description: Optional features.
@@ -546,11 +545,9 @@ components:
         - address
       properties:
         address:
-          type: string
-          # REMOVED CHECKING DUE TO VALIDATION ERRORS IN oneOf(string,object/array)
-          # oneOf:
-          #   - type: string  # Unix Domain Socket filename
-          #   - $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
+          anyOf:
+            - type: string  # Unix Domain Socket filename
+            - $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
         weight:
           description: Weight of the endpoint used in load-balancing.
           type: integer
@@ -590,28 +587,25 @@ components:
           type: string
         destination:
           description: The target cluster of the route (required). Can be a string in which case it is the name of an existing cluster with the name given, or it can be an inline cluster definition in which case a new cluster will be added.
-          # REMOVED CHECKING DUE TO VALIDATION ERRORS IN oneOf(string,object/array)
-          # oneOf:
-          #   - type: string
-          #   - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
+          anyOf:
+            - type: string
+            - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
         ingress:
           description: The set of transforms to be applied in the "ingress" (upstream, from the listener to the cluster) direction (optional).
           type: array
           items:
             description: An uplink transformer cluster. Can be a string in which case it is the name of an existing cluster with the name given, or it can be an inline cluster definition in which case a new cluster will be added.
-            # REMOVED CHECKING DUE TO VALIDATION ERRORS IN oneOf(string,object/array)
-            # oneOf:
-            #   - type: string
-            #   - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
+            anyOf:
+              - type: string
+              - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
         egress:
           description: The set of transforms to be applied in the "eress" (downstream, from the cluster to the listener) direction (optional).
           type: array
           items:
             description: A downlink transformer cluster. Can be a string in which case it is the name of an existing cluster with the name given, or it can be an inline cluster definition in which case a new cluster will be added.
-            # REMOVED CHECKING DUE TO VALIDATION ERRORS IN oneOf(string,object/array)
-            # oneOf:
-            #   - type: string
-            #   - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
+            anyOf:
+              - type: string
+              - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
         retry:
           description: Connection retry/timeout policy.
           type: object
@@ -670,13 +664,29 @@ components:
             $ref: '#/components/schemas/io.l7mp.api.v1.Rewrite'
         route:
           description: A named Route or an inline Route specification.
-          # REMOVED CHECKING DUE TO VALIDATION ERRORS IN oneOf(string,object/array)
-          # oneOf:
-          #   - type: string  # reference to a named Route
-          #   - $ref: '#/components/schemas/io.l7mp.api.v1.Route'
+          anyOf:
+            - type: string  # reference to a named Route
+            - $ref: '#/components/schemas/io.l7mp.api.v1.Route'
         apply:
           description: A named RuleList to defer match-action processing to.
           type: string  # reference to a named Route
+
+    io.l7mp.api.v1.RuleRequest:
+      description: |
+        Wrapper for addRule calls. Contains only a single Rule object.
+      type: object
+      required:
+        - rule
+      properties:
+        rule:
+          $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+
+    io.l7mp.api.v1.RuleRequestUnchecked:
+      description: |
+        Wrapper for addRule calls. Contains only a single Rule object or a name of a Rule.
+      type: object
+      required:
+        - rule
 
     io.l7mp.api.v1.Rule:
       description: A math-action rule that defines the route of a connection through the L7mp pipeline. May contain a match and an action. If no match is specified, a wildcard match is automatically installed.
@@ -714,12 +724,11 @@ components:
           type: string
         rules:
           description: A list of Rule objects.
-          # REMOVED CHECKING DUE TO VALIDATION ERRORS IN oneOf(string,object/array)
-          # oneOf:
-          #   - type: string  # reference to a named RuleList
-          #   - type: array
-          #     items:
-          #       $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+          anyOf:
+            - type: string  # reference to a named RuleList
+            - type: array
+              items:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
 
     io.l7mp.api.v1.Metadata:
       description: "Metadata that describes a session's all known parameters, like ports and IP addresses, status, HTTP headers (if relevant), etc. In general, metadata are created by the listener and they can be modified/queried/matched in rules/actions."
@@ -820,11 +829,8 @@ components:
       maximum: 65535
 
     io.l7mp.api.v1.Parameter.AddressPortPair:
-      description: A pair of a network layer (IP/IPv6) address/domain name and a transport layer port.
+      description: A network layer (IP/IPv6) address/domain name and/or a transport layer port.
       type: object
-      required:
-        - address
-        - port
       properties:
         address:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
@@ -1174,7 +1180,178 @@ paths:
             'application/json':
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+  # Rule API
+  /api/v1/rule:
+    get:
+      description: Get a list of Rules.
+      operationId: getRules
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+                description: A list of Rules.
+                type: array
+                items:
+                  $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+    post:
+      description: Create a Rule.
+      operationId: addRule
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/io.l7mp.api.v1.RuleRequest'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+  /api/v1/rules/{name}:
+    get:
+      description: Get a named Rule.
+      operationId: getRule
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+        '400':
+          description: Invalid rule name.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+    delete:
+      description: Delete a named Rule.
+      operationId: deleteRule
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   # RuleList API
+  # Add/delete a rule from a rulelist
+  /api/v1/rulelists/{name}/rules/{position}:
+    get:
+      description: Get a named Rule from a RuleList at a particular position (the Rule itself is returned).
+      operationId: getRuleFromRuleList
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: position
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+        '400':
+          description: Invalid rulelist name or position.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+    post:
+      description: Add a Rule to a RuleList.
+      operationId: addRuleToRuleList
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: position
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/io.l7mp.api.v1.RuleRequestUnchecked'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+    delete:
+      description: Remove a Rule from a RuleList (note that the Rule itself will not be deleted, just removed from this rulelist).
+      operationId: deleteRuleFromRuleList
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: position
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   /api/v1/rulelists:
     get:
       description: Get a list of RuleLists (aka match-action tables).

@@ -20,6 +20,7 @@
 // ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+const log        = require('npmlog');
 const Stream   = require('stream');
 const assert   = require('chai').assert;
 const L7mp     = require('../l7mp.js').L7mp;
@@ -34,17 +35,58 @@ const net      = require('net');
 const http      = require('http');
 const querystring = require('querystring');
 
+Object.defineProperty(log, 'heading',
+                      { get: () => { return new Date().toISOString() } });
+
+
+function httpRequest(params, postData) {
+    return new Promise((resolve, reject) => {
+        var req = http.request(params, (res) => {
+            // reject on bad status
+            if (res.statusCode < 200 || res.statusCode >= 300) {
+                return reject(new Error('statusCode=' + res.statusCode));
+            }
+            // cumulate data
+            var body = [];
+            res.on('data', function(chunk) {
+                body.push(chunk);
+            });
+            // resolve on end
+            res.on('end', function() {
+                try {
+                    body = JSON.parse(Buffer.concat(body).toString());
+                } catch(e) {
+                    reject(e);
+                }
+                resolve(body);
+            });
+        });
+        // reject on request error
+        req.on('error', function(err) {
+            // This is not a "Second reject", just a different sort of failure
+            reject(err);
+        });
+        if (postData) {
+            req.write(postData);
+        }
+        // IMPORTANT
+        req.end();
+    });
+}
 
 describe('Cluster-API', ()  => {
     let cl, cc, rc, ru, rl, stream;
-    before( () => {
+    before( async function () {
+        this.timeout(5000);
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'error', strict: true });
+        // l7mp.applyAdmin({ log_level: 'silly', strict: true });
         l7mp.run(); // should return
         cl = Listener.create( {name: 'controller-listener', spec: { protocol: 'HTTP', port: 1234 }});
         cl.run();
         l7mp.listeners.push(cl);
         cc = Cluster.create({name: 'L7mpControllerCluster', spec: {protocol: 'L7mpController'}});
+        await cc.run();
         l7mp.clusters.push(cc);
         rc = Route.create({
             name: 'Test-rc',
@@ -57,6 +99,7 @@ describe('Cluster-API', ()  => {
         cl.emitter = l7mp.addSession.bind(l7mp);
         l7mp.routes.push(rc);
         l7mp.rulelists.push(rl);
+        return Promise.resolve();
     });
 
     after(() =>{
@@ -64,45 +107,26 @@ describe('Cluster-API', ()  => {
     })
 
     context('create-controller', () => {
-        it('controller-listener', (done) =>{
+        it('controller-listener', async () =>{
             let options = {
                 host: 'localhost', port: 1234,
                 path: '/api/v1/listeners',
                 method: 'GET'
             };
-            let callback = function (response) {
-                let str = '';
-                response.on('data', function (chunk) {
-                    str += chunk;
-                });
-                response.on('end', function () {
-                    let res = JSON.parse(str);
-                    assert.nestedPropertyVal(res[0], 'name', 'controller-listener');
-                    done();
-                });
 
-            }
-            let req = http.request(options, callback).end();
+            let res = await httpRequest(options);
+            assert.nestedPropertyVal(res[0], 'name', 'controller-listener');
+            return Promise.resolve();
         });
-        it('controller-cluster', (done) =>{
+        it('controller-cluster', async () =>{
             let options = {
                 host: 'localhost', port: 1234,
                 path: '/api/v1/clusters',
                 method: 'GET'
             };
-            let callback = function (response) {
-                let str = '';
-                response.on('data', function (chunk) {
-                    str += chunk;
-                });
-                response.on('end', function () {
-                    let res = JSON.parse(str);
-                    assert.nestedPropertyVal(res[0], 'name', 'L7mpControllerCluster');
-                    done();
-                });
 
-            }
-            let req = http.request(options, callback).end();
+            let res = await httpRequest(options);
+            assert.nestedPropertyVal(res[0], 'name', 'L7mpControllerCluster');
         });
     });
 
@@ -199,12 +223,13 @@ describe('Cluster-API', ()  => {
 
         context('add-check-delete multiple clusters', ()=>{
             let res;
-            it('add-5-clusters',(done)=>{
+            it('add-5-clusters', async ()=>{
                 let options = {
                     host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters', method: 'POST'
-                    , headers: {'Content-Type' : 'text/x-json'}
+                    path: '/api/v1/clusters', method: 'POST',
+                    headers: {'Content-Type' : 'text/x-json'}
                 }
+                let reqs = [];
                 for(let i = 1; i < 6; i++){
                     let postData = JSON.stringify({
                         'cluster':{
@@ -213,31 +238,21 @@ describe('Cluster-API', ()  => {
                             endpoints: [{spec: {address: '127.0.0.1'}}]
                         }
                     });
-                    let req = http.request(options);
-                    req.once('error', (e) =>{
-                        log.error(`Error: ${e.message}`);
-                    })
-                    req.write(postData);
-                    req.end();
+                    reqs.push(httpRequest(options, postData));
                 }
+
+                await Promise.all(reqs);
+
                 let options_get = {
                     host: 'localhost', port: 1234,
                     path: '/api/v1/clusters',
                     method: 'GET'
                 };
-                let callback = function (response) {
-                    let str = '';
-                    response.on('data', function (chunk) {
-                        str += chunk;
-                    });
-                    response.once('end', function () {
-                        res = JSON.parse(str);
-                        assert.lengthOf(res,6);
-                        done();
-                    });
 
-                }
-                http.request(options_get, callback).end();
+                res = await httpRequest(options_get);
+
+                assert.lengthOf(res, 6);
+                return Promise.resolve();
             });
 
             it('check-cluster-1', ()=>{ assert.nestedPropertyVal(res[1], 'name', 'test-cluster-1');});
@@ -245,35 +260,29 @@ describe('Cluster-API', ()  => {
             it('check-cluster-3', ()=>{ assert.nestedPropertyVal(res[3], 'name', 'test-cluster-3');});
             it('check-cluster-4', ()=>{ assert.nestedPropertyVal(res[4], 'name', 'test-cluster-4');});
             it('check-cluster-5', ()=>{ assert.nestedPropertyVal(res[5], 'name', 'test-cluster-5');});
-            it('delete-multiple-clusters', (done)=>{
-                let req;
+            it('delete-multiple-clusters', async ()=>{
+                let reqs = [];
                 for(let i = 1; i < 6; i++){
                     let options = {
                         host: 'localhost', port: 1234,
                         path: `/api/v1/clusters/test-cluster-${i}`,
                         method: 'DELETE'
                     };
-                    req = http.request(options).end();
-
+                    reqs.push(httpRequest(options));
                 }
-                let callback = function (response) {
-                    let str = '';
-                    response.on('data', function (chunk) {
-                        str += chunk;
-                    });
-                    response.once('end', function () {
-                        res = JSON.parse(str);
-                        assert.lengthOf(res,1);
-                        done();
-                    });
 
-                }
+                await Promise.all(reqs);
+
                 let options_get = {
                     host: 'localhost', port: 1234,
                     path: '/api/v1/clusters',
                     method: 'GET'
                 };
-                http.request(options_get, callback).end();
+
+                res = await httpRequest(options_get);
+
+                assert.lengthOf(res,1);
+                return Promise.resolve();
             });
         });
 

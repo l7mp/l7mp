@@ -45,7 +45,7 @@ describe('WebSocketCluster', () => {
 
     context('create', () => {
         c = Cluster.create({name: 'WebSocket', spec: {protocol: 'WebSocket'}});
-        it('runs',             () => { assert.exists(c); });
+        it('runs',       async () => { await c.run(); assert.isObject(c); });
         it('object',           () => { assert.isObject(c); });
         it('instanceOf',       () => { assert.instanceOf(c, Cluster); });
         it('has-name',         () => { assert.property(c, 'name'); });
@@ -63,7 +63,7 @@ describe('WebSocketCluster', () => {
         c = Cluster.create({name: 'WebSocket', spec: {protocol: 'WebSocket'}});
         c.addEndPoint({name: 'Test', spec: {address: '127.0.0.1'}});
         var endpoint = c.endpoints[0];
-        it('runs',             () => { assert.exists(c.endpoints); });
+        it('runs',       async () => { await c.run(); assert.isObject(c); });
         it('object',           () => { assert.isObject(endpoint); });
         it('instanceOf',       () => { assert.instanceOf(endpoint, EndPoint); });
         it('has-name',         () => { assert.property(endpoint, 'name'); });
@@ -94,7 +94,7 @@ describe('WebSocketCluster', () => {
             }
         });
         var endpoint = c.endpoints[0];
-        it('runs',             () => { assert.exists(c.endpoints); });
+        it('runs',       async () => { await c.run(); assert.isObject(c); });
         it('object',           () => { assert.isObject(endpoint); });
         it('instanceOf',       () => { assert.instanceOf(endpoint, EndPoint); });
         it('has-name',         () => { assert.property(endpoint, 'name'); });
@@ -116,7 +116,8 @@ describe('WebSocketCluster', () => {
         var c = Cluster.create({name: 'WebSocket', spec: {protocol: 'WebSocket'}});
         c.addEndPoint({name: 'Test', spec: {address: '127.0.0.1'}});
         var s;
-        it('runs', async   () => {
+        it('runs',   async () => { await c.run(); assert.isObject(c); });
+        it('stream', async () => {
             s = await c.stream({route: {retry: {timeout: 1000}}, metadata: {HTTP: {url: {host: '127.0.0.1', port: 8080}}}});
         });
         it('returns ok',   () => { assert.isOk(s.stream); });
