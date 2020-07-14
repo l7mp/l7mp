@@ -675,6 +675,12 @@ class L7mp {
             throw new Error(`Cannot add endpoint: ${e}`);
         }
 
+        if(this.getEndPoint(ep.name)){
+            let e = `Endpoint "${ep.name}" already defined`;
+            log.warn('L7mp.addEndpoint', e);
+            throw new Error(`Cannot add endpoint: ${e}`);
+        }
+
         let cl = this.getCluster(c);
         if(!cl){
             let e = `Unknown cluster "${c}"`;
