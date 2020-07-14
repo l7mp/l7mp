@@ -81,7 +81,7 @@ describe('Cluster-API', ()  => {
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'error', strict: true });
         // l7mp.applyAdmin({ log_level: 'silly', strict: true });
-        l7mp.run(); // should return
+        await l7mp.run(); // should return
         cl = Listener.create( {name: 'controller-listener', spec: { protocol: 'HTTP', port: 1234 }});
         cl.run();
         l7mp.listeners.push(cl);
@@ -132,7 +132,7 @@ describe('Cluster-API', ()  => {
 
     context('add-check-delete-cluster-via-api', () =>{
         let str = '',res;
-        it('add-cluster', (done) =>{
+        it('add-cluster', async() =>{
             const postData = JSON.stringify({
                 'cluster':{
                     name: 'test-cluster',
@@ -145,41 +145,22 @@ describe('Cluster-API', ()  => {
                 path: '/api/v1/clusters', method: 'POST'
                 , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
             }
-            let req = http.request(options, (res)=>{
-                res.setEncoding('utf8');
-                let str = '';
-                res.on('data', function (chunk) {
-                    str += chunk;
-                });
-                res.on('end', () =>{
-                    done();
-                });
-            });
-            req.once('error', (e) =>{
-                log.error(`Error: ${e.message}`);
-            })
-            req.write(postData);
-            req.end();
+            let res = await httpRequest(options, postData);
+
+            assert.nestedPropertyVal(res, 'status', 200)
+            return Promise.resolve()
         });
         context('check-properties',()=>{
-            it('cluster-name', (done) =>{
+            it('cluster-name', async() =>{
                 let options = {
                     host: 'localhost', port: 1234,
                     path: '/api/v1/clusters',
                     method: 'GET'
                 };
-                let callback = function (response) {
-                    response.on('data', function (chunk) {
-                        str += chunk;
-                    });
-                    response.on('end', function () {
-                        res = JSON.parse(str);
-                        assert.nestedPropertyVal(res[1], 'name', 'test-cluster');
-                        done();
-                    });
+                res = await httpRequest(options);
+                assert.nestedPropertyVal(res[1], 'name', 'test-cluster');
+                return Promise.resolve();
 
-                }
-                let req = http.request(options, callback).end();
             });
             it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
             it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','UDP')});
@@ -193,31 +174,15 @@ describe('Cluster-API', ()  => {
             //endpoint tests are in a separate test file named 20-api-endpoint-test
         });
         context('delete',()=>{
-            it('delete-cluster', (done)=>{
+            it('delete-cluster', async ()=>{
                 let options = {
                     host: 'localhost', port: 1234,
                     path: '/api/v1/clusters/test-cluster',
                     method: 'DELETE'
                 };
-                let options_get= {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters',
-                    method: 'GET'
-                }
-                http.request(options).end();
-                let callback = function (response) {
-                    let str = '';
-                    response.on('data', function (chunk) {
-                        str += chunk;
-                    });
-                    response.once('end', function () {
-                        let res = JSON.parse(str);
-                        assert.isNotOk(res[1]);
-                        done();
-                    });
-
-                }
-                http.request(options_get, callback).end();
+                let res = await httpRequest(options);
+                assert.nestedPropertyVal(res, 'status', 200)
+                return Promise.resolve();
             });
         });
 
@@ -286,8 +251,8 @@ describe('Cluster-API', ()  => {
             });
         });
 
-        context('error',()=>{
-            it('add-existing-cluster', (done)=>{
+        context('invalid-request',()=>{
+            it('add-existing-cluster', async ()=>{
 
                 const postData = JSON.stringify({
                     'cluster':{
@@ -301,48 +266,24 @@ describe('Cluster-API', ()  => {
                     path: '/api/v1/clusters', method: 'POST'
                     , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
                 }
-                let req = http.request(options, (response)=>{
-                    response.setEncoding('utf8');
-                    let str = '';
-                    response.on('data', function (chunk) {
-                        str += chunk;
-                    });
-                    response.on('end', () =>{
-                        res = JSON.parse(str);
-                        assert.propertyVal(res, 'status', 400);
-                        done();
-                    });
-                });
-                req.once('error', (e) =>{
-                    log.error(`Error: ${e.message}`);
-                })
-                req.write(postData);
-                req.end();
+                return await httpRequest(options, postData)
+                    .then(
+                        () => Promise.reject(new Error('Expected method to reject.')),
+                        err => assert.instanceOf(err, Error)
+                    );
+
             });
-            it('delete-non-existing-cluster',(done)=>{
+            it('delete-non-existing-cluster', async()=>{
                 let options = {
                     host: 'localhost', port: 1234,
                     path: `/api/v1/clusters/non-existing-cluster`,
                     method: 'DELETE'
                 };
-                let callback = function (response) {
-                    let str = '';
-                    response.on('data', function (chunk) {
-                        str += chunk;
-                    });
-                    response.once('end', function () {
-                        res = JSON.parse(str);
-                        assert.propertyVal(res, 'status', 400)
-                        done();
-
-                    });
-
-                }
-                let req = http.request(options, callback);
-                req.once('error', (err)=>{
-                    console.log(err);
-                })
-                req.end();
+                return await httpRequest(options)
+                    .then(
+                        () => Promise.reject(new Error('Expected method to reject.')),
+                        err => assert.instanceOf(err, Error)
+                    );
             });
         });
     });
