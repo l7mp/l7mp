@@ -62,22 +62,4 @@ describe('Rule', () => {
         it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
         it('action-equal',  () => { assert.equal(s, r.action); }); 
     });
-
-    context('getAtPath', () => {
-        it('get-path', () => { 
-            var data = Rule.getAtPath({a: {b: {c: 'test'}}}, '/a/b/c'); 
-            assert.equal(data, 'test'); 
-        }); 
-    });
-
-    context('setAtPath', () => {
-        it('set-path-replace', () => {
-            var data = Rule.setAtPath({a: {b: {c: 'test'}}}, '/a/b/c', 'test1'); 
-            assert.equal(data.a.b.c, 'test1');
-        });
-        it('set-path-new', () => {
-            var data = Rule.setAtPath({}, '/a/b/c', 'test'); 
-            assert.equal(data.a.b.c, 'test');
-        }); 
-    });
 }); 
