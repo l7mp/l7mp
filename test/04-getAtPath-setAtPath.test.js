@@ -39,48 +39,48 @@ var d, l, listener = {
     }
 };
 
-// describe('getAtPath', ()  => {
-//     beforeEach( () => {
-//         l = _.cloneDeep(listener);
-//     });
+describe('getAtPath', ()  => {
+    beforeEach( () => {
+        l = _.cloneDeep(listener);
+    });
 
-//     context('leading-slash', () => {
-//         it('/',                                          () => { let x = Rule.getAtPath(l, '/'); assert.deepEqual(x, listener); });
-//         it('/listener',                                  () => { let x = Rule.getAtPath(l, '/listener'); assert.deepEqual(x, listener.listener); });
-//         it('/listener/rules',                            () => { let x = Rule.getAtPath(l, '/listener/rules'); assert.deepEqual(x, listener.listener.rules); });
-//         it('/listener/rules/0',                          () => { let x = Rule.getAtPath(l, '/listener/rules/0'); assert.deepEqual(x, listener.listener.rules[0]) });
-//         it('/listener/rules/0/action',                   () => { let x = Rule.getAtPath(l, '/listener/rules/0/action'); assert.deepEqual(x, listener.listener.rules[0].action); });
-//         it('/listener/rules/0/action/route',             () => { let x = Rule.getAtPath(l, '/listener/rules/0/action/route'); assert.deepEqual(x, listener.listener.rules[0].action.route); });
-//         it('/listener/rules/0/action/route/destination', () => { let x = Rule.getAtPath(l, '/listener/rules/0/action/route/destination'); assert.equal(x, "user-1-2-c"); });
-//     });
+    context('leading-slash', () => {
+        it('/',                                          () => { let x = Rule.getAtPath(l, '/'); assert.deepEqual(x, listener); });
+        it('/listener',                                  () => { let x = Rule.getAtPath(l, '/listener'); assert.deepEqual(x, listener.listener); });
+        it('/listener/rules',                            () => { let x = Rule.getAtPath(l, '/listener/rules'); assert.deepEqual(x, listener.listener.rules); });
+        it('/listener/rules/0',                          () => { let x = Rule.getAtPath(l, '/listener/rules/0'); assert.deepEqual(x, listener.listener.rules[0]) });
+        it('/listener/rules/0/action',                   () => { let x = Rule.getAtPath(l, '/listener/rules/0/action'); assert.deepEqual(x, listener.listener.rules[0].action); });
+        it('/listener/rules/0/action/route',             () => { let x = Rule.getAtPath(l, '/listener/rules/0/action/route'); assert.deepEqual(x, listener.listener.rules[0].action.route); });
+        it('/listener/rules/0/action/route/destination', () => { let x = Rule.getAtPath(l, '/listener/rules/0/action/route/destination'); assert.equal(x, "user-1-2-c"); });
+    });
 
-//     context('no-leading-slash', () => {
-//         it('listener',                                  () => { let x = Rule.getAtPath(l, 'listener'); assert.deepEqual(x, listener.listener); });
-//         it('listener/rules',                            () => { let x = Rule.getAtPath(l, 'listener/rules'); assert.deepEqual(x, listener.listener.rules); });
-//         it('/listener/rules/0',                         () => { let x = Rule.getAtPath(l, '/listener/rules/0'); assert.deepEqual(x, listener.listener.rules[0]) });
-//         it('listener/rules/0/action',                   () => { let x = Rule.getAtPath(l, 'listener/rules/0/action'); assert.deepEqual(x, listener.listener.rules[0].action); });
-//         it('listener/rules/0/action/route',             () => { let x = Rule.getAtPath(l, 'listener/rules/0/action/route'); assert.deepEqual(x, listener.listener.rules[0].action.route); });
-//         it('listener/rules/0/action/route/destination', () => { let x = Rule.getAtPath(l, 'listener/rules/0/action/route/destination'); assert.equal(x, "user-1-2-c"); });
-//     });
+    context('no-leading-slash', () => {
+        it('listener',                                  () => { let x = Rule.getAtPath(l, 'listener'); assert.deepEqual(x, listener.listener); });
+        it('listener/rules',                            () => { let x = Rule.getAtPath(l, 'listener/rules'); assert.deepEqual(x, listener.listener.rules); });
+        it('/listener/rules/0',                         () => { let x = Rule.getAtPath(l, '/listener/rules/0'); assert.deepEqual(x, listener.listener.rules[0]) });
+        it('listener/rules/0/action',                   () => { let x = Rule.getAtPath(l, 'listener/rules/0/action'); assert.deepEqual(x, listener.listener.rules[0].action); });
+        it('listener/rules/0/action/route',             () => { let x = Rule.getAtPath(l, 'listener/rules/0/action/route'); assert.deepEqual(x, listener.listener.rules[0].action.route); });
+        it('listener/rules/0/action/route/destination', () => { let x = Rule.getAtPath(l, 'listener/rules/0/action/route/destination'); assert.equal(x, "user-1-2-c"); });
+    });
 
-//     context('leading-slash-trailing-slash', () => {
-//         it('/listener/',                                  () => { let x = Rule.getAtPath(l, '/listener/'); assert.deepEqual(x, listener.listener); });
-//         it('/listener/rules/',                            () => { let x = Rule.getAtPath(l, '/listener/rules/'); assert.deepEqual(x, listener.listener.rules); });
-//         it('/listener/rules/0',                           () => { let x = Rule.getAtPath(l, '/listener/rules/0'); assert.deepEqual(x, listener.listener.rules[0]) });
-//         it('/listener/rules/0/action/',                   () => { let x = Rule.getAtPath(l, '/listener/rules/0/action/'); assert.deepEqual(x, listener.listener.rules[0].action); });
-//         it('/listener/rules/0/action/route/',             () => { let x = Rule.getAtPath(l, '/listener/rules/0/action/route/'); assert.deepEqual(x, listener.listener.rules[0].action.route); });
-//         it('/listener/rules/0/action/route/destination/', () => { let x = Rule.getAtPath(l, '/listener/rules/0/action/route/destination/'); assert.equal(x, "user-1-2-c"); });
-//     });
+    context('leading-slash-trailing-slash', () => {
+        it('/listener/',                                  () => { let x = Rule.getAtPath(l, '/listener/'); assert.deepEqual(x, listener.listener); });
+        it('/listener/rules/',                            () => { let x = Rule.getAtPath(l, '/listener/rules/'); assert.deepEqual(x, listener.listener.rules); });
+        it('/listener/rules/0',                           () => { let x = Rule.getAtPath(l, '/listener/rules/0'); assert.deepEqual(x, listener.listener.rules[0]) });
+        it('/listener/rules/0/action/',                   () => { let x = Rule.getAtPath(l, '/listener/rules/0/action/'); assert.deepEqual(x, listener.listener.rules[0].action); });
+        it('/listener/rules/0/action/route/',             () => { let x = Rule.getAtPath(l, '/listener/rules/0/action/route/'); assert.deepEqual(x, listener.listener.rules[0].action.route); });
+        it('/listener/rules/0/action/route/destination/', () => { let x = Rule.getAtPath(l, '/listener/rules/0/action/route/destination/'); assert.equal(x, "user-1-2-c"); });
+    });
 
-//     context('no-leading-slash-trailing-slash', () => {
-//         it('listener/',                                  () => { let x = Rule.getAtPath(l, 'listener/'); assert.deepEqual(x, listener.listener); });
-//         it('listener/rules/',                            () => { let x = Rule.getAtPath(l, 'listener/rules/'); assert.deepEqual(x, listener.listener.rules); });
-//         it('/listener/rules/0',                          () => { let x = Rule.getAtPath(l, '/listener/rules/0'); assert.deepEqual(x, listener.listener.rules[0]) });
-//         it('listener/rules/0/action/',                   () => { let x = Rule.getAtPath(l, 'listener/rules/0/action/'); assert.deepEqual(x, listener.listener.rules[0].action); });
-//         it('listener/rules/0/action/route/',             () => { let x = Rule.getAtPath(l, 'listener/rules/0/action/route/'); assert.deepEqual(x, listener.listener.rules[0].action.route); });
-//         it('listener/rules/0/action/route/destination/', () => { let x = Rule.getAtPath(l, 'listener/rules/0/action/route/destination/'); assert.equal(x, "user-1-2-c"); });
-//     });
-// });
+    context('no-leading-slash-trailing-slash', () => {
+        it('listener/',                                  () => { let x = Rule.getAtPath(l, 'listener/'); assert.deepEqual(x, listener.listener); });
+        it('listener/rules/',                            () => { let x = Rule.getAtPath(l, 'listener/rules/'); assert.deepEqual(x, listener.listener.rules); });
+        it('/listener/rules/0',                          () => { let x = Rule.getAtPath(l, '/listener/rules/0'); assert.deepEqual(x, listener.listener.rules[0]) });
+        it('listener/rules/0/action/',                   () => { let x = Rule.getAtPath(l, 'listener/rules/0/action/'); assert.deepEqual(x, listener.listener.rules[0].action); });
+        it('listener/rules/0/action/route/',             () => { let x = Rule.getAtPath(l, 'listener/rules/0/action/route/'); assert.deepEqual(x, listener.listener.rules[0].action.route); });
+        it('listener/rules/0/action/route/destination/', () => { let x = Rule.getAtPath(l, 'listener/rules/0/action/route/destination/'); assert.equal(x, "user-1-2-c"); });
+    });
+});
 
 
 describe('setAtPath', ()  => {
