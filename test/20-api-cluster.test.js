@@ -40,7 +40,8 @@ Object.defineProperty(log, 'heading',
 
 describe('Cluster-API', ()  => {
     let cl, cc, rc, ru, rl, stream;
-    before( async () => {
+    before( async function () {
+        this.timeout(5000);
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'error', strict: true });
         // l7mp.applyAdmin({ log_level: 'silly', strict: true });
@@ -62,6 +63,7 @@ describe('Cluster-API', ()  => {
         cl.emitter = l7mp.addSession.bind(l7mp);
         l7mp.routes.push(rc);
         l7mp.rulelists.push(rl);
+        return Promise.resolve();
     });
 
     after(() =>{
@@ -261,29 +263,33 @@ describe('Cluster-API', ()  => {
                     req = http.request(options).end();
 
                 }
-                let callback = function (response) {
-                    let str = '';
-                    response.on('data', function (chunk) {
-                        str += chunk;
-                    });
-                    response.once('end', function () {
-                        res = JSON.parse(str);
-                        assert.lengthOf(res,1);
-                        done();
-                    });
+                // leave some room for l7mp to process the delete requests
+                setTimeout(() => {
+                    let callback = function (response) {
+                        let str = '';
+                        response.on('data', function (chunk) {
+                            str += chunk;
+                        });
+                        response.once('end', function () {
+                            res = JSON.parse(str);
+                            assert.lengthOf(res,1);
+                            done();
+                        });
 
-                }
-                let options_get = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters',
-                    method: 'GET'
-                };
-                http.request(options_get, callback).end();
+                    }
+                    let options_get = {
+                        host: 'localhost', port: 1234,
+                        path: '/api/v1/clusters',
+                        method: 'GET'
+                    };
+                    http.request(options_get, callback).end();
+                }, 500);
             });
         });
 
         context('error',()=>{
-            it('add-existing-cluster', ()=>{
+            it('add-existing-cluster', (done)=>{
+
                 const postData = JSON.stringify({
                     'cluster':{
                         name: 'L7mpControllerCluster',
@@ -304,7 +310,8 @@ describe('Cluster-API', ()  => {
                     });
                     response.on('end', () =>{
                         res = JSON.parse(str);
-                        assert.include(res.content,'Cannot add')
+                        assert.propertyVal(res, 'status', 400);
+                        done();
                     });
                 });
                 req.once('error', (e) =>{
@@ -313,7 +320,7 @@ describe('Cluster-API', ()  => {
                 req.write(postData);
                 req.end();
             });
-            it('delete-non-existing-cluster',()=>{
+            it('delete-non-existing-cluster',(done)=>{
                 let options = {
                     host: 'localhost', port: 1234,
                     path: `/api/v1/clusters/non-existing-cluster`,
@@ -326,7 +333,9 @@ describe('Cluster-API', ()  => {
                     });
                     response.once('end', function () {
                         res = JSON.parse(str);
-                        assert.include(res.content,'Cannot delete')
+                        assert.propertyVal(res, 'status', 400)
+                        done();
+
                     });
 
                 }

@@ -101,9 +101,11 @@ describe('UDS-NetSocketCluster', ()  => {
             });
             s.stream.end();
         });
+        it('unlink',  async () => {
+            fs.unlink('/tmp/unixSocket.sock', () => { return Promise.resolve() });
+        });
         it('correct-byte-stream',  async () => {
             // create an UDS echo server
-            fs.unlink('/tmp/unixSocket.sock', () => {});
             const server = net.createServer((c) => { c.pipe(c); });
             server.listen('/tmp/unixSocket.sock');
             s = await c.stream({ route:{retry:{timeout:1000}}});
@@ -118,7 +120,7 @@ describe('UDS-NetSocketCluster', ()  => {
             });
             s.stream.write('test');
         });
-        it('Not-found-endpoint', async () => {
+        it('not-found-endpoint', async () => {
             c.loadbalancer.update([undefined]);
             return await c.stream({route:{retry:{timeout:1000}}})
                 .then(() => assert(false))
