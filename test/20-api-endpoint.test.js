@@ -58,7 +58,42 @@ let static_config = {
     ]
 };
 
-describe('Rule API', ()  => {
+function httpRequest(params, postData) {
+    return new Promise((resolve, reject) => {
+        var req = http.request(params, (res) => {
+            // reject on bad status
+            if (res.statusCode < 200 || res.statusCode >= 300) {
+                return reject(new Error('statusCode=' + res.statusCode));
+            }
+            // cumulate data
+            var body = [];
+            res.on('data', function(chunk) {
+                body.push(chunk);
+            });
+            // resolve on end
+            res.on('end', function() {
+                try {
+                    body = JSON.parse(Buffer.concat(body).toString());
+                } catch(e) {
+                    reject(e);
+                }
+                resolve(body);
+            });
+        });
+        // reject on request error
+        req.on('error', function(err) {
+            // This is not a "Second reject", just a different sort of failure
+            reject(err);
+        });
+        if (postData) {
+            req.write(postData);
+        }
+        // IMPORTANT
+        req.end();
+    });
+}
+
+describe('EndPoint API', ()  => {
     var e, s;
     before( async() => {
         l7mp = new L7mp();
@@ -74,11 +109,12 @@ describe('Rule API', ()  => {
 
     context('create', () => {
         it('controller-listener',         () => { assert.lengthOf(l7mp.listeners, 1); } );
-        it('add-cluster', (done) =>{
+        it('add-cluster', async() =>{
             const postData = JSON.stringify({
                 'cluster':{
                     name: 'test-cluster',
-                    spec: {protocol: 'UDP', port: 16000, bind: {port: 16001, address: '127.0.0.1'}}
+                    spec: {protocol: 'UDP', port: 16000, bind: {port: 16001, address: '127.0.0.1'}},
+                    endpoints: [{spec: {address: '127.0.0.1'}}]
                 }
             });
             let options = {
@@ -86,52 +122,20 @@ describe('Rule API', ()  => {
                 path: '/api/v1/clusters', method: 'POST'
                 , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
             }
-            let req = http.request(options, (res)=>{
-                res.setEncoding('utf8');
-                let str = '';
-                res.on('data', function (chunk) {
-                    str += chunk;
-                });
-                res.on('end', () =>{
-                    let par = JSON.parse(str);
-                    done();
-                });
-            });
-            req.once('error', (e) =>{
-                log.error(`Error: ${e.message}`);
-            })
-            req.write(postData);
-            req.end();
+            let res = await httpRequest(options, postData);
+
+            assert.nestedPropertyVal(res, 'status', 200)
+            return Promise.resolve()
         });
-        // it('get-cluster', (done) =>{
-        //     let options = {
-        //         host: 'localhost', port: 1234,
-        //         path: '/api/v1/clusters',
-        //         method: 'GET'
-        //     };
-        //     let callback = function (response) {
-        //         let str = '';
-        //         response.on('data', function (chunk) {
-        //             str += chunk;
-        //         });
-        //         response.on('end', function () {
-        //             let res = JSON.parse(str);
-        //             assert.nestedPropertyVal(res[0], 'name', 'L7mpControllerCluster');
-        //             done();
-        //         });
-        //
-        //     }
-        //     let req = http.request(options, callback).end();
-        // });
     });
     context('add-check-delete-endpoints-via-api', ()=> {
-        let res, str = '';
+        let res;
 
-        it('add-endpoint', (done) => {
+        it('add-endpoint', async () => {
             const postData = JSON.stringify({
                 'endpoint':
                     {
-                        name: 'test-cluster-EndPoint-0',
+                        name: 'test-cluster-EndPoint-1',
                         spec: { port: 15000, address: '127.0.0.1'}
                     }
             });
@@ -140,79 +144,57 @@ describe('Rule API', ()  => {
                 path: '/api/v1/clusters/test-cluster/endpoints', method: 'POST',
                 headers: {'Content-Type': 'application/json'}
             }
-            let req = http.request(options, (res) => {
-                res.setEncoding('utf8');
-                let str = '';
-                res.on('data', function (chunk) {
-                    str += chunk;
-                });
-                res.on('end', () => {
-                    res = JSON.parse(str);
-                    assert.nestedPropertyVal(res, 'status', 200);
-                    done();
-                });
-            });
-            req.once('error', (e) =>{
-                log.error(`Error: ${e.message}`);
-            })
-            req.write(postData);
-            req.end();
+            res = await httpRequest(options, postData);
+            assert.nestedPropertyVal(res, 'status', 200);
+            return Promise.resolve()
         });
-        it('has-endpoint', (done) =>{
+        it('has-endpoint-name', async() =>{
             let options = {
                 host: 'localhost', port: 1234,
                 path: '/api/v1/clusters/test-cluster/endpoints',
                 method: 'GET'
             };
-            let callback = function (response) {
-                str = '';
-                response.on('data', function (chunk) {
-                    str += chunk;
-                });
-                response.on('end', function () {
-                    res = JSON.parse(str);
-                    assert.lengthOf(res, 1);
-                    done();
-                });
-            }
-            http.request(options, callback).end();
+            res = await httpRequest(options);
+            assert.nestedPropertyVal(res[1], 'name', 'test-cluster-EndPoint-1');
+            return Promise.resolve();
         });
-        it('has-endpoint-name', ()=>{ assert.nestedPropertyVal(res[0], 'name', 'test-cluster-EndPoint-0')});
-        it('has-endpoint-spec', ()=>{ assert.nestedProperty(res[0], 'spec')});
-        it('has-endpoint-spec-address', ()=>{ assert.nestedProperty(res[0], 'spec.address', '127.0.0.1')});
-        it('has-endpoint-spec-port', ()=>{ assert.nestedProperty(res[0], 'spec.port', 15000)});
+        it('has-endpoint-spec', ()=>{ assert.nestedProperty(res[1], 'spec')});
+        it('has-endpoint-spec-address', ()=>{ assert.nestedProperty(res[1], 'spec.address', '127.0.0.1')});
+        it('has-endpoint-spec-port', ()=>{ assert.nestedProperty(res[1], 'spec.port', 15000)});
 
-        it('delete-endpoint', (done)=>{
+        it('delete-endpoint-default', async ()=>{
             let options = {
                 host: 'localhost', port: 1234,
                 path: `/api/v1/clusters/test-cluster/endpoints/${res[0].name}`,
                 method: 'DELETE'
             };
 
-            let callback = function (response) {
-                let str = '';
-                response.on('data', function (chunk) {
-                    str += chunk;
-                });
-                response.once('end', function () {
-                    let res = JSON.parse(str);
-                    assert.nestedPropertyVal(res, 'status', 200);
-                    done();
-                });
+            let d_res = await httpRequest(options)
+            assert.nestedPropertyVal(d_res, 'status', 200);
+            return Promise.resolve();
+        });
+        it('delete-endpoint-added-via-api', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/clusters/test-cluster/endpoints/${res[1].name}`,
+                method: 'DELETE'
+            };
 
-            }
-            http.request(options,callback).end();
+            let d_res = await httpRequest(options)
+            assert.nestedPropertyVal(d_res, 'status', 200);
+            return Promise.resolve();
         });
     });
 
     context('add-check-delete-multiple-clusters', ()=>{
         let res;
-        it('add-5-endpoints', (done)=>{
+        it('add-5-endpoints', async ()=>{
             let options = {
                 host: 'localhost', port: 1234,
                 path: '/api/v1/clusters/test-cluster/endpoints', method: 'POST'
                 , headers: {'Content-Type' : 'application/json'}
             }
+            let reqs = [];
             for(let i = 1; i < 6; i++){
                 let postData = JSON.stringify({
                     'endpoint':
@@ -221,74 +203,67 @@ describe('Rule API', ()  => {
                             spec: { port: 15000 + i, address: '127.0.0.1'}
                         }
                 });
-                let req = http.request(options);
-                req.once('error', (e) =>{
-                    log.error(`Error: ${e.message}`);
-                })
-                req.write(postData);
-                req.end();
+                reqs.push(httpRequest(options, postData))
             }
+            await Promise.all(reqs);
             let options_get = {
                 host: 'localhost', port: 1234,
                 path: '/api/v1/clusters/test-cluster/endpoints',
                 method: 'GET'
             };
-            let callback = function (response) {
-                let str = '';
-                response.on('data', function (chunk) {
-                    str += chunk;
-                });
-                response.once('end', function () {
-                    res = JSON.parse(str);
-                    assert.lengthOf(res,5);
-                    done();
-                });
 
-            }
-            http.request(options_get, callback).end();
+            res = await httpRequest(options_get);
+            assert.lengthOf(res, 5);
+            return Promise.resolve();
         });
         it('check-endpoint-1', ()=>{ assert.nestedPropertyVal(res[0], 'name', 'test-cluster-EndPoint-1');});
         it('check-endpoint-2', ()=>{ assert.nestedPropertyVal(res[1], 'name', 'test-cluster-EndPoint-2');});
         it('check-endpoint-3', ()=>{ assert.nestedPropertyVal(res[2], 'name', 'test-cluster-EndPoint-3');});
         it('check-endpoint-4', ()=>{ assert.nestedPropertyVal(res[3], 'name', 'test-cluster-EndPoint-4');});
         it('check-endpoint-5', ()=>{ assert.nestedPropertyVal(res[4], 'name', 'test-cluster-EndPoint-5');});
-        it('delete-multiple-clusters', (done)=>{
-            let req;
+        it('delete-multiple-clusters', async ()=>{
+            let reqs = [];
             for(let i = 1; i < 6; i++){
                 let options = {
                     host: 'localhost', port: 1234,
                     path: `/api/v1/clusters/test-cluster/endpoints/test-cluster-EndPoint-${i}`,
                     method: 'DELETE'
                 };
-                req = http.request(options).end();
+                reqs.push(httpRequest(options))
+                await Promise.all(reqs)
 
             }
-            // leave some room for l7mp to process the delete requests
-            setTimeout(() => {
-                let callback = function (response) {
-                    let str = '';
-                    response.on('data', function (chunk) {
-                        str += chunk;
-                    });
-                    response.once('end', function () {
-                        res = JSON.parse(str);
-                        assert.lengthOf(res,0);
-                        done();
-                    });
-
-                }
-                let options_get = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters/test-cluster/endpoints',
-                    method: 'GET'
-                };
-                http.request(options_get, callback).end();
-            }, 500);
+            let options_get = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters/test-cluster/endpoints',
+                method: 'GET'
+            };
+            res = await httpRequest(options_get);
+            assert.lengthOf(res, 0);
+            return Promise.resolve();
         });
     });
-    context('error',()=>{
-        it('add-existing-endpoint', (done)=>{
-            //name should be test-cluster-EndPoint-6
+    context('invalid-request',()=>{
+        it('add-endpoint-validation-fail', async ()=>{
+            const postData = JSON.stringify({
+                'endpoint':
+                    {
+                        name: 'endpoint-without-required-parameters'
+                    }
+            });
+
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters/test-cluster/endpoints', method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            }
+            await httpRequest(options, postData)
+                .then(
+                    ()=>{ return Promise.reject(new Error('Expected method to reject.'))},
+                    err => { assert.instanceOf(err, Error); return Promise.resolve()}
+                )
+        });
+        it('add-existent-endpoint', async ()=>{
             const postData = JSON.stringify({
                 'endpoint':
                     {
@@ -308,77 +283,44 @@ describe('Rule API', ()  => {
                 path: '/api/v1/clusters/test-cluster/endpoints', method: 'POST',
                 headers: {'Content-Type': 'application/json'}
             }
-            let req = http.request(options);
-            req.once('error', (e) =>{
-                log.error(`Error: ${e.message}`);
-            })
-            req.write(postData);
-            req.end();
-
-            let req_1 = http.request(options, (res) => {
-                res.setEncoding('utf8');
-                let str = '';
-                res.on('data', function (chunk) {
-                    str += chunk;
-                });
-                res.on('end', () => {
-                    res = JSON.parse(str);
-                    assert.nestedPropertyVal(res, 'status', 400);
-                    done();
-                });
-            });
-            req_1.once('error', (e) =>{
-                log.error(`Error: ${e.message}`);
-            })
-            req_1.write(postData_1);
-            req_1.end();
+            await httpRequest(options, postData);
+            return httpRequest(options, postData_1)
+                .then(
+                    ()=>{ return Promise.reject(new Error('Expected method to reject.'))},
+                    err => { assert.instanceOf(err, Error); return Promise.resolve()}
+                )
         });
+        it('add-endpoint-to-non-existent-cluster', async ()=>{
+            const postData = JSON.stringify({
+                'endpoint':
+                    {
+                        spec: { port: 15000, address: '127.0.0.1'}
+                    }
+            });
 
-        //TODO: should be deleted
-        it('has-endpoint', (done) =>{
             let options = {
                 host: 'localhost', port: 1234,
-                path: '/api/v1/clusters/test-cluster/endpoints',
-                method: 'GET'
-            };
-            let callback = function (response) {
-                str = '';
-                response.on('data', function (chunk) {
-                    str += chunk;
-                });
-                response.on('end', function () {
-                    res = JSON.parse(str);
-                    assert.lengthOf(res, 1);
-                    done();
-                });
+                path: '/api/v1/clusters/non-existent-cluster/endpoints', method: 'POST',
+                headers: {'Content-Type': 'application/json'}
             }
-            http.request(options, callback).end();
+            await httpRequest(options, postData)
+                .then(
+                    ()=>{ return Promise.reject(new Error('Expected method to reject.'))},
+                    err => { assert.instanceOf(err, Error); return Promise.resolve()}
+                )
         });
 
-        // it('delete-non-existing-cluster',(done)=>{
+        // it('delete-non-existent-endpoint',()=>{
         //     let options = {
         //         host: 'localhost', port: 1234,
-        //         path: `/api/v1/clusters/non-existing-cluster`,
+        //         path: `/api/v1/clusters/test-cluster/endpoints/non-existent-endpoint`,
         //         method: 'DELETE'
         //     };
-        //     let callback = function (response) {
-        //         let str = '';
-        //         response.on('data', function (chunk) {
-        //             str += chunk;
-        //         });
-        //         response.once('end', function () {
-        //             res = JSON.parse(str);
-        //             assert.propertyVal(res, 'status', 400)
-        //             done();
-        //
-        //         });
-        //
-        //     }
-        //     let req = http.request(options, callback);
-        //     req.once('error', (err)=>{
-        //         log.error(err);
-        //     })
-        //     req.end();
+        //     return httpRequest(options)
+        //         .then(
+        //             ()=>{ return Promise.reject(new Error('Expected method to reject'))},
+        //             err => { assert.instanceOf(err, Error); return Promise.resolve()}
+        //         )
         // });
     });
 });
