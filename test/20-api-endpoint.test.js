@@ -98,7 +98,7 @@ describe('EndPoint API', ()  => {
     before( async() => {
         l7mp = new L7mp();
         l7mp.static_config = static_config;
-        l7mp.applyAdmin({ log_level: 'error' , strict: true});
+        l7mp.applyAdmin({ log_level: 'warn' , strict: true});
         await l7mp.run(); // should return
     });
 
@@ -310,17 +310,17 @@ describe('EndPoint API', ()  => {
                 )
         });
 
-        // it('delete-non-existent-endpoint',()=>{
-        //     let options = {
-        //         host: 'localhost', port: 1234,
-        //         path: `/api/v1/clusters/test-cluster/endpoints/non-existent-endpoint`,
-        //         method: 'DELETE'
-        //     };
-        //     return httpRequest(options)
-        //         .then(
-        //             ()=>{ return Promise.reject(new Error('Expected method to reject'))},
-        //             err => { assert.instanceOf(err, Error); return Promise.resolve()}
-        //         )
-        // });
+        it('delete-non-existent-endpoint',()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/clusters/test-cluster/endpoints/non-existent-endpoint`,
+                method: 'DELETE'
+            };
+            return httpRequest(options)
+                .then(
+                    ()=>{ return Promise.reject(new Error('Expected method to reject'))},
+                    err => { assert.instanceOf(err, Error); return Promise.resolve()}
+                )
+        });
     });
 });
