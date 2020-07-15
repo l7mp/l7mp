@@ -263,7 +263,7 @@ describe('EndPoint API', ()  => {
                     err => { assert.instanceOf(err, Error); return Promise.resolve()}
                 )
         });
-        it('add-existent-endpoint', async ()=>{
+        it('add-existing-endpoint', async ()=>{
             const postData = JSON.stringify({
                 'endpoint':
                     {
