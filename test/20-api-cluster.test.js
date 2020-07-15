@@ -266,10 +266,10 @@ describe('Cluster-API', ()  => {
                     path: '/api/v1/clusters', method: 'POST'
                     , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
                 }
-                return await httpRequest(options, postData)
+                return httpRequest(options, postData)
                     .then(
-                        () => Promise.reject(new Error('Expected method to reject.')),
-                        err => assert.instanceOf(err, Error)
+                        () =>{ return Promise.reject(new Error('Expected method to reject.'))},
+                        err => { assert.instanceOf(err, Error); return Promise.resolve()}
                     );
 
             });
@@ -279,10 +279,10 @@ describe('Cluster-API', ()  => {
                     path: `/api/v1/clusters/non-existing-cluster`,
                     method: 'DELETE'
                 };
-                return await httpRequest(options)
+                return httpRequest(options)
                     .then(
-                        () => Promise.reject(new Error('Expected method to reject.')),
-                        err => assert.instanceOf(err, Error)
+                        () =>{ return Promise.reject(new Error('Expected method to reject.'))},
+                        err => { assert.instanceOf(err, Error); return Promise.resolve(); }
                     );
             });
         });
