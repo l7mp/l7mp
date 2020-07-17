@@ -182,7 +182,333 @@ describe('Listeners API', ()  => {
         });
     });
 
-    context('add-check-delete multiple listeners', ()=>{
+    context('add-check-delete-HTTP-listeners-via-api', () =>{
+        let res, str = '';
+        it('add-listener', async () =>{
+            const postData = JSON.stringify({
+                "listener": {
+                    name: "test-listener",
+                    spec: { protocol: "HTTP", port: 12345 },
+                    rules: [ {
+                        action: {
+                          route: {
+                            destination: "user-1-2-c",
+                            ingress: [
+                              { name: "Echo-HTTP", spec: { protocol: "Echo" } }
+                            ],
+                            retry: { retry_on: "always", num_retries: 10, timeout: 2000 }
+                          }
+                        }
+                      }
+                    ]
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/listeners', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options, postData);
+        });
+        
+        context('check-properties',()=>{
+            it('listener-name', async () =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners',
+                    method: 'GET'
+                };
+                res = await httpRequest(options)
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 2); });
+            it('protocol',            () => { assert.nestedPropertyVal(res[1], 'spec.protocol', 'HTTP'); });
+            it('port',                () => { assert.nestedPropertyVal(res[1], 'spec.port', 12345); });
+            it('has-rules',           () => { assert.nestedProperty(res[1], 'rules'); });
+        });
+        
+        context('delete', ()=>{
+            let res, str = '';
+            it('delete-listener', async ()=>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners/test-listener',
+                    method: 'DELETE'
+                };
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners',
+                    method: 'GET'
+                }
+                await httpRequest(options);
+                res = await httpRequest(options_get);
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
+    context('add-check-delete-WebSocket-listeners-via-api', () =>{
+        let res, str = '';
+        it('add-listener', async () =>{
+            const postData = JSON.stringify({
+                "listener": {
+                    name: "test-listener",
+                    spec: { protocol: "WebSocket", port: 12345 },
+                    rules: [ {
+                        action: {
+                          route: {
+                            destination: "user-1-2-c",
+                            ingress: [
+                              { name: "Echo-WebSocket", spec: { protocol: "Echo" } }
+                            ],
+                            retry: { retry_on: "always", num_retries: 10, timeout: 2000 }
+                          }
+                        }
+                      }
+                    ]
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/listeners', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options, postData);
+        });
+        
+        context('check-properties',()=>{
+            it('listener-name', async () =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners',
+                    method: 'GET'
+                };
+                res = await httpRequest(options)
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 2); });
+            it('protocol',            () => { assert.nestedPropertyVal(res[1], 'spec.protocol', 'WebSocket'); });
+            it('port',                () => { assert.nestedPropertyVal(res[1], 'spec.port', 12345); });
+            it('has-rules',           () => { assert.nestedProperty(res[1], 'rules'); });
+        });
+        
+        context('delete', ()=>{
+            let res, str = '';
+            it('delete-listener', async ()=>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners/test-listener',
+                    method: 'DELETE'
+                };
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners',
+                    method: 'GET'
+                }
+                await httpRequest(options);
+                res = await httpRequest(options_get);
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
+    context('add-check-delete-TCP-listeners-via-api', () =>{
+        let res, str = '';
+        it('add-listener', async () =>{
+            const postData = JSON.stringify({
+                "listener": {
+                    name: "test-listener",
+                    spec: { protocol: "TCP", port: 12345 },
+                    rules: [ {
+                        action: {
+                          route: {
+                            destination: "user-1-2-c",
+                            ingress: [
+                              { name: "Echo-TCP", spec: { protocol: "Echo" } }
+                            ],
+                            retry: { retry_on: "always", num_retries: 10, timeout: 2000 }
+                          }
+                        }
+                      }
+                    ]
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/listeners', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options, postData);
+        });
+        
+        context('check-properties',()=>{
+            it('listener-name', async () =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners',
+                    method: 'GET'
+                };
+                res = await httpRequest(options)
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 2); });
+            it('protocol',            () => { assert.nestedPropertyVal(res[1], 'spec.protocol', 'TCP'); });
+            it('port',                () => { assert.nestedPropertyVal(res[1], 'spec.port', 12345); });
+            it('has-rules',           () => { assert.nestedProperty(res[1], 'rules'); });
+        });
+        
+        context('delete', ()=>{
+            let res, str = '';
+            it('delete-listener', async ()=>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners/test-listener',
+                    method: 'DELETE'
+                };
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners',
+                    method: 'GET'
+                }
+                await httpRequest(options);
+                res = await httpRequest(options_get);
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
+    context('add-check-delete-UnixDomainSocket-listeners-via-api', () =>{
+        let res, str = '';
+        it('add-listener', async () =>{
+            const postData = JSON.stringify({
+                "listener": {
+                    name: "test-listener",
+                    spec: { protocol: "UnixDomainSocket", filename: 'test' },
+                    rules: [ {
+                        action: {
+                          route: {
+                            destination: "user-1-2-c",
+                            ingress: [
+                              { name: "Echo-UnixDomainSocket", spec: { protocol: "Echo" } }
+                            ],
+                            retry: { retry_on: "always", num_retries: 10, timeout: 2000 }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/listeners', method: 'POST', 
+                headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options, postData);
+        });
+        
+        context('check-properties',()=>{
+            it('listener-name', async () =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners',
+                    method: 'GET'
+                };
+                res = await httpRequest(options)
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 2); });
+            it('protocol',            () => { assert.nestedPropertyVal(res[1], 'spec.protocol', 'UnixDomainSocket'); });
+            it('filename',                () => { assert.nestedPropertyVal(res[1], 'spec.filename', 'test'); });
+            it('has-rules',           () => { assert.nestedProperty(res[1], 'rules'); });
+        });
+        
+        context('delete', ()=>{
+            let res, str = '';
+            it('delete-listener', async ()=>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners/test-listener',
+                    method: 'DELETE'
+                };
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners',
+                    method: 'GET'
+                }
+                await httpRequest(options);
+                res = await httpRequest(options_get);
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
+    context('add-check-delete-JSONSocket-listeners-via-api', () =>{
+        let res, str = '';
+        it('add-listener', async () =>{
+            const postData = JSON.stringify({
+                "listener": {
+                    name: 'test-listener',
+                    spec: { 
+                        protocol: 'JSONSocket',
+                        transport: { protocol: 'UDP', port: 54321 }
+                    },
+                    rules: [ {
+                        action: {
+                          route: {
+                            destination: "user-1-2-c",
+                            ingress: [
+                              { name: "Echo-JSONSocket", spec: { protocol: "Echo" } }
+                            ],
+                            retry: { retry_on: "always", num_retries: 10, timeout: 2000 }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/listeners', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options, postData);
+        });
+        
+        context('check-properties',()=>{
+            it('listener-name', async () =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners',
+                    method: 'GET'
+                };
+                res = await httpRequest(options)
+                console.log(res);
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 2); });
+            it('protocol',            () => { assert.nestedPropertyVal(res[1], 'spec.protocol', 'JSONSocket'); });
+            it('has-transport', () => { assert.instanceOf(res[1].spec.transport, Object); });
+            it('transport-protocol', () => { assert.nestedPropertyVal(res[1], 'spec.transport.protocol', 'UDP'); });
+            it('transport-port', () => { assert.nestedPropertyVal(res[1], 'spec.transport.port', 54321); });
+            it('has-rules',           () => { assert.nestedProperty(res[1], 'rules'); });
+        });
+        
+        context('delete', ()=>{
+            let res, str = '';
+            it('delete-listener', async ()=>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners/test-listener',
+                    method: 'DELETE'
+                };
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners',
+                    method: 'GET'
+                }
+                await httpRequest(options);
+                res = await httpRequest(options_get);
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
+    context('add-check-delete-multiple-listeners', ()=>{
         let res, reqs = [];
         it('add-5-listeners', async ()=>{
             let options = {
@@ -255,7 +581,7 @@ describe('Listeners API', ()  => {
         });
     });
 
-    context('error',() => {
+    context('invalid-request',() => {
         it('add-existing-listener', () => {
             let res;
             const postData = JSON.stringify({
