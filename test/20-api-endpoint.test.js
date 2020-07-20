@@ -95,7 +95,8 @@ function httpRequest(params, postData) {
 
 describe('EndPoint API', ()  => {
     var e, s;
-    before( async() => {
+    before( async function () {
+        this.timeout(5000);
         l7mp = new L7mp();
         l7mp.static_config = static_config;
         l7mp.applyAdmin({ log_level: 'warn' , strict: true});
