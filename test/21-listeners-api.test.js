@@ -103,7 +103,7 @@ describe('Listeners API', ()  => {
     })
 
     context('get-listeners', () => {
-        let res, str = '';
+        let res;
         it('controller-listener', async () =>{
             let options = {
                 host: 'localhost', port: 1234,
@@ -119,7 +119,7 @@ describe('Listeners API', ()  => {
     });
 
     context('add-check-delete-listeners-via-api', () =>{
-        let res, str = '';
+        let res;
         it('add-listener', async () =>{
             const postData = JSON.stringify({
                 "listener": {
@@ -163,7 +163,7 @@ describe('Listeners API', ()  => {
         });
         
         context('delete', ()=>{
-            let res, str = '';
+            let res;
             it('delete-listener', async ()=>{
                 let options = {
                     host: 'localhost', port: 1234,
@@ -183,7 +183,7 @@ describe('Listeners API', ()  => {
     });
 
     context('add-check-delete-HTTP-listeners-via-api', () =>{
-        let res, str = '';
+        let res;
         it('add-listener', async () =>{
             const postData = JSON.stringify({
                 "listener": {
@@ -227,7 +227,7 @@ describe('Listeners API', ()  => {
         });
         
         context('delete', ()=>{
-            let res, str = '';
+            let res;
             it('delete-listener', async ()=>{
                 let options = {
                     host: 'localhost', port: 1234,
@@ -247,7 +247,7 @@ describe('Listeners API', ()  => {
     });
 
     context('add-check-delete-WebSocket-listeners-via-api', () =>{
-        let res, str = '';
+        let res;
         it('add-listener', async () =>{
             const postData = JSON.stringify({
                 "listener": {
@@ -291,7 +291,7 @@ describe('Listeners API', ()  => {
         });
         
         context('delete', ()=>{
-            let res, str = '';
+            let res;
             it('delete-listener', async ()=>{
                 let options = {
                     host: 'localhost', port: 1234,
@@ -311,7 +311,7 @@ describe('Listeners API', ()  => {
     });
 
     context('add-check-delete-TCP-listeners-via-api', () =>{
-        let res, str = '';
+        let res;
         it('add-listener', async () =>{
             const postData = JSON.stringify({
                 "listener": {
@@ -355,7 +355,7 @@ describe('Listeners API', ()  => {
         });
         
         context('delete', ()=>{
-            let res, str = '';
+            let res;
             it('delete-listener', async ()=>{
                 let options = {
                     host: 'localhost', port: 1234,
@@ -375,7 +375,7 @@ describe('Listeners API', ()  => {
     });
 
     context('add-check-delete-UnixDomainSocket-listeners-via-api', () =>{
-        let res, str = '';
+        let res;
         it('add-listener', async () =>{
             const postData = JSON.stringify({
                 "listener": {
@@ -419,7 +419,7 @@ describe('Listeners API', ()  => {
         });
         
         context('delete', ()=>{
-            let res, str = '';
+            let res;
             it('delete-listener', async ()=>{
                 let options = {
                     host: 'localhost', port: 1234,
@@ -439,7 +439,7 @@ describe('Listeners API', ()  => {
     });
 
     context('add-check-delete-JSONSocket-listeners-via-api', () =>{
-        let res, str = '';
+        let res;
         it('add-listener', async () =>{
             const postData = JSON.stringify({
                 "listener": {
@@ -478,7 +478,6 @@ describe('Listeners API', ()  => {
                     method: 'GET'
                 };
                 res = await httpRequest(options)
-                console.log(res);
             });
             it('length-of-listeners', () => { assert.lengthOf(res, 2); });
             it('protocol',            () => { assert.nestedPropertyVal(res[1], 'spec.protocol', 'JSONSocket'); });
@@ -489,7 +488,60 @@ describe('Listeners API', ()  => {
         });
         
         context('delete', ()=>{
-            let res, str = '';
+            let res;
+            it('delete-listener', async ()=>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners/test-listener',
+                    method: 'DELETE'
+                };
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners',
+                    method: 'GET'
+                }
+                await httpRequest(options);
+                res = await httpRequest(options_get);
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
+    context('add-check-delete-empty-rules-listeners-via-api', () =>{
+        let res;
+        it('add-listener', async () =>{
+            const postData = JSON.stringify({
+                "listener": {
+                    name: "test-listener",
+                    spec: { protocol: "TCP", port: 12345 },
+                    rules: []
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/listeners', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options, postData);
+        });
+        
+        context('check-properties',()=>{
+            it('listener-name', async () =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/listeners',
+                    method: 'GET'
+                };
+                res = await httpRequest(options)
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 2); });
+            it('protocol',            () => { assert.nestedPropertyVal(res[1], 'spec.protocol', 'TCP'); });
+            it('port',                () => { assert.nestedPropertyVal(res[1], 'spec.port', 12345); });
+            it('has-rules',           () => { assert.nestedProperty(res[1], 'rules'); });
+        });
+        
+        context('delete', ()=>{
+            let res;
             it('delete-listener', async ()=>{
                 let options = {
                     host: 'localhost', port: 1234,
@@ -583,7 +635,6 @@ describe('Listeners API', ()  => {
 
     context('invalid-request',() => {
         it('add-existing-listener', () => {
-            let res;
             const postData = JSON.stringify({
                 "listener": {
                     name: "controller-listener",
@@ -616,7 +667,6 @@ describe('Listeners API', ()  => {
         });
 
         it('add-empty-listener', () => {
-            let res;
             const postData = JSON.stringify({ });
             let options = {
                 host: 'localhost', port: 1234,
@@ -631,7 +681,6 @@ describe('Listeners API', ()  => {
         });
 
         it('without-rules', () => {
-            let res;
             const postData = JSON.stringify({
                 "listener": {
                     name: "test",
@@ -654,7 +703,6 @@ describe('Listeners API', ()  => {
         });
 
         it('delete-non-existing-listener', ()=>{
-            let res;
             let options = {
                 host: 'localhost', port: 1234,
                 path: `/api/v1/listeners/non-existing-listener`,
