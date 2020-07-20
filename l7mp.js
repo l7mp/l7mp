@@ -701,18 +701,23 @@ class L7mp {
 
     deleteEndPoint(c, n){
         log.silly('L7mp.deleteEndPoint:', n);
-
         let cl = this.getCluster(c);
-        if(!cl){
+        if(!cl) {
             let e = `Unknown cluster "${c}"`;
             log.warn('L7mp.deleteEndPoint', e);
             throw new NotFoundError(`Cannot delete endpoint: ${e}`);
         }
-        cl.deleteEndPoint(n);
-
-        let i = this.endpoints.findIndex(({name}) => name === n);
-        if(i >= 0)
-            this.endpoints.splice(i, 1);
+        let ie = cl.endpoints.findIndex(({name}) => name === n)
+        if(ie >= 0){
+            cl.deleteEndPoint(n);
+            let i = this.endpoints.findIndex(({name}) => name === n);
+            if(i >= 0)
+                this.endpoints.splice(i, 1);
+        }else{
+            let e = `Unknown endpoint "${n}"`;
+            log.warn(`L7mp.deleteEndPoint:`, e);
+            throw new NotFoundError(`Cannot delete endpoint: ${e}`);
+        }
     }
 
     ////////////////////////////////////////////////////
