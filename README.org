@@ -181,13 +181,14 @@ essentially all REST API calls, and it greatly simplifies the use of the API.
 On session creation, l7mp will demultiplex the bidirectional stream received at the listener into
 two uni-directional streams: the /ingress stream/ (in the direction from the source/listener to the
 destination/cluster) will be routed through the =Logger= transform cluster. Theoretically, a
-transform cluster is free to apply any modification to the traffic flowing through it, it can be a
-local cluster built into the l7mp datapath (like =Logger=) or a remote cluster (e.g., another
-WebSocket cluster), the only requirement is that the cluster endpoint listen in the specified port
-and send the modified traffic back to l7mp. For now, the =Logger= cluster just dumps the content of
-the stream without transforming it in any ways, but you get the point.  The returned stream is then
-piped to the cluster =ws-cluster=. In the /egress direction/ (from the destination/cluster back to
-the source/listener), no transformation occurs as the egress chain spec is missing.
+transform cluster is free to apply any modification it wants to the traffic passing through it, it
+can be local (built into the l7mp datapath, like =Logger=) or remote (e.g., another WebSocket
+cluster), the only requirement is that the cluster endpoint listen at the specified address on the
+specified port and send the modified traffic back to l7mp. For now, the =Logger= cluster just dumps
+the content of the stream without transforming it in any ways, but you get the point.  The returned
+stream is then piped to the cluster =ws-cluster=. In the /egress direction/ (from the
+destination/cluster back to the source/listener), no transformation occurs as the egress chain spec
+is missing.
 
 The ingress and the egress routes are specified and handled separately.  Both routes can contain a
 list of any number of transform clusters that will be chained sequentially, automatically
@@ -216,7 +217,7 @@ otherwise l7mp, which connects back to this port, will not accept the connection
 socat - udp:localhost:15000,sourceport=15001
 #+END_SRC
 
-Then, start a [[https://github.com/vi/websocat][=websocat=]] receiver:
+Then, [[https://github.com/vi/websocat][start]] a =websocat= receiver:
 
 #+BEGIN_SRC sh
 websocat -Eb ws-l:127.0.0.1:16000 -
