@@ -548,9 +548,10 @@ class L7mp {
             throw new Error(`Cannot delete rule from rulelist: ${e}`);
         }
 
-        if(pos < 0 || pos >= rl.length){
-            res.status = new Error(`Cannot delete rule at position ${pos} in rulelist`);
-            return;
+        if(pos < 0 || pos > rl.rules.length){
+            let e = `Cannot insert rule at position ${pos} into rulelist`;
+            log.warn(`L7mp.addRuleToRuleList:`, e);
+            throw new Error(e);
         }
 
         rl.rules.splice(pos, 1);
