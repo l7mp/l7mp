@@ -544,8 +544,8 @@ class L7mp {
 
         if(!(rl instanceof RuleList)){
             let e = `Invalid rulelist`;
-            log.warn(`L7mp.addRuleToRuleList:`, e );
-            throw new Error(`Cannot add rule to rulelist: ${e}`);
+            log.warn(`L7mp.deleteRuleFromRuleList:`, e );
+            throw new Error(`Cannot delete rule from rulelist: ${e}`);
         }
 
         if(pos < 0 || pos >= rl.length){
