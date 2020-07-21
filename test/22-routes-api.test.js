@@ -248,6 +248,765 @@ describe('Routes API', ()  => {
         });
     });
 
+    context('add-check-delete-routes-UDP-cluster-via-api', () =>{
+        let res;
+        it('add-routes', async () =>{
+            const postData = JSON.stringify({
+                "route": {
+                    name: "test-route",
+                    destination: {
+                        name: 'UDPCluster',
+                        spec: {
+                            protocol: 'UDP',
+                            port: 16000,
+                            bind: {port: 16001, address: '127.0.0.1'}
+                        }, 
+                        endpoints: [{spec: {address: '127.0.0.1'}}]
+                    }
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/routes', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options, postData);
+        });
+        context('check-properties',()=>{
+            it('route-name', async () =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                };
+                res = await httpRequest(options);
+            });
+            it('length-of-routes',  () => { assert.lengthOf(res, 2); });
+            it('has-name',          () => { assert.property(res[1], 'name'); });
+            it('name-value',        () => { assert.propertyVal(res[1], 'name', 'test-route'); });
+            it('has-destination',   () => { assert.property(res[1], 'destination'); });
+            it('destination-value', () => { assert.propertyVal(res[1], 'destination', 'UDPCluster'); });
+            it('has-retry',         () => { assert.property(res[1], 'retry'); })
+            it('retry-retry_on',    () => { assert.nestedPropertyVal(res[1], 'retry.retry_on', 'never'); });
+            it('retry-num_retries', () => { assert.nestedPropertyVal(res[1], 'retry.num_retries', 1); });
+            it('retry-timeout',     () => { assert.nestedPropertyVal(res[1], 'retry.timeout', 2000); });
+        });
+        context('delete',()=>{
+            let res;
+            it('delete-route', async () => {
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes/test-route',
+                    method: 'DELETE'
+                };
+                let options_cluster = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/clusters/UDPCluster',
+                    method: 'DELETE'
+                }
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                }
+                await httpRequest(options);
+                await httpRequest(options_cluster);
+                res = await httpRequest(options_get);
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
+    context('add-check-delete-routes-TCP-cluster-via-api', () =>{
+        let res;
+        it('add-routes', async () =>{
+            const postData = JSON.stringify({
+                "route": {
+                    name: "test-route",
+                    destination: {
+                        name: 'TCPCluster',
+                        spec: {
+                            protocol: 'TCP',
+                            port: 16000,
+                            bind: {port: 16001, address: '127.0.0.1'}
+                        }, 
+                        endpoints: [{spec: {address: '127.0.0.1'}}]
+                    }
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/routes', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options, postData);
+        });
+        context('check-properties',()=>{
+            it('route-name', async () =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                };
+                res = await httpRequest(options);
+            });
+            it('length-of-routes',  () => { assert.lengthOf(res, 2); });
+            it('has-name',          () => { assert.property(res[1], 'name'); });
+            it('name-value',        () => { assert.propertyVal(res[1], 'name', 'test-route'); });
+            it('has-destination',   () => { assert.property(res[1], 'destination'); });
+            it('destination-value', () => { assert.propertyVal(res[1], 'destination', 'TCPCluster'); });
+            it('has-retry',         () => { assert.property(res[1], 'retry'); })
+            it('retry-retry_on',    () => { assert.nestedPropertyVal(res[1], 'retry.retry_on', 'never'); });
+            it('retry-num_retries', () => { assert.nestedPropertyVal(res[1], 'retry.num_retries', 1); });
+            it('retry-timeout',     () => { assert.nestedPropertyVal(res[1], 'retry.timeout', 2000); });
+        });
+        context('delete',()=>{
+            let res;
+            it('delete-route', async () => {
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes/test-route',
+                    method: 'DELETE'
+                };
+                let options_cluster = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/clusters/TCPCluster',
+                    method: 'DELETE'
+                }
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                }
+                await httpRequest(options);
+                await httpRequest(options_cluster);
+                res = await httpRequest(options_get);
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
+    context('add-check-delete-routes-UDS-cluster-via-api', () =>{
+        let res;
+        it('add-routes', async () =>{
+            const postData = JSON.stringify({
+                "route": {
+                    name: "test-route",
+                    destination: {
+                        name: 'UnixDomainSocketCluster',
+                        spec: {
+                            protocol: 'UnixDomainSocket',
+                            port: 16000,
+                            bind: {port: 16001, address: '127.0.0.1'}
+                        }, 
+                        endpoints: [{spec: {address: '127.0.0.1'}}]
+                    }
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/routes', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options, postData);
+        });
+        context('check-properties',()=>{
+            it('route-name', async () =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                };
+                res = await httpRequest(options);
+            });
+            it('length-of-routes',  () => { assert.lengthOf(res, 2); });
+            it('has-name',          () => { assert.property(res[1], 'name'); });
+            it('name-value',        () => { assert.propertyVal(res[1], 'name', 'test-route'); });
+            it('has-destination',   () => { assert.property(res[1], 'destination'); });
+            it('destination-value', () => { assert.propertyVal(res[1], 'destination', 'UnixDomainSocketCluster'); });
+            it('has-retry',         () => { assert.property(res[1], 'retry'); })
+            it('retry-retry_on',    () => { assert.nestedPropertyVal(res[1], 'retry.retry_on', 'never'); });
+            it('retry-num_retries', () => { assert.nestedPropertyVal(res[1], 'retry.num_retries', 1); });
+            it('retry-timeout',     () => { assert.nestedPropertyVal(res[1], 'retry.timeout', 2000); });
+        });
+        context('delete',()=>{
+            let res;
+            it('delete-route', async () => {
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes/test-route',
+                    method: 'DELETE'
+                };
+                let options_cluster = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/clusters/UnixDomainSocketCluster',
+                    method: 'DELETE'
+                }
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                }
+                await httpRequest(options);
+                await httpRequest(options_cluster);
+                res = await httpRequest(options_get);
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
+    context('add-check-delete-routes-JSONSocket-cluster-via-api', () =>{
+        let res;
+        it('add-routes', async () =>{
+            const postData = JSON.stringify({
+                "route": {
+                    name: "test-route",
+                    destination: {
+                        name: 'JSONSocketCluster',
+                        spec: {
+                            protocol: 'JSONSocket',
+                            port: 16000,
+                            bind: {port: 16001, address: '127.0.0.1'},
+                            transport: { protocol: 'UDP', port: 54321 },
+                        }, 
+                        endpoints: [{spec: {address: '127.0.0.1'}}]
+                    }
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/routes', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options, postData);
+        });
+        context('check-properties',()=>{
+            it('route-name', async () =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                };
+                res = await httpRequest(options);
+            });
+            it('length-of-routes',  () => { assert.lengthOf(res, 2); });
+            it('has-name',          () => { assert.property(res[1], 'name'); });
+            it('name-value',        () => { assert.propertyVal(res[1], 'name', 'test-route'); });
+            it('has-destination',   () => { assert.property(res[1], 'destination'); });
+            it('destination-value', () => { assert.propertyVal(res[1], 'destination', 'JSONSocketCluster'); });
+            it('has-retry',         () => { assert.property(res[1], 'retry'); })
+            it('retry-retry_on',    () => { assert.nestedPropertyVal(res[1], 'retry.retry_on', 'never'); });
+            it('retry-num_retries', () => { assert.nestedPropertyVal(res[1], 'retry.num_retries', 1); });
+            it('retry-timeout',     () => { assert.nestedPropertyVal(res[1], 'retry.timeout', 2000); });
+        });
+        context('delete',()=>{
+            let res;
+            it('delete-route', async () => {
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes/test-route',
+                    method: 'DELETE'
+                };
+                let options_cluster = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/clusters/JSONSocketCluster',
+                    method: 'DELETE'
+                }
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                }
+                await httpRequest(options);
+                await httpRequest(options_cluster);
+                res = await httpRequest(options_get);
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
+    context('add-check-delete-routes-Echo-cluster-via-api', () =>{
+        let res;
+        it('add-routes', async () =>{
+            const postData = JSON.stringify({
+                "route": {
+                    name: "test-route",
+                    destination: {
+                        name: 'EchoCluster',
+                        spec: {
+                            protocol: 'Echo',
+                            port: 16000,
+                            bind: {port: 16001, address: '127.0.0.1'}
+                        }, 
+                        endpoints: [{spec: {address: '127.0.0.1'}}]
+                    }
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/routes', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options, postData);
+        });
+        context('check-properties',()=>{
+            it('route-name', async () =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                };
+                res = await httpRequest(options);
+            });
+            it('length-of-routes',  () => { assert.lengthOf(res, 2); });
+            it('has-name',          () => { assert.property(res[1], 'name'); });
+            it('name-value',        () => { assert.propertyVal(res[1], 'name', 'test-route'); });
+            it('has-destination',   () => { assert.property(res[1], 'destination'); });
+            it('destination-value', () => { assert.propertyVal(res[1], 'destination', 'EchoCluster'); });
+            it('has-retry',         () => { assert.property(res[1], 'retry'); })
+            it('retry-retry_on',    () => { assert.nestedPropertyVal(res[1], 'retry.retry_on', 'never'); });
+            it('retry-num_retries', () => { assert.nestedPropertyVal(res[1], 'retry.num_retries', 1); });
+            it('retry-timeout',     () => { assert.nestedPropertyVal(res[1], 'retry.timeout', 2000); });
+        });
+        context('delete',()=>{
+            let res;
+            it('delete-route', async () => {
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes/test-route',
+                    method: 'DELETE'
+                };
+                let options_cluster = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/clusters/EchoCluster',
+                    method: 'DELETE'
+                }
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                }
+                await httpRequest(options);
+                await httpRequest(options_cluster);
+                res = await httpRequest(options_get);
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
+    context('add-check-delete-routes-Sync-cluster-via-api', () =>{
+        let res;
+        it('add-routes', async () =>{
+            const postData = JSON.stringify({
+                "route": {
+                    name: "test-route",
+                    destination: {
+                        name: 'SyncCluster',
+                        spec: {
+                            protocol: 'Sync',
+                            port: 16000,
+                            bind: {port: 16001, address: '127.0.0.1'},
+                            query: 'test/test/test'
+                        }, 
+                        endpoints: [{spec: {address: '127.0.0.1'}}]
+                    }
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/routes', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options, postData);
+        });
+        context('check-properties',()=>{
+            it('route-name', async () =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                };
+                res = await httpRequest(options);
+            });
+            it('length-of-routes',  () => { assert.lengthOf(res, 2); });
+            it('has-name',          () => { assert.property(res[1], 'name'); });
+            it('name-value',        () => { assert.propertyVal(res[1], 'name', 'test-route'); });
+            it('has-destination',   () => { assert.property(res[1], 'destination'); });
+            it('destination-value', () => { assert.propertyVal(res[1], 'destination', 'SyncCluster'); });
+            it('has-retry',         () => { assert.property(res[1], 'retry'); })
+            it('retry-retry_on',    () => { assert.nestedPropertyVal(res[1], 'retry.retry_on', 'never'); });
+            it('retry-num_retries', () => { assert.nestedPropertyVal(res[1], 'retry.num_retries', 1); });
+            it('retry-timeout',     () => { assert.nestedPropertyVal(res[1], 'retry.timeout', 2000); });
+        });
+        context('delete',()=>{
+            let res;
+            it('delete-route', async () => {
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes/test-route',
+                    method: 'DELETE'
+                };
+                let options_cluster = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/clusters/SyncCluster',
+                    method: 'DELETE'
+                }
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                }
+                await httpRequest(options);
+                await httpRequest(options_cluster);
+                res = await httpRequest(options_get);
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
+    context('add-check-delete-routes-JSONencap-cluster-via-api', () =>{
+        let res;
+        it('add-routes', async () =>{
+            const postData = JSON.stringify({
+                "route": {
+                    name: "test-route",
+                    destination: {
+                        name: 'JSONEncapCluster',
+                        spec: {
+                            protocol: 'JSONEncap',
+                            port: 16000
+                        }, 
+                        endpoints: [{spec: {address: '127.0.0.1'}}]
+                    }
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/routes', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options, postData);
+        });
+        context('check-properties',()=>{
+            it('route-name', async () =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                };
+                res = await httpRequest(options);
+            });
+            it('length-of-routes',  () => { assert.lengthOf(res, 2); });
+            it('has-name',          () => { assert.property(res[1], 'name'); });
+            it('name-value',        () => { assert.propertyVal(res[1], 'name', 'test-route'); });
+            it('has-destination',   () => { assert.property(res[1], 'destination'); });
+            it('destination-value', () => { assert.propertyVal(res[1], 'destination', 'JSONEncapCluster'); });
+            it('has-retry',         () => { assert.property(res[1], 'retry'); })
+            it('retry-retry_on',    () => { assert.nestedPropertyVal(res[1], 'retry.retry_on', 'never'); });
+            it('retry-num_retries', () => { assert.nestedPropertyVal(res[1], 'retry.num_retries', 1); });
+            it('retry-timeout',     () => { assert.nestedPropertyVal(res[1], 'retry.timeout', 2000); });
+        });
+        context('delete',()=>{
+            let res;
+            it('delete-route', async () => {
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes/test-route',
+                    method: 'DELETE'
+                };
+                let options_cluster = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/clusters/JSONEncapCluster',
+                    method: 'DELETE'
+                }
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                }
+                await httpRequest(options);
+                await httpRequest(options_cluster);
+                res = await httpRequest(options_get);
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
+    context('add-check-delete-routes-JSONdecap-cluster-via-api', () =>{
+        let res;
+        it('add-routes', async () =>{
+            const postData = JSON.stringify({
+                "route": {
+                    name: "test-route",
+                    destination: {
+                        name: 'JSONDecapCluster',
+                        spec: {
+                            protocol: 'JSONDecap',
+                            port: 16000
+                        }, 
+                        endpoints: [{spec: {address: '127.0.0.1'}}]
+                    }
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/routes', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options, postData);
+        });
+        context('check-properties',()=>{
+            it('route-name', async () =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                };
+                res = await httpRequest(options);
+            });
+            it('length-of-routes',  () => { assert.lengthOf(res, 2); });
+            it('has-name',          () => { assert.property(res[1], 'name'); });
+            it('name-value',        () => { assert.propertyVal(res[1], 'name', 'test-route'); });
+            it('has-destination',   () => { assert.property(res[1], 'destination'); });
+            it('destination-value', () => { assert.propertyVal(res[1], 'destination', 'JSONDecapCluster'); });
+            it('has-retry',         () => { assert.property(res[1], 'retry'); })
+            it('retry-retry_on',    () => { assert.nestedPropertyVal(res[1], 'retry.retry_on', 'never'); });
+            it('retry-num_retries', () => { assert.nestedPropertyVal(res[1], 'retry.num_retries', 1); });
+            it('retry-timeout',     () => { assert.nestedPropertyVal(res[1], 'retry.timeout', 2000); });
+        });
+        context('delete',()=>{
+            let res;
+            it('delete-route', async () => {
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes/test-route',
+                    method: 'DELETE'
+                };
+                let options_cluster = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/clusters/JSONDecapCluster',
+                    method: 'DELETE'
+                }
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                }
+                await httpRequest(options);
+                await httpRequest(options_cluster);
+                res = await httpRequest(options_get);
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
+    context('add-check-delete-routes-Stdio-cluster-via-api', () =>{
+        let res;
+        it('add-routes', async () =>{
+            const postData = JSON.stringify({
+                "route": {
+                    name: "test-route",
+                    destination: {
+                        name: 'StdioCluster',
+                        spec: {
+                            protocol: 'Stdio',
+                            port: 16000,
+                            bind: {port: 16001, address: '127.0.0.1'}
+                        }, 
+                        endpoints: [{spec: {address: '127.0.0.1'}}]
+                    }
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/routes', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options, postData);
+        });
+        context('check-properties',()=>{
+            it('route-name', async () =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                };
+                res = await httpRequest(options);
+            });
+            it('length-of-routes',  () => { assert.lengthOf(res, 2); });
+            it('has-name',          () => { assert.property(res[1], 'name'); });
+            it('name-value',        () => { assert.propertyVal(res[1], 'name', 'test-route'); });
+            it('has-destination',   () => { assert.property(res[1], 'destination'); });
+            it('destination-value', () => { assert.propertyVal(res[1], 'destination', 'StdioCluster'); });
+            it('has-retry',         () => { assert.property(res[1], 'retry'); })
+            it('retry-retry_on',    () => { assert.nestedPropertyVal(res[1], 'retry.retry_on', 'never'); });
+            it('retry-num_retries', () => { assert.nestedPropertyVal(res[1], 'retry.num_retries', 1); });
+            it('retry-timeout',     () => { assert.nestedPropertyVal(res[1], 'retry.timeout', 2000); });
+        });
+        context('delete',()=>{
+            let res;
+            it('delete-route', async () => {
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes/test-route',
+                    method: 'DELETE'
+                };
+                let options_cluster = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/clusters/StdioCluster',
+                    method: 'DELETE'
+                }
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                }
+                await httpRequest(options);
+                await httpRequest(options_cluster);
+                res = await httpRequest(options_get);
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
+    context('add-check-delete-routes-Discard-cluster-via-api', () =>{
+        let res;
+        it('add-routes', async () =>{
+            const postData = JSON.stringify({
+                "route": {
+                    name: "test-route",
+                    destination: {
+                        name: 'DiscardCluster',
+                        spec: {
+                            protocol: 'Discard',
+                            port: 16000,
+                            bind: {port: 16001, address: '127.0.0.1'}
+                        }, 
+                        endpoints: [{spec: {address: '127.0.0.1'}}]
+                    }
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/routes', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options, postData);
+        });
+        context('check-properties',()=>{
+            it('route-name', async () =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                };
+                res = await httpRequest(options);
+            });
+            it('length-of-routes',  () => { assert.lengthOf(res, 2); });
+            it('has-name',          () => { assert.property(res[1], 'name'); });
+            it('name-value',        () => { assert.propertyVal(res[1], 'name', 'test-route'); });
+            it('has-destination',   () => { assert.property(res[1], 'destination'); });
+            it('destination-value', () => { assert.propertyVal(res[1], 'destination', 'DiscardCluster'); });
+            it('has-retry',         () => { assert.property(res[1], 'retry'); })
+            it('retry-retry_on',    () => { assert.nestedPropertyVal(res[1], 'retry.retry_on', 'never'); });
+            it('retry-num_retries', () => { assert.nestedPropertyVal(res[1], 'retry.num_retries', 1); });
+            it('retry-timeout',     () => { assert.nestedPropertyVal(res[1], 'retry.timeout', 2000); });
+        });
+        context('delete',()=>{
+            let res;
+            it('delete-route', async () => {
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes/test-route',
+                    method: 'DELETE'
+                };
+                let options_cluster = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/clusters/DiscardCluster',
+                    method: 'DELETE'
+                }
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                }
+                await httpRequest(options);
+                await httpRequest(options_cluster);
+                res = await httpRequest(options_get);
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
+    context('add-check-delete-routes-Logger-cluster-via-api', () =>{
+        let res;
+        it('add-routes', async () =>{
+            const postData = JSON.stringify({
+                "route": {
+                    name: "test-route",
+                    destination: {
+                        name: 'LoggerCluster',
+                        spec: {
+                            protocol: 'Logger',
+                            port: 16000,
+                            bind: {port: 16001, address: '127.0.0.1'}
+                        }, 
+                        endpoints: [{spec: {address: '127.0.0.1'}}]
+                    }
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/routes', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options, postData);
+        });
+        context('check-properties',()=>{
+            it('route-name', async () =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                };
+                res = await httpRequest(options);
+            });
+            it('length-of-routes',  () => { assert.lengthOf(res, 2); });
+            it('has-name',          () => { assert.property(res[1], 'name'); });
+            it('name-value',        () => { assert.propertyVal(res[1], 'name', 'test-route'); });
+            it('has-destination',   () => { assert.property(res[1], 'destination'); });
+            it('destination-value', () => { assert.propertyVal(res[1], 'destination', 'LoggerCluster'); });
+            it('has-retry',         () => { assert.property(res[1], 'retry'); })
+            it('retry-retry_on',    () => { assert.nestedPropertyVal(res[1], 'retry.retry_on', 'never'); });
+            it('retry-num_retries', () => { assert.nestedPropertyVal(res[1], 'retry.num_retries', 1); });
+            it('retry-timeout',     () => { assert.nestedPropertyVal(res[1], 'retry.timeout', 2000); });
+        });
+        context('delete',()=>{
+            let res;
+            it('delete-route', async () => {
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes/test-route',
+                    method: 'DELETE'
+                };
+                let options_cluster = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/clusters/LoggerCluster',
+                    method: 'DELETE'
+                }
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/routes',
+                    method: 'GET'
+                }
+                await httpRequest(options);
+                await httpRequest(options_cluster);
+                res = await httpRequest(options_get);
+            });
+            it('length-of-listeners', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
     context('add-check-delete-routes-via-api-complex', () =>{
         let res;
         it('add-routes', async () =>{
