@@ -11,8 +11,8 @@
 
 ** EndPoint: 10-*
 *** DONE WebSocket
-*** TODO UDP
-*** TODO TCP
+*** DONE UDP
+*** DONE TCP
 *** DONE JSONSocket
 *** DONE Test
 
@@ -20,19 +20,20 @@
 *** TODO HTTP
 *** DONE WebSocket
 *** DONE UDP
-*** TODO TCP
-*** TODO UnixDomainSocket
-*** TODO JSONSocket
+*** DONE TCP
+*** DONE UnixDomainSocket
+*** DONE JSONSocket
 *** DONE Echo
 *** DONE JSONEncap
-*** TODO JSONDecap
+*** DONE JSONDecap
 *** UNFINISHED Sync
 *** DONE Test
 
 ** Listener: 12-*
 *** DONE HTTP
-*** TODO WebSocket
-*** TODO UDP
+*** UNFINISHED WebSocket
+*** DONE UDP singleton
+*** DONE UDP server
 *** DONE TCP
 *** DONE JSONSocket
 *** DONE UnixDomainSocket
@@ -40,24 +41,24 @@
 
 ** Route, Rule, RuleList: 13-*
 *** UNFINISHED Route
-*** TODO Rule
-*** TODO RuleList
+*** UNFINISHED Rule
+*** UNFINISHED RuleList
 
 ** Session: routing, retry, load-balancing: 14-*
 *** DONE Session
 *** TODO Routing
 *** DONE Retry
-*** TODO LoadBalancing
+*** DONE LoadBalancing
 
 * API tests
 
 ** Cluster & EndPoint API: 20-*
-*** TODO add/delete/list clusters via the API
-*** TODO add/delete/list endpoints to/from a cluster via the API
+*** DONE add/delete/list clusters via the API
+*** UNFINISHED add/delete/list endpoints to/from a cluster via the API
 *** TODO removeOrphanSessions test
 
 ** Listener API: 21-*
-*** TODO add/delete/list listeners via the API
+*** DONE add/delete/list listeners via the API
 *** TODO removeOrphanSessions test
 
 ** Route, Rule, RuleList: 22-*
