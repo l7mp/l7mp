@@ -49,14 +49,21 @@
   VirtualServices must run a sidecar; it is an error to deploy a proxy VirtualService to a naked
   Kubernetes service. Otherwise, the VirtualService is a stub that works in a request-response
   config; such VirtualServices are used e.g., to wrap naked Kubernetes services.
-- A VirtualService consists of 3 parts: a listener specification for creating a server-side socket
-  to receive inbound connection requests, a rule-list (optional) comprising a list of match-action
-  rules, with each match condition specified as a JSONPredicate query on connection metadata and an
-  action that describes what to do with the connection (rewrite rule or route) if the corresponding
-  condition matches, and further options (optional). A rule with an empty match is a catch-all rule
-  that always matches. The rule-list is evaluated when the listener socket emits a new connection
-  request (i.e., at connection-setup time) sequentially, and the action of the fist matching rule
-  is applied. Currently there is no API for adding/deleting individual rules.
+- A VirtualService consists of 4 parts: (i) a selector defining the
+  corresponding pods, (ii) a listener specification for creating a
+  server-side socket to receive inbound connection requests, (iii) a
+  rule-list (optional) comprising a list of match-action rules, with
+  each match condition specified as a JSONPredicate query on
+  connection metadata and an action that describes what to do with the
+  connection (rewrite rule or route) if the corresponding condition
+  matches, and (iv) further options (optional).
+
+  A rule with an empty match is a catch-all rule that always
+  matches. The rule-list is evaluated when the listener socket emits a
+  new connection request (i.e., at connection-setup time)
+  sequentially, and the action of the fist matching rule is
+  applied. Currently there is no API for adding/deleting individual
+  rules.
 - The Kubernetes control plane operator should automatically generate an (identically named)
   VirtualService (see example below) for each naked Kubernetes service. The VirtualService should
   contain the =protocol= and =port= keys from the Kubernetes service spec, and nothing else. This
@@ -169,11 +176,12 @@
   metadata:
     name: transcoder-vsvc
     namespace: default
+  spec:
     selector:
       matchLabels:
         app: transcoder
-  spec:
-    websocket:
+    listener:
+      protocol: WebSocket
       port: 8888
     rules:
       action:
@@ -200,11 +208,12 @@
   metadata:
     name: worker-svc
     namespace: default
+  spec:
     selector:
       matchLabels:
         app: worker
-  spec:
-    udp:
+    listener:
+      protocol: UDP
       port: 9999
   #+END_SRC
 
@@ -225,10 +234,11 @@
   metadata:
     name: gateway-vsvc
     namespace: default
+  spec:
     selector:
       serviceName: gateway-svc
-  spec:
-    udp:
+    listener:
+      protocol: UDP
       port: 9001
     rules:
     - match:
@@ -283,9 +293,9 @@ The below setup implements a fully-fledged IMS media plane.
   metadata:
     name: worker-target
     namespace: default
+  spec:
     selector:
       serviceName: gateway-vsvc
-  spec:
     serviceName: worker-vsvc
     loadbalancer:
       policy: ConsistentHash
@@ -360,9 +370,9 @@ The below setup implements a fully-fledged IMS media plane.
   metadata:
     name: transcoder-target
     namespace: default
+  spec:
     selector:
       serviceName: worker-svc
-  spec:
     jsonsocket:
       transport:
         udp: { port: 19001 }
@@ -382,12 +392,14 @@ The below setup implements a fully-fledged IMS media plane.
   metadata:
     name: worker-vsvc
     namespace: default
+  spec:
     selector:
       serviceName: worker-svc
-  spec:
-    jsonsocket:
+    listener:
+      protocol: JSONSocket
       transport:
-        udp: { port: 19000 }
+        protocol: UDP
+        port: 19000
     rules:
       - action:
           route:
@@ -415,10 +427,11 @@ The below setup implements a fully-fledged IMS media plane.
   metadata:
     name: gateway-user-a-vsvc
     namespace: default
+  spec:
     selector:
       serviceName: gateway-svc
-  spec:
-    udp:
+    listener:
+      protocol: UDP
       port: 8001,
       connect: { address: "192.168.0.1", port: 8001 }
     rules:
@@ -443,10 +456,11 @@ The below setup implements a fully-fledged IMS media plane.
   metadata:
     name: gateway-user-b-vsvc
     namespace: default
+  spec:
     selector:
       serviceName: gateway-svc
-  spec:
-    udp:
+    listener:
+      protocol: UDP
       port: 8002,
       connect: { address: "192.168.0.2", port: 8002 }
     rules:
@@ -493,10 +507,12 @@ The below setup implements a fully-fledged IMS media plane.
   kind: VirtualService
   metadata:
     name: my-source-vsvc
+  spec:
     selector:
       serviceName: my-source-svc
-  spec:
-    udp: { port: 8000 }
+    listener:
+      protocol: UDP
+      port: 8000
     rules:
       - action:
           route: my-route
@@ -572,10 +588,12 @@ The below setup implements a fully-fledged IMS media plane.
   kind: VirtualService
   metadata:
     name: my-destination-svc
+  spec:
     selector:
       serviceName: my-destination-svc
-  spec:
-    udp: { port: 2000 }
+    listener:
+      protocol: UDP
+      port: 2000
   #+END_SRC
 
 ** Automatically generating a Target
@@ -590,9 +608,9 @@ The below setup implements a fully-fledged IMS media plane.
   metadata:
     name: my-destination-svc
     namespace: default
+  spec:
     selector:
       serviceName: my-source-svc
-  spec:
     udp: { port: 2000 }
     serviceName: my-destination-svc
   #+END_SRC
@@ -716,3 +734,8 @@ The below setup implements a fully-fledged IMS media plane.
 - Encryption
 - Health-checking and circuit breaking
 - QoS
+
+
+# Local Variables:
+# fill-column: 70
+# End:
