@@ -26,7 +26,7 @@
 *** DONE Echo
 *** DONE JSONEncap
 *** DONE JSONDecap
-*** UNFINISHED Sync
+*** DONE Sync
 *** DONE Test
 
 ** Listener: 12-*
@@ -37,10 +37,9 @@
 *** DONE TCP
 *** DONE JSONSocket
 *** DONE UnixDomainSocket
-*** TODO Test
 
 ** Route, Rule, RuleList: 13-*
-*** UNFINISHED Route
+*** DONE Route
 *** UNFINISHED Rule
 *** UNFINISHED RuleList
 
@@ -62,9 +61,9 @@
 *** TODO removeOrphanSessions test
 
 ** Route, Rule, RuleList: 22-*
-*** TODO add/delete/list routes via the API
-*** TODO add/delete/list rulelists via the API
-*** TODO add/delete/list rules via the API
+*** DONE add/delete/list routes via the API
+*** DONE add/delete/list rulelists via the API
+*** DONE add/delete/list rules via the API
 *** TODO compound delete: deleting the route from a rule should remove the rule
 *** TODO compound delete: deleting the last rule from a rulelist should remove the rulelist
 *** TODO compound delete: deleting the rulelist from a listener should remove the listener (?)
@@ -72,3 +71,10 @@
 ** Session API: 22-*
 *** TODO delete/list sessions
 *** TODO monitoring
+
+* Integration tests 
+** TODO Gateway 31-* 
+
+** TODO Worker 32-*
+
+** TODO End-to-end 32-*
