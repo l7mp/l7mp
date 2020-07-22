@@ -29,7 +29,17 @@ const fs = require('fs');
 const net      = require('net');
 const {PassThrough} = require('stream');
 
-
+function unlinkFile(path){
+    return new Promise((resolve, reject) => {
+        fs.unlink(path, (err)=>{
+            if(err){
+                return reject(new Error(`Cannot unlink file: ${err.message}`))
+            }else{
+                resolve()
+            }
+        })
+    })
+}
 describe('UDS-NetSocketCluster', ()  => {
     var s, unixSocketServer;
     before( () => {
@@ -102,7 +112,8 @@ describe('UDS-NetSocketCluster', ()  => {
             s.stream.end();
         });
         it('unlink',  async () => {
-            fs.unlink('/tmp/unixSocket.sock', () => { return Promise.resolve() });
+            await unlinkFile('/tmp/unixSocket.sock');
+            return Promise.resolve();
         });
         it('correct-byte-stream',  async () => {
             // create an UDS echo server
