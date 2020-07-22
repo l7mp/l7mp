@@ -93,6 +93,7 @@ function httpRequest(params, postData) {
 }
 
 describe('RuleList API', ()  => {
+    let controller_rulelist_name;
     before( async () => {
         l7mp = new L7mp();
         l7mp.static_config = static_config;
@@ -114,6 +115,8 @@ describe('RuleList API', ()  => {
                 method: 'GET'
             };
             res = await httpRequest(options);
+            controller_rulelist_name = res[0].name;
+            console.log(res)
             return Promise.resolve();
         });
         it('length',        () => { assert.lengthOf(res, 1); });
@@ -237,7 +240,7 @@ describe('RuleList API', ()  => {
             });
             let options_rule = {
                 host: 'localhost', port: 1234,
-                path: '/api/v1/rulelists/controller-listener-RuleList-0/rules/1', method: 'POST'
+                path: `/api/v1/rulelists/${controller_rulelist_name}/rules/1`, method: 'POST'
                 , headers: {'Content-Type' : 'text/x-json'}
             }
             res = await httpRequest(options_rule, postData_rule);
@@ -247,7 +250,7 @@ describe('RuleList API', ()  => {
         it('get-rule-by-position', async ()=>{
             let options = {
                 host: 'localhost', port: 1234,
-                path: '/api/v1/rulelists/controller-listener-RuleList-0/rules/1',
+                path: `/api/v1/rulelists/${controller_rulelist_name}/rules/1`,
                 method: 'GET'
             };
             res = await httpRequest(options);
@@ -258,7 +261,7 @@ describe('RuleList API', ()  => {
         it('delete-rule-from-rulelist', async ()=>{
             let options = {
                 host: 'localhost', port: 1234,
-                path: '/api/v1/rulelists/controller-listener-RuleList-0/rules/1',
+                path: `/api/v1/rulelists/${controller_rulelist_name}/rules/1`,
                 method: 'DELETE'
             };
             res = await httpRequest(options);
@@ -297,7 +300,7 @@ describe('RuleList API', ()  => {
         it('already-defined-rulelist', async ()=>{
             let postData = JSON.stringify({
                 'rulelist': {
-                    name: 'controller-listener-RuleList-0',
+                    name: `${controller_rulelist_name}`,
                     rules: ['test']
                 }
             });
