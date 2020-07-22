@@ -46,8 +46,8 @@ describe('SyncCluster', () => {
         it('has-protocol',             () => { assert.propertyVal(c, 'protocol', 'Sync'); });
         it('load-balancer',            () => { assert.property(c, 'loadbalancer'); });
         it('load-balancer-instanceof', () => { assert.instanceOf(c.loadbalancer, LoadBalancer); });
-        it('has-query',                () => { assert.property(c, 'query'); });
-        it('equals',                   () => { assert.equal(c.query, 'test/test/test'); });
+        it('has-query',                () => { assert.nestedProperty(c, 'spec.query'); });
+        it('equals',                   () => { assert.nestedPropertyVal(c, 'spec.query', 'test/test/test'); });
     });
 
     context('addEndPoint', () => {

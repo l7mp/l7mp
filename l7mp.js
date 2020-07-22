@@ -517,9 +517,10 @@ class L7mp {
             throw new Error(`Cannot add rule to rulelist: ${e}`);
         }
 
-        if(pos < 0 || pos > rl.length){
-            res.status = new Error(`Cannot insert rule at position ${pos} into rulelist`);
-            return;
+        if(pos < 0 || pos > rl.rules.length){
+            let e = `Cannot insert rule at position ${pos} into rulelist`;
+            log.warn(`L7mp.addRuleToRuleList:`, e);
+            throw new Error(e);
         }
 
         let name = rule;
@@ -543,13 +544,14 @@ class L7mp {
 
         if(!(rl instanceof RuleList)){
             let e = `Invalid rulelist`;
-            log.warn(`L7mp.addRuleToRuleList:`, e );
-            throw new Error(`Cannot add rule to rulelist: ${e}`);
+            log.warn(`L7mp.deleteRuleFromRuleList:`, e );
+            throw new Error(`Cannot delete rule from rulelist: ${e}`);
         }
 
-        if(pos < 0 || pos >= rl.length){
-            res.status = new Error(`Cannot delete rule at position ${pos} in rulelist`);
-            return;
+        if(pos < 0 || pos > rl.rules.length){
+            let e = `Cannot insert rule at position ${pos} into rulelist`;
+            log.warn(`L7mp.addRuleToRuleList:`, e);
+            throw new Error(e);
         }
 
         rl.rules.splice(pos, 1);
