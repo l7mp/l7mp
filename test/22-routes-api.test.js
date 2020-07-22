@@ -20,21 +20,41 @@
 // ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-const log         = require('npmlog');
-const Stream      = require('stream');
 const assert      = require('chai').assert;
 const L7mp        = require('../l7mp.js').L7mp;
-const EndPoint    = require('../cluster.js').EndPoint;
-const Listener    = require('../listener.js').Listener;
-const Session     = require('../session.js').Session;
-const Cluster     = require('../cluster.js').Cluster;
-const Rule        = require('../rule.js').Rule;
-const RuleList    = require('../rule.js').RuleList;
-const Route       = require('../route.js').Route;
-const net         = require('net');
 const http        = require('http');
-const querystring = require('querystring');
-const { promises } = require('fs');
+
+
+let static_config = {
+    "admin": {
+      "log_level": "info",
+      "log_file": "stdout",
+      "access_log_path": "/tmp/admin_access.log"
+    },
+    "listeners": [
+      {
+        "name": "controller-listener",
+        "spec": {
+          "protocol": "HTTP",
+          "port": 1234
+        },
+        "rules": [
+          {
+            "action": {
+              "route": {
+                "destination": {
+                  "name": "l7mp-controller",
+                  "spec": {
+                    "protocol": "L7mpController"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  };
 
 
 function httpRequest(params, postData) {
@@ -73,36 +93,21 @@ function httpRequest(params, postData) {
 }
 
 describe('Routes API', ()  => {
-    let cl, cc, rc, ru, rl, stream;
+
     before( async function () {
         this.timeout(5000);
         l7mp = new L7mp();
-        l7mp.applyAdmin({ log_level: 'error', strict: true });
+        l7mp.static_config = static_config;
+        l7mp.applyAdmin({ log_level: 'error', strict: true  });
         // l7mp.applyAdmin({ log_level: 'silly', strict: true });
-        await l7mp.run(); // should return
-        cl = Listener.create( {name: 'controller-listener', spec: { protocol: 'HTTP', port: 1234 }});
-        cl.run();
-        l7mp.listeners.push(cl);
-        cc = Cluster.create({name: 'L7mpControllerCluster', spec: {protocol: 'L7mpController'}});
-        await cc.run();
-        l7mp.clusters.push(cc);
-        rc = Route.create({
-            name: 'Test-rc',
-            destination: 'L7mpControllerCluster',
-        });
-        ru = Rule.create({name: 'Test-ru', action: {route: 'Test-rc'}});
-        l7mp.rules.push(ru);
-        rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
-        cl.rules='Test-rs';
-        cl.emitter = l7mp.addSession.bind(l7mp);
-        l7mp.routes.push(rc);
-        l7mp.rulelists.push(rl);
+        await l7mp.run();
         return Promise.resolve();
     });
 
-    after(() =>{
-        cl.close();
-    })
+    after(() => {
+        let l = l7mp.getListener('controller-listener');
+        l.close();
+    });
 
     context('get-routes', () => {
         let res;
@@ -117,7 +122,7 @@ describe('Routes API', ()  => {
         it('length-of-routes', () => { assert.lengthOf(res, 1); });
         it('has-name',            () => { assert.property(res[0], 'name'); });
         it('has-destination',     () => { assert.property(res[0], 'destination'); });
-        it('destination-value',   () => { assert.propertyVal(res[0], 'destination', 'L7mpControllerCluster'); });
+        it('destination-value',   () => { assert.propertyVal(res[0], 'destination', 'l7mp-controller'); });
         it('has-retry',           () => { assert.property(res[0], 'retry'); })
         it('retry-retry_on',      () => { assert.nestedPropertyVal(res[0], 'retry.retry_on', 'never'); });
         it('retry-num_retries',   () => { assert.nestedPropertyVal(res[0], 'retry.num_retries', 1); });
