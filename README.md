@@ -185,24 +185,25 @@ NB: the rulelist, rule, and the route created implicitly by the listener will no
 
 # Protocol support
 
-| Type      | Protocol         | Session ID               | Type            | Role | Mode             | Re/Lb   | Status  |
-| Remote    | UDP              | IP 5-tuple               | datagram-stream | l/c  | singleton/server | yes/yes | Full    |
-|           | TCP              | IP 5-tuple               | byte-stream     | l/c  | server           | yes/yes | Full    |
-|           | HTTP             | IP 5-tuple               | byte-stream     | l    | server           | yes/yes | Partial |
-|           | WebSocket        | IP 5-tuple + HTTP        | datagram-stream | l/c  | server           | yes/yes | Full    |
-|           | JSONSocket       | IP 5-tuple + JSON header | datagram-stream | l/c  | server           | yes/yes | Full    |
-|           | SCTP             | IP 5-tuple               | datagram-stream | l/c  | server           | yes/yes | TODO    |
-|           | AF\_PACKET       | file desc                | datagram-stream | l/c  | singleton        | no/no   | TODO    |
-| Local     | STDIO-fork       | N/A                      | byte-stream     | c    | singleton        | no/no   | Full    |
-|           | UNIX/stream      | file desc/path           | byte-stream     | l/c  | server           | yes/yes | Full    |
-|           | UNIX/dgram       | file desc/path           | datagram-stream | l/c  | singleton        | no/no   | TODO    |
-|           | PIPE             | file desc/path           | byte-stream     | l/c  | singleton        | no/no   | TODO    |
-| Transform | INLINE/STDIO     | N/A                      | byte-stream     | c    | singleton        | yes/no  | Full    |
-|           | INLINE/Echo      | N/A                      | datagram-stream | c    | singleton        | yes/no  | Full    |
-|           | INLINE/Discard   | N/A                      | datagram-stream | c    | singleton        | yes/no  | Full    |
-|           | INLINE/Logger    | N/A                      | datagram-stream | c    | singleton        | yes/no  | Full    |
-|           | INLINE/JSONENcap | N/A                      | datagram-stream | c    | singleton        | yes/no  | Full    |
-|           | INLINE/JSONDecap | N/A                      | datagram-stream | c    | singleton        | yes/no  | Full    |
+| Type      | Protocol         | Session ID               | Type            | Role  | Mode             | Re/Lb   | Status  |
+| :-------: | :--------------: | :----------------------: | :-------------: | :---: | :--------------: | :-----: | :-----: |
+| Remote    | UDP              | IP 5-tuple               | datagram-stream | l/c   | singleton/server | yes/yes | Full    |
+|           | TCP              | IP 5-tuple               | byte-stream     | l/c   | server           | yes/yes | Full    |
+|           | HTTP             | IP 5-tuple               | byte-stream     | l     | server           | yes/yes | Partial |
+|           | WebSocket        | IP 5-tuple + HTTP        | datagram-stream | l/c   | server           | yes/yes | Full    |
+|           | JSONSocket       | IP 5-tuple + JSON header | datagram-stream | l/c   | server           | yes/yes | Full    |
+|           | SCTP             | IP 5-tuple               | datagram-stream | l/c   | server           | yes/yes | TODO    |
+|           | AF\_PACKET       | file desc                | datagram-stream | l/c   | singleton        | no/no   | TODO    |
+| Local     | STDIO-fork       | N/A                      | byte-stream     | c     | singleton        | no/no   | Full    |
+|           | UNIX/stream      | file desc/path           | byte-stream     | l/c   | server           | yes/yes | Full    |
+|           | UNIX/dgram       | file desc/path           | datagram-stream | l/c   | singleton        | no/no   | TODO    |
+|           | PIPE             | file desc/path           | byte-stream     | l/c   | singleton        | no/no   | TODO    |
+| Transform | INLINE/STDIO     | N/A                      | byte-stream     | c     | singleton        | yes/no  | Full    |
+|           | INLINE/Echo      | N/A                      | datagram-stream | c     | singleton        | yes/no  | Full    |
+|           | INLINE/Discard   | N/A                      | datagram-stream | c     | singleton        | yes/no  | Full    |
+|           | INLINE/Logger    | N/A                      | datagram-stream | c     | singleton        | yes/no  | Full    |
+|           | INLINE/JSONENcap | N/A                      | datagram-stream | c     | singleton        | yes/no  | Full    |
+|           | INLINE/JSONDecap | N/A                      | datagram-stream | c     | singleton        | yes/no  | Full    |
 
 
 ## Protocols
@@ -240,7 +241,7 @@ Note that streams can run on top of datagram protocols but not the other way aro
 -   cluster (c): protocol supports clusters to forward sessions to
 
 
-## Re/To/Lb
+## Re/Lb
 
 -   Re: Retries support, Lb: load-balance support
 
