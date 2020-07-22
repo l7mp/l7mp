@@ -114,7 +114,6 @@ describe('RuleList API', ()  => {
                 method: 'GET'
             };
             res = await httpRequest(options);
-            console.log(res)
             return Promise.resolve();
         });
         it('length',        () => { assert.lengthOf(res, 1); });
@@ -137,21 +136,24 @@ describe('RuleList API', ()  => {
                 path: '/api/v1/rulelists', method: 'POST'
                 , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
             }
-            await httpRequest(options, postData);
+            res = await httpRequest(options, postData);
+            assert.nestedPropertyVal(res, 'status', 200);
+            return Promise.resolve();
         });
         context('check-properties', ()=>{
-            it('rulelist-name', async () =>{
+            it('get-rulelist-by-name', async ()=>{
                 let options = {
                     host: 'localhost', port: 1234,
-                    path: '/api/v1/rulelists',
+                    path: '/api/v1/rulelists/test-rulelist',
                     method: 'GET'
                 };
                 res = await httpRequest(options);
+                assert.isOk(res);
                 return Promise.resolve();
             });
-            it('length-of-routes',  () => { assert.lengthOf(res, 2); });
-            it('has-name',          () => { assert.property(res[1], 'name'); });
-            it('name-value',        () => { assert.propertyVal(res[1], 'name', 'test-rulelist'); });
+            it('has-name',          () => { assert.property(res, 'name')});
+            it('name-value',        () => { assert.propertyVal(res, 'name', 'test-rulelist')});
+            it('has-rules',         () => {assert.property(res, 'rules')});
         });
         context('delete',()=>{
             let res;
@@ -242,6 +244,17 @@ describe('RuleList API', ()  => {
             assert.nestedPropertyVal(res, 'status', 200);
             return Promise.resolve();
         });
+        it('get-rule-by-position', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rulelists/controller-listener-RuleList-0/rules/1',
+                method: 'GET'
+            };
+            res = await httpRequest(options);
+            assert.nestedPropertyVal(res, 'name', 'test-rule');
+        });
+        it('has-match', () => { assert.nestedProperty(res, 'match.match')});
+        it('has-action-route', () => { assert.nestedProperty(res, 'action.route')});
         it('delete-rule-from-rulelist', async ()=>{
             let options = {
                 host: 'localhost', port: 1234,
@@ -328,5 +341,82 @@ describe('RuleList API', ()  => {
                     err => { assert.instanceOf(err, Error); return Promise.resolve()}
                 )
         });
-    })
+    });
+    //TODO: remove last rule from a rulelist should remove the entire rulelist
+    //TODO: deleting the rulelist from a listener should remove the listener
+
+    // The functionality is NOT implemented yet, should check before uncomment
+    // context('remove', ()=>{
+    //     let res;
+    //     // Next two tests stick together
+    //     it('add-rulelist-to-remove', async ()=>{
+    //         const postData = JSON.stringify({
+    //             'rulelist': {
+    //                 name: 'test-remove-last-rule',
+    //                 rules: ['test']
+    //             }
+    //         });
+    //         let options = {
+    //             host: 'localhost', port: 1234,
+    //             path: '/api/v1/rulelists', method: 'POST'
+    //             , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+    //         }
+    //         res = await httpRequest(options, postData);
+    //         assert.nestedPropertyVal(res,'status', 200);
+    //         return Promise.resolve()
+    //     })
+    //     it('remove-last-rule-remove-rulelist', async()=>{
+    //         let options_delete_rule = {
+    //             host: 'localhost', port: 1234,
+    //             path: '/api/v1/rulelists/test-remove-last-rule/rules/0',
+    //             method: 'DELETE'
+    //         };
+    //         res = await httpRequest(options_delete_rule);
+    //         assert.nestedPropertyVal(res,'status', 200);
+    //
+    //         let options_get = {
+    //             host: 'localhost', port: 1234,
+    //             path: '/api/v1/rulelists/test-remove-last-rule',
+    //             method: 'GET'
+    //         };
+    //         await httpRequest(options_get)
+    //             .then(
+    //                 ()=>{return Promise.reject(new Error('Expected method to reject.'))},
+    //                 err => { assert.instanceOf(err, Error); return Promise.resolve()}
+    //             )
+    //     });
+    //
+    //     it('add-listener', async() => {
+    //         const postData = JSON.stringify({
+    //             "listener": {
+    //                 name: "test-listener",
+    //                 spec: {protocol: "UDP", port: 15000},
+    //                 rules: [{
+    //                     action: {
+    //                         route: {
+    //                             destination: "user-1-2-c",
+    //                             ingress: [
+    //                                 {name: "Echo", spec: {protocol: "Echo"}}
+    //                             ],
+    //                             retry: {retry_on: "always", num_retries: 10, timeout: 2000}
+    //                         }
+    //                     }
+    //                 }
+    //                 ]
+    //             }
+    //         });
+    //         let options = {
+    //             host: 'localhost', port: 1234,
+    //             path: '/api/v1/listeners', method: 'POST'
+    //             , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+    //         }
+    //         res = await httpRequest(options, postData);
+    //         assert.nestedPropertyVal(res, 'status', 200);
+    //         return Promise.resolve()
+    //     });
+    //     it('remove-rulelist-from-listener', async ()=>{
+    //
+    //     });
+    // });
+
 });
