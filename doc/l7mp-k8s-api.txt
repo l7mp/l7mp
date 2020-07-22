@@ -296,10 +296,18 @@ The below setup implements a fully-fledged IMS media plane.
   spec:
     selector:
       serviceName: gateway-vsvc
-    serviceName: worker-vsvc
-    loadbalancer:
-      policy: ConsistentHash
-      key: "/labels/session_id"
+    cluster:
+      spec:
+        protocol: UDP
+        port: 9999
+        connect: { address: 1.1.1.1, port: 2000 }
+      loadbalancer:
+        policy: ConsistentHash
+        key: "/labels/session_id"
+      endpoints:
+        - selector:
+            matchLabels:
+              app: worker
   #+END_SRC
 
 - Next, we statically specify a Route since this same route will apply to all streams at the
@@ -347,11 +355,13 @@ The below setup implements a fully-fledged IMS media plane.
   metadata:
     name: sync-target
     namespace: default
+  spec:
     selector:
       serviceName: worker-svc
-  spec:
-    sync:
-      query: "/labels/session_id"
+    cluster:
+      spec:
+        protocol: Sync
+        query: "/labels/session_id"
   #+END_SRC
 
 - The next Target implements the call-out to the transcoding app at the worker. Notice that there
@@ -373,11 +383,14 @@ The below setup implements a fully-fledged IMS media plane.
   spec:
     selector:
       serviceName: worker-svc
-    jsonsocket:
-      transport:
-        udp: { port: 19001 }
-    endpoints:
-      - spec: { address: "127.0.0.1" }
+    cluster:
+      spec:
+        protocol: JSONSocket
+        transport:
+          protocol: UDP
+          port: 19001
+      endpoints:
+        - spec: { address: "127.0.0.1" }
   #+END_SRC
 
 - Finally, we describe the main VirtualService for the workers. This will expose the transcoder
@@ -527,22 +540,8 @@ The below setup implements a fully-fledged IMS media plane.
 - Configuration will start by considering each VirtualService one by one and generating an
   =addListener= REST API call to =l7mp= for each (except for VirtualServices wrapping naked
   Kubernetes services). Consider the VirtualService =my-source-vsvc=.
-- The first step is to simply convert the VirtualService =spec=
-
-  #+BEGIN_SRC yaml
-  spec:
-    udp: { port: 8000 }
-  #+END_SRC
-
-  to an =l7mp= Listener =spec= as follows:
-
-  #+BEGIN_SRC yaml
-  listener:
-    spec: { protocol: UDP, port: 8000 }
-  #+END_SRC
-
-- The rest is just copied from the VirtualService =spec=, yielding the following =addListener= call
-  to =l7mp=:
+- The first step is to simply make an =addListener= call to =l7mp= from the
+  =spec.listener= field of the VirtualService:
 
   #+BEGIN_SRC yaml
   listener:
@@ -611,8 +610,13 @@ The below setup implements a fully-fledged IMS media plane.
   spec:
     selector:
       serviceName: my-source-svc
-    udp: { port: 2000 }
-    serviceName: my-destination-svc
+    cluster:
+      spec:
+        protocol: UDP
+        port: 2000
+      endpoints:
+        - selector:
+            serviceName: my-destination-svc
   #+END_SRC
 
 ** Maintaining a list of endpoint/pod IPs
