@@ -11,8 +11,6 @@
 
 /[L7mp is currently under construction, with many advertised features untested, not working as promised, or completely missing.]/
 
-![Node.js CI](https://github.com/rg0now/l7mp/workflows/Node.js%20CI/badge.svg)
-
 L7mp is a Layer-7, multiprotocol service proxy and a service mesh framework. The emphasis is on
 /multiprotocol/ support, which lets l7mp to handle lots of transport- and application-layer network
 protocols natively not just the usual TCP/HTTP, and transparently convert between different
