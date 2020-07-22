@@ -306,7 +306,7 @@ when such a conversion is requested.
 
 ** Re/To/Lb
 
-- Re: Retries support, To: Timeout support, Lb: load-balance support
+- Re: Retries support, Lb: load-balance support
 
 * License
 
