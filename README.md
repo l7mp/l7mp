@@ -1,3 +1,5 @@
+# l7mp: A L7 Multiprotocol Proxy and Service Mesh
+
 *[L7mp is currently under construction, with many advertised features untested, not working as promised, or completely missing.]*
 
 L7mp is a Layer-7, multiprotocol service proxy and a service mesh framework. The emphasis is on *multiprotocol* support, which lets l7mp to handle lots of transport- and application-layer network protocols natively not just the usual TCP/HTTP, and transparently convert between different protocol encapsulations. The intention is for l7mp to serve as an incubator project to prototype the main service mesh features, in order to support network-intensive legacy/non-HTTP applications seamlessly in Kubernetes.
