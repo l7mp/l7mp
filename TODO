@@ -1,6 +1,6 @@
 * Importance: superhigh
 
-** TODO Convert README.org to markdown
+** TODO deleteCluster should be automatically recursive (should delete endpoints)
 ** TODO Recursive delete
 ** TODO Bring toJSON() before response validation
 ** TODO Loadbalancer: Weighted/RoundRobin
@@ -33,6 +33,7 @@
 
 * Importance: DONE
 
+** DONE Convert README.org to markdown
 ** DONE Handle named RuleList references in Listener and Route objects
 ** DONE RuleList API: add/delete rulelists
 ** DONE Defer resolving named references (to clusters, routes, etc.) to runtime
