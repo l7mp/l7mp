@@ -164,17 +164,33 @@ describe('Session API', ()  => {
            assert.propertyVal(res, 'status', 200);
            return Promise.resolve();
         });
-        // it('get-session-by-name', async()=>{
-        //     let options = {
-        //         host: 'localhost', port: '1234',
-        //         path: '/api/v1/sessions',
-        //         method : 'GET'
-        //     }
-        //     res = await httpRequest(options);
-        //     console.log(res);
-        //     assert.isOk(res);
-        //     return Promise.resolve();
-        // });
+        it('get-sessions', async()=>{
+            let options = {
+                host: 'localhost', port: '1234',
+                path: '/api/v1/sessions',
+                method : 'GET'
+            }
+            res = await httpRequest(options);
+            console.log(res);
+            assert.isOk(res);
+            return Promise.resolve();
+        });
+    });
+
+    context('invalid-requests', ()=>{
+        let res;
+        it('delete-nonexistent-session', async ()=>{
+            let options = {
+                host : 'localhost', port : 1234,
+                path : '/api/v1/sessions/non-existent-session',
+                method : 'DELETE'
+            };
+            return httpRequest(options)
+                .then(
+                    () =>{ return Promise.reject(new Error('Expected method to reject.'))},
+                    err => { assert.instanceOf(err, Error); return Promise.resolve()}
+                );
+        })
     });
 
 });
