@@ -26,6 +26,7 @@ const L7mp         = require('../l7mp.js').L7mp;
 const EndPoint     = require('../cluster.js').EndPoint;
 const Cluster      = require('../cluster.js').Cluster;
 const LoadBalancer = require('../cluster.js').LoadBalancer;
+const UDP          = require('dgram');
 
 describe('SyncCluster', () => {
     before( () => {
@@ -74,21 +75,48 @@ describe('SyncCluster', () => {
         it('get-2-name',       () => { let n = c.getEndPoint('Test'); assert.equal(n.name, 'Test'); });
     });
 
-    // TODO: Finish the stream test
-    // context('stream', () => {
-    //     var c, e, s;
-    //     c = Cluster.create({name: 'Sync', spec: {protocol: 'Sync', query: 'test/test/test'}});
-    //     c.protocol = 'Test'
-    //     console.log(c);
-    //     e = c.addEndPoint({name: 'Test', spec: {}});
-    //     it('ok', () => {
-    //         s = c.stream({metadata: {test: {test: {test: 'test'}}}});
-    //         assert.exists(s);
-    //     });
-    //     it('instanceOf',   () => { console.log(s); assert.instanceOf(s.stream, Stream); });
-    //     it('readable',     () => { assert.isOk(s.stream.readable); });
-    //     it('writeable',    () => { assert.isOk(s.stream.writable); });
-    //     it('has-endpoint', () => { assert.isObject(s.endpoint); });
-    //     it('destroyable',  () => { s.stream.end(); assert.isOk(true); });
-    // });
+    context('stream', () => {
+        var c, e, s;
+        c = Cluster.create({name: 'Sync', spec: {protocol: 'Sync', query: 'test/test/test'}});
+        c.protocol = 'Test'
+        e = c.addEndPoint({name: 'Test', spec: {}});
+        it('test', () => {assert.isOk(true); });
+        it('ok', async () => {
+            await c.run();
+            s = await c.stream({metadata: {test: {test: {test: 'test'}}}});
+            assert.exists(s);
+        });
+        it('instanceOf',   () => { assert.instanceOf(s.stream, Stream); });
+        it('readable',     () => { assert.isOk(s.stream.readable); });
+        it('writeable',    () => { assert.isOk(s.stream.writable); });
+        it('has-endpoint', () => { assert.isObject(s.endpoint); });
+        it('correct-byte-stream', () => {
+            let client = UDP.createSocket("udp4")
+            client.bind(1600)
+            let message = Buffer.from('test')
+            s.stream.on('message', (msg, rinfo) => {
+                assert.equal(msg.toString(), 'test');
+                client.close();
+                s.close();
+                console.log(s);
+                done();
+            })
+            client.send(message,16001, "127.0.0.1" , (err, bytes) => {
+                client.close();
+            });
+        });
+        it('Not-found-endpoint', async () => {
+            c.loadbalancer.update([undefined]);
+            return await c.stream({metadata: {test: {test: {test: 'test'}}}})
+                .then(() => assert(false))
+                .catch(() => assert(true));
+        });
+        it('close',(done) =>{
+            s.stream.on('finish', ()=>{
+                assert.isOk(true);
+                done();
+            });
+            s.stream.end();
+        });
+    });
 });
