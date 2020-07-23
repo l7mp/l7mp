@@ -549,8 +549,8 @@ class L7mp {
         }
 
         if(pos < 0 || pos > rl.rules.length){
-            let e = `Cannot insert rule at position ${pos} into rulelist`;
-            log.warn(`L7mp.addRuleToRuleList:`, e);
+            let e = `Cannot delete rule at position ${pos} from rulelist`;
+            log.warn(`L7mp.deleteRuleFromRuleList:`, e);
             throw new Error(e);
         }
 
