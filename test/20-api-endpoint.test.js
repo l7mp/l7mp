@@ -99,7 +99,7 @@ describe('EndPoint API', ()  => {
         this.timeout(5000);
         l7mp = new L7mp();
         l7mp.static_config = static_config;
-        l7mp.applyAdmin({ log_level: 'warn' , strict: true});
+        l7mp.applyAdmin({ log_level: 'error' , strict: true});
         await l7mp.run(); // should return
     });
 
