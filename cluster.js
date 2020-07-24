@@ -1016,25 +1016,22 @@ class SyncCluster extends Cluster {
             loadbalancer: { policy: 'None' },
             type:         'datagram',
         });
-        this.query    = c.spec.query; // JSON query to get key from medatata
+        this.spec.query    = c.spec.query; // JSON query to get key from medatata
         this.streams  = {};           // keyed by 'label'
     }
 
     toJSON(){
         log.silly('SyncCluster.toJSON:', `"${this.name}"`);
         return {
-            name:       this.name,
-            protocol:   this.protocol,
-            // type:       'datagram',
-            query:      this.query,
-            streams:    this.streams.length,
+            name: this.name,
+            spec: { protocol: this.spec.protocol, query: this.spec.query, streams: this.streams.length },
         };
     }
 
     stream(s){
         log.silly('SyncCluster.stream', `Session: "${s.name}"`);
 
-        let label = Rule.getAtPath(s.metadata, this.query);
+        let label = Rule.getAtPath(s.metadata, this.spec.query);
         if (typeof label !== 'undefined'){
             if(!(label in this.streams)){
                 // unknown label: create stream
@@ -1046,7 +1043,7 @@ class SyncCluster extends Cluster {
         } else {
             return Promise.reject(
                 new GeneralError(`SyncCluster.stream: reject: Session: "${s.name}":`+
-                                 ` query "${this.query}": empty label`));
+                                 ` query "${this.spec.query}": empty label`));
         }
     }
 };

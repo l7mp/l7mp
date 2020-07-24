@@ -1,11 +1,9 @@
 * Importance: superhigh
 
-** TODO Handle named RuleList references in Listener and Route objects
-** TODO RuleList API: add/delete rulelists
-** TODO Defer resolving named references (to clusters, routes, etc.) to runtime
-** TODO Endpoint API: addEndpoint(cluster, new endpoint, optional name), deleteEndPoint(name)
+** TODO Convert README.org to markdown
+** TODO Recursive delete
+** TODO Bring toJSON() before response validation
 ** TODO Loadbalancer: Weighted/RoundRobin
-** DONE API validation: switch back!
 ** TODO checkRoute
 
 * Importance: high
@@ -35,6 +33,11 @@
 
 * Importance: DONE
 
+** DONE Handle named RuleList references in Listener and Route objects
+** DONE RuleList API: add/delete rulelists
+** DONE Defer resolving named references (to clusters, routes, etc.) to runtime
+** DONE Endpoint API: addEndpoint(cluster, new endpoint, optional name), deleteEndPoint(name)
+** DONE API validation: switch back!
 ** DONE Add timestamps to log messages
 ** DONE Make sure binary mode works well (iperf should work through L7mp just fine)
 ** DONE UDP: return into "connect" mode (waiting for packet) after stream is destroyed

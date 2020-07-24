@@ -265,12 +265,14 @@ components:
             - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.UDPListenerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.TCPListenerSpec'
           discriminator:
             propertyName: protocol
             mapping:
-              WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
-              UDP: '#/components/schemas/io.l7mp.api.v1.UDPClusterSpec'
+              WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
+              UDP: '#/components/schemas/io.l7mp.api.v1.UDPListenerSpec'
               UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
+              TCP: '#/components/schemas/io.l7mp.api.v1.TCPListenerSpec'
         parse:
           type: array
           items:
@@ -319,6 +321,7 @@ components:
             - $ref: '#/components/schemas/io.l7mp.api.v1.UDPClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.TCPClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.JSONSocketClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.L7mpControllerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
@@ -333,6 +336,7 @@ components:
               WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
               UDP: '#/components/schemas/io.l7mp.api.v1.UDPClusterSpec'
               TCP: '#/components/schemas/io.l7mp.api.v1.TCPClusterSpec'
+              JSONSocket: '#/components/schemas/io.l7mp.api.v1.JSONSocketClusterSpec'
               UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
               L7mpController: '#/components/schemas/io.l7mp.api.v1.L7mpControllerSpec'
               Stdio: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
@@ -417,6 +421,38 @@ components:
           enum:  # fixed value
             - UnixDomainSocket
           description: The protocol, must be "UnixDomainSocket".
+
+    io.l7mp.api.v1.JSONSocketClusterSpec:
+      description: A JSONSocket cluster specification that forwards JSONSocket connections to an upstream cluster over a specified transport.
+      type: object
+      required:
+        - protocol
+        - port
+      properties:
+        protocol:
+          type: string
+          enum:  # fixed value
+            - JSONSocket
+          description: The protocol, must be "JSONSocket".
+        transport:
+          description: The specification of the cluster that provides the transport service to JSONSocket.
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.UDPClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.TCPClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.DiscardClusterSpec'
+          discriminator:
+            propertyName: protocol
+            mapping:
+              WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
+              UDP: '#/components/schemas/io.l7mp.api.v1.UDPClusterSpec'
+              TCP: '#/components/schemas/io.l7mp.api.v1.TCPClusterSpec'
+              UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
+              Stdio: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
+              Discard: '#/components/schemas/io.l7mp.api.v1.DiscardClusterSpec'
 
     io.l7mp.api.v1.L7mpControllerSpec:
       description: A virtual cluster that accepts L7mp controller REST API calls.
