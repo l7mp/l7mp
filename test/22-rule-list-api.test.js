@@ -97,7 +97,7 @@ describe('RuleList API', ()  => {
     before( async () => {
         l7mp = new L7mp();
         l7mp.static_config = static_config;
-        l7mp.applyAdmin({ log_level: 'warn' });
+        l7mp.applyAdmin({ log_level: 'error' });
         await l7mp.run();
     });
 
@@ -116,7 +116,6 @@ describe('RuleList API', ()  => {
             };
             res = await httpRequest(options);
             controller_rulelist_name = res[0].name;
-            console.log(res)
             return Promise.resolve();
         });
         it('length',        () => { assert.lengthOf(res, 1); });
