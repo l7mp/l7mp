@@ -1219,7 +1219,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   # Rule API
-  /api/v1/rule:
+  /api/v1/rules:
     get:
       description: Get a list of Rules.
       operationId: getRules
