@@ -150,7 +150,7 @@ describe('Listeners API', ()  => {
             }
             await httpRequest(options, postData);
         });
-        
+
         context('check-properties',()=>{
             it('listener-name', async () =>{
                 let options = {
@@ -165,7 +165,7 @@ describe('Listeners API', ()  => {
             it('port',                () => { assert.nestedPropertyVal(res[1], 'spec.port', 15000); });
             it('has-rules',           () => { assert.nestedProperty(res[1], 'rules'); });
         });
-        
+
         context('delete', ()=>{
             let res;
             it('delete-listener', async ()=>{
@@ -214,7 +214,7 @@ describe('Listeners API', ()  => {
             }
             await httpRequest(options, postData);
         });
-        
+
         context('check-properties',()=>{
             it('listener-name', async () =>{
                 let options = {
@@ -229,7 +229,7 @@ describe('Listeners API', ()  => {
             it('port',                () => { assert.nestedPropertyVal(res[1], 'spec.port', 12345); });
             it('has-rules',           () => { assert.nestedProperty(res[1], 'rules'); });
         });
-        
+
         context('delete', ()=>{
             let res;
             it('delete-listener', async ()=>{
@@ -278,7 +278,7 @@ describe('Listeners API', ()  => {
             }
             await httpRequest(options, postData);
         });
-        
+
         context('check-properties',()=>{
             it('listener-name', async () =>{
                 let options = {
@@ -293,7 +293,7 @@ describe('Listeners API', ()  => {
             it('port',                () => { assert.nestedPropertyVal(res[1], 'spec.port', 12345); });
             it('has-rules',           () => { assert.nestedProperty(res[1], 'rules'); });
         });
-        
+
         context('delete', ()=>{
             let res;
             it('delete-listener', async ()=>{
@@ -342,7 +342,7 @@ describe('Listeners API', ()  => {
             }
             await httpRequest(options, postData);
         });
-        
+
         context('check-properties',()=>{
             it('listener-name', async () =>{
                 let options = {
@@ -357,7 +357,7 @@ describe('Listeners API', ()  => {
             it('port',                () => { assert.nestedPropertyVal(res[1], 'spec.port', 12345); });
             it('has-rules',           () => { assert.nestedProperty(res[1], 'rules'); });
         });
-        
+
         context('delete', ()=>{
             let res;
             it('delete-listener', async ()=>{
@@ -401,12 +401,12 @@ describe('Listeners API', ()  => {
                 });
             let options = {
                 host: 'localhost', port: 1234,
-                path: '/api/v1/listeners', method: 'POST', 
+                path: '/api/v1/listeners', method: 'POST',
                 headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
             }
             await httpRequest(options, postData);
         });
-        
+
         context('check-properties',()=>{
             it('listener-name', async () =>{
                 let options = {
@@ -421,7 +421,7 @@ describe('Listeners API', ()  => {
             it('filename',                () => { assert.nestedPropertyVal(res[1], 'spec.filename', 'test'); });
             it('has-rules',           () => { assert.nestedProperty(res[1], 'rules'); });
         });
-        
+
         context('delete', ()=>{
             let res;
             it('delete-listener', async ()=>{
@@ -448,7 +448,7 @@ describe('Listeners API', ()  => {
             const postData = JSON.stringify({
                 "listener": {
                     name: 'test-listener',
-                    spec: { 
+                    spec: {
                         protocol: 'JSONSocket',
                         transport: { protocol: 'UDP', port: 54321 }
                     },
@@ -473,7 +473,7 @@ describe('Listeners API', ()  => {
             }
             await httpRequest(options, postData);
         });
-        
+
         context('check-properties',()=>{
             it('listener-name', async () =>{
                 let options = {
@@ -490,7 +490,7 @@ describe('Listeners API', ()  => {
             it('transport-port', () => { assert.nestedPropertyVal(res[1], 'spec.transport.port', 54321); });
             it('has-rules',           () => { assert.nestedProperty(res[1], 'rules'); });
         });
-        
+
         context('delete', ()=>{
             let res;
             it('delete-listener', async ()=>{
@@ -528,7 +528,7 @@ describe('Listeners API', ()  => {
             }
             await httpRequest(options, postData);
         });
-        
+
         context('check-properties',()=>{
             it('listener-name', async () =>{
                 let options = {
@@ -543,7 +543,7 @@ describe('Listeners API', ()  => {
             it('port',                () => { assert.nestedPropertyVal(res[1], 'spec.port', 12345); });
             it('has-rules',           () => { assert.nestedProperty(res[1], 'rules'); });
         });
-        
+
         context('delete', ()=>{
             let res;
             it('delete-listener', async ()=>{
@@ -607,11 +607,11 @@ describe('Listeners API', ()  => {
             return Promise.resolve();
         });
 
-        it('check-listener-1', ()=>{ assert.nestedPropertyVal(res[1], 'name', 'test-listener-1');});
-        it('check-listener-2', ()=>{ assert.nestedPropertyVal(res[2], 'name', 'test-listener-2');});
-        it('check-listener-3', ()=>{ assert.nestedPropertyVal(res[3], 'name', 'test-listener-3');});
-        it('check-listener-4', ()=>{ assert.nestedPropertyVal(res[4], 'name', 'test-listener-4');});
-        it('check-listener-5', ()=>{ assert.nestedPropertyVal(res[5], 'name', 'test-listener-5');});
+        it('check-listener-1', ()=>{ assert.isOk( res.find( ({name}) => name ===  'test-listener-1' )); });
+        it('check-listener-2', ()=>{ assert.isOk( res.find( ({name}) => name ===  'test-listener-2' )); });
+        it('check-listener-3', ()=>{ assert.isOk( res.find( ({name}) => name ===  'test-listener-3' )); });
+        it('check-listener-4', ()=>{ assert.isOk( res.find( ({name}) => name ===  'test-listener-4' )); });
+        it('check-listener-5', ()=>{ assert.isOk( res.find( ({name}) => name ===  'test-listener-5' )); });
 
         it('delete-multiple-listener', async ()=>{
             let res, reqs = [];
@@ -625,7 +625,7 @@ describe('Listeners API', ()  => {
             }
 
             await Promise.all(reqs);
-            
+
             let options_get = {
                 host: 'localhost', port: 1234,
                 path: '/api/v1/listeners',
