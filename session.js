@@ -302,8 +302,11 @@ class Session {
 
     toJSON(){
         log.silly('Session.toJSON:', `"${this.name}"`);
+        // remove name from metadata to not dump it twice
+        const {name, ...m} = this.metadata;
         return {
-            metadata:    this.metadata,
+            name:        this.name,
+            metadata:    m,
             source:      this.source,
             destination: this.destination,
             ingress:     this.chain.ingress,
