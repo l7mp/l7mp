@@ -670,7 +670,8 @@ class JSONSocketCluster extends Cluster {
                         // _.merge(req_header, value);
                     } else {
                         log.warn('JSONSocketCluster.stream:', `${this.name}:`,
-                                 `Cannot find path "${h.path} in metadata`);
+                                 `Cannot find path "${dumper(h.path, 6)} in metadata:`,
+                                 dumper(s.metadata,6));
                     }
                 } else if(h.set &&
                           typeof h.set.path !== "undefined" &&
