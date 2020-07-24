@@ -171,7 +171,6 @@ describe('Session API', ()  => {
                 method : 'GET'
             }
             res = await httpRequest(options);
-            console.log(res);
             assert.isOk(res);
             return Promise.resolve();
         });
