@@ -429,7 +429,7 @@ class L7mpOpenAPI {
                                                      ctx.operation, res.status.status);
                 if (valid.errors) {
                     log.silly('l7mp.openapi: postResponseHandler failed on response:',
-                              dumper(res.status, 6), ',',
+                              dumper(res.response, 6), ',',
                               `Error: ${dumper(res.status.content, 6)}`);
                     res.status = new InternalError(valid.errors);
                     res.status.message = 'Internal Server Error: Response validation failed';

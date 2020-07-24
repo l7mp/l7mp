@@ -764,7 +764,9 @@ components:
             - type: string  # reference to a named RuleList
             - type: array
               items:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+                anyOf:
+                  - type: string  # reference to a named Rule
+                  - $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
 
     io.l7mp.api.v1.Metadata:
       description: "Metadata that describes a session's all known parameters, like ports and IP addresses, status, HTTP headers (if relevant), etc. In general, metadata are created by the listener and they can be modified/queried/matched in rules/actions."
