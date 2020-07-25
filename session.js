@@ -617,7 +617,7 @@ class Session {
             this.emit('disconnect', stage.origin, error);
 
         // since we may reconnect the stream, make sure that the old stream is properly closed,
-        // otherwise the stream may remain alive, e.g., adter a 'connection refused' for a
+        // otherwise the stream may remain alive, e.g., after a 'connection refused' for a
         // connected UDP stream
         if(stream){
             stream.removeListener("close", stage.on_disc["close"]);
@@ -661,6 +661,10 @@ class Session {
             break;
         case 'connect-failure': // does not involve re-connect
         case 'never': // never retry, fail immediately
+            log.info('Session.disconnect:', `Session ${this.name}:`,
+                     `stage "${stage.origin}": Retry policy is "${retry.retry_on}",`,
+                     `not retrying`);
+            this.end();
             break;
         default:
             let msg = `Unknown retry policy for session "${this.name}"`;

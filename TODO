@@ -1,9 +1,9 @@
 * Importance: superhigh
 
-** TODO deleteCluster should be automatically recursive (should delete endpoints)
+** TODO Listener should be reconnected after a connection refused on a send() call
+** TODO Fix error when JSONSocket client timeout does not initiate a reconnect
+** TODO deleteCluster() should be automatically recursive (should delete endpoints)
 ** TODO Recursive delete
-** TODO Bring toJSON() before response validation
-** TODO Loadbalancer: Weighted/RoundRobin
 ** TODO checkRoute
 
 * Importance: high
@@ -17,6 +17,7 @@
 
 * Wishlist
 
+** TODO Loadbalancer: Weighted/RoundRobin
 ** TODO Generic parser/deparser support in Listeners/Clusters
 ** TODO access_log
 
@@ -33,6 +34,7 @@
 
 * Importance: DONE
 
+** DONE Bring toJSON() before response validation
 ** DONE Convert README.org to markdown
 ** DONE Handle named RuleList references in Listener and Route objects
 ** DONE RuleList API: add/delete rulelists
