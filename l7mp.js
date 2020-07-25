@@ -811,5 +811,6 @@ class L7mp {
     }
 
 };
+L7mp.index = 0;
 
 module.exports.L7mp = L7mp;
