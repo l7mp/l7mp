@@ -293,7 +293,7 @@ class Session {
         this.chain                   = { ingress: [], egress: [] };
         this.type                    = this.source.origin.type;  // init
         this.retry_on_disconnect_num = 0;
-        this.active_streams          = 0;
+        this.active_streams          = 0;   // except listener
         this.track                   = false
         this.events                  = [];  // an event log for tracked sessions
 
@@ -478,17 +478,6 @@ class Session {
                           `Empty stream for cluster`);
             }
 
-        // // set streams for each route elem
-        // let d = resolved_list.pop();
-        // this.destination.stream = d.stream;
-        // this.active_streams++;
-
-        // resolved_list.forEach( (r) => {
-        //     r.stage.stream = r.stream;
-        //     this.active_streams++;
-        // });
-        // this.num_streams = this.active_streams;
-
         this.num_streams = this.active_streams = resolved_list.length;
         log.verbose("Session.pipeline:",
                     `${this.active_streams} stream(s) initiated`);
@@ -649,7 +638,6 @@ class Session {
 
                 this.active_streams++;
                 this.repipe(stage);
-
                 if(this.active_streams === this.num_streams)
                     this.connected();
             } catch(err){
@@ -736,6 +724,7 @@ class Session {
 
     // state transitions
     connected(){
+        log.silly('Session.connected', `Session ${this.name}:`);
         this.status = 'CONNECTED';
         this.emit('connect');
 
@@ -747,6 +736,7 @@ class Session {
 
     // immediately closes the stream, possibly sends response headers
     error(err){
+        log.silly('Session.error', `Session ${this.name}:`);
         this.events.push({ event: 'ERROR',
                            timestamp: new Date().toISOString(),
                            message: err.message,
@@ -761,6 +751,7 @@ class Session {
     }
 
     end(err){
+        log.silly('Session.end', `Session ${this.name}:`);
         this.events.push({ event: 'END',
                            timestamp: new Date().toISOString(),
                            message: err ? err.message : 'Normal end',
@@ -775,7 +766,7 @@ class Session {
     // ongoing), otherwise keep route/session around until all retries
     // have been aborted
     destroy(){
-        log.silly('Session.destroy:', `${this.name}`);
+        log.silly('Session.destroy:', `Session ${this.name}`);
         let deleted = 0;
         let ret = 1;
 
