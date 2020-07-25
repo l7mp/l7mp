@@ -72,7 +72,8 @@ const validate = (object, schema) => {
 }
 
 class L7mp {
-    constructor() {
+    constructor(n) {
+        this.name = n || `L7mp-${L7mp.index++}`;
         this.static_config = {};
         // object hierarchy
         this.admin      = {};
@@ -87,7 +88,7 @@ class L7mp {
     }
 
     toJSON(){
-        log.silly('L7MP.toJSON:', `"${this.name}"`);
+        log.silly('L7mp.toJSON:', `"${this.name}"`);
         return {
             admin:      this.getAdmin(),
             listeners:  this.listeners,
