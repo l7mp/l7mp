@@ -91,13 +91,13 @@ class L7mp {
         log.silly('L7mp.toJSON:', `"${this.name}"`);
         return {
             admin:      this.getAdmin(),
-            listeners:  this.listeners,
-            clusters:   this.clusters,
-            rulelists:  this.rulelists,
-            rules:      this.rules,
-            sessions:   this.sessions,
-            routes:     this.routes,
-            endpoints:  this.endpoints,
+            listeners:  this.listeners.map(l => l.toJSON()),
+            clusters:   this.clusters.map(c => c.toJSON()),
+            rulelists:  this.rulelists.map(r => r.toJSON()),
+            rules:      this.rules.map(r => r.toJSON()),
+            sessions:   this.sessions.map(s => s.toJSON()),
+            routes:     this.routes.map(r => r.toJSON()),
+            endpoints:  this.endpoints.map(e => e.toJSON()),
         };
     }
 

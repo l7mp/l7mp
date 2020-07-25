@@ -307,10 +307,10 @@ class Session {
         return {
             name:        this.name,
             metadata:    m,
-            source:      this.source,
-            destination: this.destination,
-            ingress:     this.chain.ingress,
-            egress:      this.chain.egress,
+            source:      this.source.toJSON(),
+            destination: this.destination.toJSON(),
+            ingress:     this.chain.ingress.map(x => x.toJSON()),
+            egress:      this.chain.egress.map(x => x.toJSON()),
             status:      this.status,
             events:      this.events,
         };

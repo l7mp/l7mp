@@ -67,7 +67,7 @@ class Listener {
         return {
             name:    this.name,
             spec:    this.spec,
-            rules:   this.rules,
+            rules:   this.rules, // string
             options: this.options,
         };
     }

@@ -449,8 +449,8 @@ class Cluster {
             name:         this.name,
             spec:         this.spec,
             // type:         this.type,
-            endpoints:    this.endpoints,
-            loadbalancer: this.loadbalancer,
+            endpoints:    this.endpoints.map(x => x.toJSON()),
+            loadbalancer: this.loadbalancer.toJSON(),
             // retriable:    this.retriable
             options:      this.options,
         };

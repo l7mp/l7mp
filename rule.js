@@ -103,7 +103,7 @@ class Rule {
         log.silly('Rule.toJSON:', `"${this.name}"`);
         return {
             name:   this.name,
-            match:  this.match,
+            match:  this.match.toJSON(),
             action: this.action,
         };
     }
