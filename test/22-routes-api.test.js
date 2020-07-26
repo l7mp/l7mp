@@ -24,38 +24,38 @@ const assert      = require('chai').assert;
 const L7mp        = require('../l7mp.js').L7mp;
 const http        = require('http');
 
-
 let static_config = {
-    "admin": {
-      "log_level": "info",
-      "log_file": "stdout",
-      "access_log_path": "/tmp/admin_access.log"
+    admin: {
+        log_level: "error",
+        // log_level: "silly",
+        log_file: "stdout",
+        access_log_path: "/tmp/admin_access.log",
+        strict: true,
     },
-    "listeners": [
-      {
-        "name": "controller-listener",
-        "spec": {
-          "protocol": "HTTP",
-          "port": 1234
-        },
-        "rules": [
-          {
-            "action": {
-              "route": {
-                "destination": {
-                  "name": "l7mp-controller",
-                  "spec": {
-                    "protocol": "L7mpController"
-                  }
+    listeners: [
+        {
+            name: "controller-listener",
+            spec: {
+                protocol: "HTTP",
+                port: 1234
+            },
+            rules: [
+                {
+                    action: {
+                        route: {
+                            destination: {
+                                name: "l7mp-controller",
+                                spec: {
+                                    protocol: "L7mpController"
+                                }
+                            }
+                        }
+                    }
                 }
-              }
-            }
-          }
-        ]
-      }
+            ]
+        }
     ]
-  };
-
+};
 
 function httpRequest(params, postData) {
     return new Promise((resolve, reject) => {
@@ -98,8 +98,6 @@ describe('Routes API', ()  => {
         this.timeout(5000);
         l7mp = new L7mp();
         l7mp.static_config = static_config;
-        l7mp.applyAdmin({ log_level: 'error', strict: true  });
-        // l7mp.applyAdmin({ log_level: 'silly', strict: true });
         await l7mp.run();
         return Promise.resolve();
     });
@@ -196,7 +194,7 @@ describe('Routes API', ()  => {
                             protocol: 'WebSocket',
                             port: 16000,
                             bind: {port: 16001, address: '127.0.0.1'}
-                        }, 
+                        },
                         endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
@@ -265,7 +263,7 @@ describe('Routes API', ()  => {
                             protocol: 'UDP',
                             port: 16000,
                             bind: {port: 16001, address: '127.0.0.1'}
-                        }, 
+                        },
                         endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
@@ -334,7 +332,7 @@ describe('Routes API', ()  => {
                             protocol: 'TCP',
                             port: 16000,
                             bind: {port: 16001, address: '127.0.0.1'}
-                        }, 
+                        },
                         endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
@@ -403,7 +401,7 @@ describe('Routes API', ()  => {
                             protocol: 'UnixDomainSocket',
                             port: 16000,
                             bind: {port: 16001, address: '127.0.0.1'}
-                        }, 
+                        },
                         endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
@@ -473,7 +471,7 @@ describe('Routes API', ()  => {
                             port: 16000,
                             bind: {port: 16001, address: '127.0.0.1'},
                             transport: { protocol: 'UDP', port: 54321 },
-                        }, 
+                        },
                         endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
@@ -542,7 +540,7 @@ describe('Routes API', ()  => {
                             protocol: 'Echo',
                             port: 16000,
                             bind: {port: 16001, address: '127.0.0.1'}
-                        }, 
+                        },
                         endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
@@ -612,7 +610,7 @@ describe('Routes API', ()  => {
                             port: 16000,
                             bind: {port: 16001, address: '127.0.0.1'},
                             query: 'test/test/test'
-                        }, 
+                        },
                         endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
@@ -680,7 +678,7 @@ describe('Routes API', ()  => {
                         spec: {
                             protocol: 'JSONEncap',
                             port: 16000
-                        }, 
+                        },
                         endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
@@ -748,7 +746,7 @@ describe('Routes API', ()  => {
                         spec: {
                             protocol: 'JSONDecap',
                             port: 16000
-                        }, 
+                        },
                         endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
@@ -817,7 +815,7 @@ describe('Routes API', ()  => {
                             protocol: 'Stdio',
                             port: 16000,
                             bind: {port: 16001, address: '127.0.0.1'}
-                        }, 
+                        },
                         endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
@@ -886,7 +884,7 @@ describe('Routes API', ()  => {
                             protocol: 'Discard',
                             port: 16000,
                             bind: {port: 16001, address: '127.0.0.1'}
-                        }, 
+                        },
                         endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
@@ -955,7 +953,7 @@ describe('Routes API', ()  => {
                             protocol: 'Logger',
                             port: 16000,
                             bind: {port: 16001, address: '127.0.0.1'}
-                        }, 
+                        },
                         endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
@@ -1137,7 +1135,7 @@ describe('Routes API', ()  => {
                 method: 'GET'
             };
             res = await httpRequest(options_get);
-            
+
             assert.lengthOf(res, 6);
             return Promise.resolve();
         });

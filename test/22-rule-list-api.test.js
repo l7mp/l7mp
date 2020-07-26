@@ -27,26 +27,28 @@ const Rule     = require('../rule.js').Rule;
 const RuleList = require('../rule.js').RuleList;
 
 let static_config = {
-    "admin": {
-        "log_level": "info",
-        "log_file": "stdout",
-        "access_log_path": "/tmp/admin_access.log"
+    admin: {
+        log_level: "error",
+        // log_level: "silly",
+        log_file: "stdout",
+        access_log_path: "/tmp/admin_access.log",
+        strict: true,
     },
-    "listeners": [
+    listeners: [
         {
-            "name": "controller-listener",
-            "spec": {
-                "protocol": "HTTP",
-                "port": 1234
+            name: "controller-listener",
+            spec: {
+                protocol: "HTTP",
+                port: 1234
             },
-            "rules": [
+            rules: [
                 {
-                    "action": {
-                        "route": {
-                            "destination": {
-                                "name": "l7mp-controller",
-                                "spec": {
-                                    "protocol": "L7mpController"
+                    action: {
+                        route: {
+                            destination: {
+                                name: "l7mp-controller",
+                                spec: {
+                                    protocol: "L7mpController"
                                 }
                             }
                         }
@@ -94,10 +96,10 @@ function httpRequest(params, postData) {
 
 describe('RuleList API', ()  => {
     let controller_rulelist_name;
-    before( async () => {
+    before( async function () {
+        this.timeout(5000);
         l7mp = new L7mp();
         l7mp.static_config = static_config;
-        l7mp.applyAdmin({ log_level: 'error' });
         await l7mp.run();
     });
 

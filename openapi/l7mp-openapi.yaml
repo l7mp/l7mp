@@ -17,24 +17,37 @@ components:
         admin:
           $ref: '#/components/schemas/io.l7mp.api.v1.Admin'
         listeners:
-          description: A list of Listener objects.
+          description: A list of Listeners.
           type: array
           items:
             $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
         clusters:
-          description: A list of Cluster objects.
+          description: A list of Clusters.
           type: array
           items:
             $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
         sessions:
-          description: A list of Session objects.
+          description: A list of Sessions.
           type: array
           items:
             $ref: '#/components/schemas/io.l7mp.api.v1.Session'
+        rulelists:
+          description: A list of RuleLists.
+          type: array
+          items:
+            $ref: '#/components/schemas/io.l7mp.api.v1.RuleList'
+        rules:
+          description: A list of Rules.
+          type: array
+          items:
+            $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+        routes:
+          description: A list of Routes.
+          type: array
+          items:
+            $ref: '#/components/schemas/io.l7mp.api.v1.Route'
       required:
         - admin
-        - listeners
-        - clusters
 
     io.l7mp.api.v1.AdminRequest:
       description: 'Wrapper for addAdmin calls: contains only a single Admin object.'

@@ -88,13 +88,10 @@ if(!('c' in argv)){
 
 // Start
 if('l' in argv) log.level = argv.l;
-l7mp.readConfig(config);
-
 if('s' in argv) l7mp.admin.strict = true;
-// redo
-if('l' in argv) log.level = argv.l;
 
+l7mp.readConfig(config)
 if(!l7mp.static_config)
     log.error('No static configuration found');
 
-l7mp.run();
+l7mp.run(argv);

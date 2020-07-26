@@ -759,13 +759,15 @@ class L7mpControllerCluster extends Cluster {
             spec:         { protocol: 'L7mpController' },
             type:         'byte-stream'
         });
-        this.openapi = new L7mpOpenAPI();
+        // we might have already initialized OpenAPI backend for
+        // validating the static config file
+        this.openapi = l7mp.openapi || new L7mpOpenAPI();
         this.retriable = false;
     }
 
     async run(){
         log.silly('L7mpControllerCluster.run');
-        return this.openapi.init();
+        return l7mp.openapi ? Promise.resolve() : this.openapi.init();
     }
 
     toJSON(){

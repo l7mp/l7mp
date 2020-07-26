@@ -35,6 +35,7 @@ const Session    = require('./session.js').Session;
 const Rule       = require('./rule.js').Rule;
 const RuleList   = require('./rule.js').RuleList;
 const Route      = require('./route.js').Route;
+const L7mpOpenAPI= require('./l7mp-openapi.js').L7mpOpenAPI;
 
 const {L7mpError, Ok, InternalError, BadRequestError, NotFoundError, ValidationError, GeneralError} = require('./error.js');
 
@@ -116,22 +117,51 @@ class L7mp {
         return newname;
     }
 
-    readConfig(config){
+    async readConfig(config){
         log.silly('L7mp.readConfig', config);
         try {
+            this.static_config = {};
             if(path.extname(config).toLowerCase() === '.yaml')
                 this.static_config = YAML.parse(fs.readFileSync(config, 'utf8'));
             else
                 this.static_config = JSON.parse(fs.readFileSync(config));
-            this.static_config = this.static_config || {};
-            this.applyAdmin(this.static_config.admin || {});
         } catch(err) {
             log.error(`Could not read static configuration ${config}:`,
                       err.code ? `${err.code}: ${err.message}` : err.message);
         }
     }
 
-    async run(){
+    async run(argv){
+        // validate and execute static config
+        if(this.admin.strict){
+            log.info('L7mp.run: Initializing OpenAPI backend');
+
+            this.openapi = new L7mpOpenAPI();
+            await this.openapi.init();
+
+            // mock a request object for the openapi-backend validator
+            let req = {
+                version: '1.1',
+                method: 'POST',
+                url: '/api/v1/setConf',
+                query: {},
+                headers: { host: 'localhost:65555'},
+                'content-type': 'application/json',
+                body: this.static_config,
+            };
+
+            let res = this.openapi.api.validator.validateRequest(req, 'setConf');
+            if(!res.valid)
+                log.error("Config file JSON validation error (strict mode: on):\n",
+                          JSON.stringify(res.errors, null, 4));
+        }
+
+        this.applyAdmin(this.static_config.admin || {});
+
+        // override anything that was set in the config file
+        if(argv && 's' in argv) l7mp.admin.strict = true;
+        if(argv && 'l' in argv) log.level = argv.l;
+
         log.info(`Starting l7mp version: ${this.admin.version} Log-level: ${log.level}`,
                  'Strict mode:', l7mp.admin.strict ? 'enabled' : 'disabled');
 
@@ -168,7 +198,7 @@ class L7mp {
     ////////////////////////////////////////////////////
 
     applyAdmin(admin) {
-        log.silly('L7mp.applyAdmin', dumper(admin));
+        log.silly('L7mp.applyAdmin:', dumper(admin));
         this.admin.log_level = log.level = 'log_level' in admin ?
             admin.log_level : log.level;
         this.admin.strict = 'strict' in admin ? admin.strict : false;

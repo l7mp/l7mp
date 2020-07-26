@@ -38,6 +38,38 @@ const querystring = require('querystring');
 Object.defineProperty(log, 'heading',
                       { get: () => { return new Date().toISOString() } });
 
+let static_config = {
+    admin: {
+        log_level: "error",
+        // log_level: "silly",
+        log_file: "stdout",
+        access_log_path: "/tmp/admin_access.log",
+        strict: true,
+    },
+    listeners: [
+        {
+            name: "controller-listener",
+            spec: {
+                protocol: "HTTP",
+                port: 1234
+            },
+            rules: [
+                {
+                    action: {
+                        route: {
+                            destination: {
+                                name: "L7mpControllerCluster",
+                                spec: {
+                                    protocol: "L7mpController"
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+};
 
 function httpRequest(params, postData) {
     return new Promise((resolve, reject) => {
@@ -79,31 +111,12 @@ describe('Cluster-API', ()  => {
     before( async function () {
         this.timeout(5000);
         l7mp = new L7mp();
-        l7mp.applyAdmin({ log_level: 'error', strict: true });
-        // l7mp.applyAdmin({ log_level: 'silly', strict: true });
+        l7mp.static_config = static_config;
         await l7mp.run(); // should return
-        cl = Listener.create( {name: 'controller-listener', spec: { protocol: 'HTTP', port: 1234 }});
-        cl.run();
-        l7mp.listeners.push(cl);
-        cc = Cluster.create({name: 'L7mpControllerCluster', spec: {protocol: 'L7mpController'}});
-        await cc.run();
-        l7mp.clusters.push(cc);
-        rc = Route.create({
-            name: 'Test-rc',
-            destination: 'L7mpControllerCluster',
-        });
-        ru = Rule.create({name: 'Test-ru', action: {route: 'Test-rc'}});
-        l7mp.rules.push(ru);
-        rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
-        cl.rules='Test-rs';
-        cl.emitter = l7mp.addSession.bind(l7mp);
-        l7mp.routes.push(rc);
-        l7mp.rulelists.push(rl);
-        return Promise.resolve();
     });
 
     after(() =>{
-        cl.close();
+        l7mp.listeners.map(x => x.close());
     })
 
     context('create-controller', () => {
