@@ -20,20 +20,40 @@
 // ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-const log         = require('npmlog');
-const Stream      = require('stream');
 const assert      = require('chai').assert;
 const L7mp        = require('../l7mp.js').L7mp;
-const EndPoint    = require('../cluster.js').EndPoint;
-const Listener    = require('../listener.js').Listener;
-const Session     = require('../session.js').Session;
-const Cluster     = require('../cluster.js').Cluster;
-const Rule        = require('../rule.js').Rule;
-const RuleList    = require('../rule.js').RuleList;
-const Route       = require('../route.js').Route;
-const net         = require('net');
 const http        = require('http');
-const querystring = require('querystring');
+
+let static_config = {
+    "admin": {
+      "log_level": "info",
+      "log_file": "stdout",
+      "access_log_path": "/tmp/admin_access.log"
+    },
+    "listeners": [
+      {
+        "name": "controller-listener",
+        "spec": {
+          "protocol": "HTTP",
+          "port": 1234
+        },
+        "rules": [
+          {
+            "action": {
+              "route": {
+                "destination": {
+                  "name": "l7mp-controller",
+                  "spec": {
+                    "protocol": "L7mpController"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  };
 
 function httpRequest(params, postData) {
     return new Promise((resolve, reject) => {
@@ -71,35 +91,20 @@ function httpRequest(params, postData) {
 }
 
 describe('Rule API', ()  => {
-    var e, s;
+    
     before( async function () {
-      this.timeout(5000);
-      l7mp = new L7mp();
-      l7mp.applyAdmin({ log_level: 'error', strict: true });
-      // l7mp.applyAdmin({ log_level: 'silly', strict: true });
-      await l7mp.run(); // should return
-      cl = Listener.create( {name: 'controller-listener', spec: { protocol: 'HTTP', port: 1234 }});
-      cl.run();
-      l7mp.listeners.push(cl);
-      cc = Cluster.create({name: 'L7mpControllerCluster', spec: {protocol: 'L7mpController'}});
-      await cc.run();
-      l7mp.clusters.push(cc);
-      rc = Route.create({
-          name: 'Test-rc',
-          destination: 'L7mpControllerCluster',
-      });
-      ru = Rule.create({name: 'Test-ru', action: {route: 'Test-rc'}});
-      l7mp.rules.push(ru);
-      rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
-      cl.rules='Test-rs';
-      cl.emitter = l7mp.addSession.bind(l7mp);
-      l7mp.routes.push(rc);
-      l7mp.rulelists.push(rl);
-      return Promise.resolve();
+        this.timeout(5000);
+        l7mp = new L7mp();
+        l7mp.static_config = static_config;
+        l7mp.applyAdmin({ log_level: 'error', strict: true  });
+        // l7mp.applyAdmin({ log_level: 'silly', strict: true });
+        await l7mp.run();
+        return Promise.resolve();
     });
 
     after(() => {
-      cl.close();
+        let l = l7mp.getListener('controller-listener');
+        l.close();
     });
 
     context('add-check-delete-rule-via-api', () =>{
@@ -119,7 +124,6 @@ describe('Rule API', ()  => {
                   }
                 }
           });
-          console.log(postData);
           let options = {
               host: 'localhost', port: 1234,
               path: '/api/v1/rule', method: 'POST'
@@ -137,7 +141,18 @@ describe('Rule API', ()  => {
               };
               res = await httpRequest(options)
           });
-      });
+          it('name',              () => { assert.propertyVal(res[1], 'name', 'test-rule'); });
+          it('has-match',         () => { assert.property(res[1], 'match'); });
+          it('match-op',          () => { assert.nestedPropertyVal(res[1], 'match.op', 'contains'); });
+          it('match-path',        () => { assert.nestedPropertyVal(res[1], 'match.path', '/a/b/c'); });
+          it('match-value',       () => { assert.nestedPropertyVal(res[1], 'match.value', 'test'); });
+          it('has-action',        () => { assert.property(res[1], 'action'); });
+          it('rewrite-isa-array', () => { assert.instanceOf(res[1].action.rewrite, Array); });
+          it('rewrite-path',      () => { assert.propertyVal(res[1].action.rewrite[0], 'path', 'a/b/c'); });
+          it('rewrite-value',     () => { assert.propertyVal(res[1].action.rewrite[0], 'value', 'test'); });
+          it('action-route',      () => { assert.nestedPropertyVal(res[1], 'action.route', 'Test-rc'); });
+          it('action-apply',      () => { assert.nestedPropertyVal(res[1], 'action.apply', 'Test-rc'); });
+    });
       
       context('delete', ()=>{
           let res;
@@ -157,6 +172,237 @@ describe('Rule API', ()  => {
           });
           it('length-of-rules', () => { assert.lengthOf(res, 1); });
       });
-  });
+    });
 
+    context('add-check-delete-rule-objects-via-api', () =>{
+        let res;
+        it('add-rule', async () =>{
+            const postData = JSON.stringify({
+                "rule": {
+                    name: "test-rule",
+                    match: {op: 'contains', path: '/a/b/c', value: 'test'}, 
+                    action: {
+                      rewrite: [{
+                        path: 'a/b/c',
+                        value: 'test'
+                      }], 
+                      route: {name: 'test-route', destination: 'Test-rc'},
+                      apply: 'Test-rc'
+                    }
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rule', method: 'POST', 
+                headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options, postData);
+        });
+        
+        context('check-properties',()=>{
+            it('rule-name', async () =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/rule',
+                    method: 'GET'
+                };
+                res = await httpRequest(options)
+                console.log(res);
+            });
+            it('name',              () => { assert.propertyVal(res[1], 'name', 'test-rule'); });
+            it('has-match',         () => { assert.property(res[1], 'match'); });
+            it('match-op',          () => { assert.nestedPropertyVal(res[1], 'match.op', 'contains'); });
+            it('match-path',        () => { assert.nestedPropertyVal(res[1], 'match.path', '/a/b/c'); });
+            it('match-value',       () => { assert.nestedPropertyVal(res[1], 'match.value', 'test'); });
+            it('has-action',        () => { assert.property(res[1], 'action'); });
+            it('rewrite-isa-array', () => { assert.instanceOf(res[1].action.rewrite, Array); });
+            it('rewrite-path',      () => { assert.propertyVal(res[1].action.rewrite[0], 'path', 'a/b/c'); });
+            it('rewrite-value',     () => { assert.propertyVal(res[1].action.rewrite[0], 'value', 'test'); });
+            it('action-route',      () => { assert.nestedPropertyVal(res[1], 'action.route', 'test-route'); });
+            it('action-apply',      () => { assert.nestedPropertyVal(res[1], 'action.apply', 'Test-rc'); });
+      });
+        
+        context('delete', ()=>{
+            let res;
+            it('delete-rule', async ()=>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/rules/test-rule',
+                    method: 'DELETE'
+                };
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/rule',
+                    method: 'GET'
+                }
+                await httpRequest(options);
+                res = await httpRequest(options_get);
+            });
+            it('length-of-rules', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
+    context('add-check-delete-multiple-rules', () => {
+        let res, reqs = [];
+        it('add-5-rule', async () =>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rule', method: 'POST',
+                headers: {'Content-Type' : 'text/x-json'}
+            };
+            for(let i = 1; i <= 5; i++){
+                let postData = JSON.stringify({
+                    "rule": {
+                        name: `test-rule-${i}`,
+                        match: {op: 'contains', path: '/a/b/c', value: 'test'}, 
+                        action: {
+                            rewrite: [{
+                                path: 'a/b/c',
+                                value: 'test'
+                            }], 
+                            route: 'test-route',
+                            apply: 'Test-rc'
+                        }
+                      }
+                    }
+                );
+                reqs.push(httpRequest(options, postData));
+            }
+            await Promise.all(reqs);
+
+            let options_get = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rule',
+                method: 'GET'
+            };
+
+            res = await httpRequest(options_get);
+            return Promise.resolve();
+        });
+        
+        context('check-properties',()=>{
+            it('check-rule-1', () => { assert.propertyVal(res[1], 'name', 'test-rule-1'); });
+            it('check-rule-2', () => { assert.propertyVal(res[2], 'name', 'test-rule-2'); });
+            it('check-rule-3', () => { assert.propertyVal(res[3], 'name', 'test-rule-3'); });
+            it('check-rule-4', () => { assert.propertyVal(res[4], 'name', 'test-rule-4'); });
+            it('check-rule-5', () => { assert.propertyVal(res[5], 'name', 'test-rule-5'); });
+      });
+        
+        context('delete', ()=>{
+            let res, reqs = [];
+            it('delete-rule', async () => {
+                for(let i = 1; i <= 5; i++){
+                    let options = {
+                        host: 'localhost', port: 1234,
+                        path: `/api/v1/rules/test-rule-${i}`,
+                        method: 'DELETE'
+                    };
+                    reqs.push(httpRequest(options));
+                }
+
+                await Promise.all(reqs);
+
+                let options_get= {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/rule',
+                    method: 'GET'
+                }
+
+                res = await httpRequest(options_get);
+                assert.lengthOf(res, 1);
+                return Promise.resolve();
+            });
+        });
+    });
+
+    context('invalid-requests', () => {
+        it('invalid-add-rule', async () =>{
+            const postData = JSON.stringify({
+                "rule": {
+                    name: "test-rule",
+                    match: {op: 'contains', path: '/a/b/c', value: 'test'}
+                  }
+            });
+
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rule', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            return httpRequest(options, postData)
+                .then(
+                    () =>{ return Promise.reject(new Error('Expected method to reject.'))},
+                    err => { assert.instanceOf(err, Error); return Promise.resolve()}
+                );
+        });
+
+        it('existing-add-rule', async () =>{
+            const postData = JSON.stringify({
+                "rule": {
+                    name: `${l7mp.rules[0]}`,
+                    match: {op: 'contains', path: '/a/b/c', value: 'test'}, 
+                    action: {
+                      rewrite: [{
+                        path: 'a/b/c',
+                        value: 'test'
+                      }], 
+                      route: 'Test-rc',
+                      apply: 'Test-rc'
+                    }
+                  }
+            });
+
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rule', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            return httpRequest(options, postData)
+                .then(
+                    () =>{ return Promise.reject(new Error('Expected method to reject.'))},
+                    err => { assert.instanceOf(err, Error); return Promise.resolve()}
+                );
+        });
+
+        it('invalid-route-add-rule', async () =>{
+            const postData = JSON.stringify({
+                "rule": {
+                    name: `${l7mp.rules[0]}`,
+                    match: {op: 'contains', path: '/a/b/c', value: 'test'}, 
+                    action: {
+                      rewrite: [{
+                        path: 'a/b/c',
+                        value: 'test'
+                      }], 
+                      route: '',
+                      apply: 'Test-rc'
+                    }
+                  }
+            });
+
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rule', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            return httpRequest(options, postData)
+                .then(
+                    () =>{ return Promise.reject(new Error('Expected method to reject.'))},
+                    err => { assert.instanceOf(err, Error); return Promise.resolve()}
+                );
+        });
+
+        it('get-non-existing-rule', async () =>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rule/notExists',
+                method: 'GET'
+            };
+            return httpRequest(options)
+                .then(
+                    () =>{ return Promise.reject(new Error('Expected method to reject.'))},
+                    err => { assert.instanceOf(err, Error); return Promise.resolve()}
+                );
+        });
+    });
 });
