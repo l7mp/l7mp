@@ -98,8 +98,7 @@ describe('Rule API', ()  => {
         this.timeout(5000);
         l7mp = new L7mp();
         l7mp.static_config = static_config;
-        await l7mp.run(); // should return
-        return Promise.resolve();
+        await l7mp.run();
     });
 
     after(() => {
@@ -126,7 +125,7 @@ describe('Rule API', ()  => {
           });
           let options = {
               host: 'localhost', port: 1234,
-              path: '/api/v1/rule', method: 'POST'
+              path: '/api/v1/rules', method: 'POST'
               , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
           }
           await httpRequest(options, postData);
@@ -136,7 +135,7 @@ describe('Rule API', ()  => {
           it('rule-name', async () =>{
               let options = {
                   host: 'localhost', port: 1234,
-                  path: '/api/v1/rule',
+                  path: '/api/v1/rules',
                   method: 'GET'
               };
               res = await httpRequest(options)
@@ -164,7 +163,7 @@ describe('Rule API', ()  => {
               };
               let options_get= {
                   host: 'localhost', port: 1234,
-                  path: '/api/v1/rule',
+                  path: '/api/v1/rules',
                   method: 'GET'
               }
               await httpRequest(options);
@@ -193,7 +192,7 @@ describe('Rule API', ()  => {
             });
             let options = {
                 host: 'localhost', port: 1234,
-                path: '/api/v1/rule', method: 'POST', 
+                path: '/api/v1/rules', method: 'POST', 
                 headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
             }
             await httpRequest(options, postData);
@@ -203,7 +202,7 @@ describe('Rule API', ()  => {
             it('rule-name', async () =>{
                 let options = {
                     host: 'localhost', port: 1234,
-                    path: '/api/v1/rule',
+                    path: '/api/v1/rules',
                     method: 'GET'
                 };
                 res = await httpRequest(options)
@@ -232,7 +231,7 @@ describe('Rule API', ()  => {
                 };
                 let options_get= {
                     host: 'localhost', port: 1234,
-                    path: '/api/v1/rule',
+                    path: '/api/v1/rules',
                     method: 'GET'
                 }
                 await httpRequest(options);
@@ -247,7 +246,7 @@ describe('Rule API', ()  => {
         it('add-5-rule', async () =>{
             let options = {
                 host: 'localhost', port: 1234,
-                path: '/api/v1/rule', method: 'POST',
+                path: '/api/v1/rules', method: 'POST',
                 headers: {'Content-Type' : 'text/x-json'}
             };
             for(let i = 1; i <= 5; i++){
@@ -272,7 +271,7 @@ describe('Rule API', ()  => {
 
             let options_get = {
                 host: 'localhost', port: 1234,
-                path: '/api/v1/rule',
+                path: '/api/v1/rules',
                 method: 'GET'
             };
 
@@ -304,7 +303,7 @@ describe('Rule API', ()  => {
 
                 let options_get= {
                     host: 'localhost', port: 1234,
-                    path: '/api/v1/rule',
+                    path: '/api/v1/rules',
                     method: 'GET'
                 }
 
@@ -326,7 +325,7 @@ describe('Rule API', ()  => {
 
             let options = {
                 host: 'localhost', port: 1234,
-                path: '/api/v1/rule', method: 'POST'
+                path: '/api/v1/rules', method: 'POST'
                 , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
             }
             return httpRequest(options, postData)
@@ -354,7 +353,7 @@ describe('Rule API', ()  => {
 
             let options = {
                 host: 'localhost', port: 1234,
-                path: '/api/v1/rule', method: 'POST'
+                path: '/api/v1/rules', method: 'POST'
                 , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
             }
             return httpRequest(options, postData)
@@ -382,7 +381,7 @@ describe('Rule API', ()  => {
 
             let options = {
                 host: 'localhost', port: 1234,
-                path: '/api/v1/rule', method: 'POST'
+                path: '/api/v1/rules', method: 'POST'
                 , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
             }
             return httpRequest(options, postData)
@@ -395,7 +394,7 @@ describe('Rule API', ()  => {
         it('get-non-existing-rule', async () =>{
             let options = {
                 host: 'localhost', port: 1234,
-                path: '/api/v1/rule/notExists',
+                path: '/api/v1/rules/notExists',
                 method: 'GET'
             };
             return httpRequest(options)
