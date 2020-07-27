@@ -785,7 +785,7 @@ class L7mpControllerCluster extends Cluster {
         let passthrough =
             new utils.DuplexPassthrough({}, {writableObjectMode: true});
         let stream = passthrough.right;
-        // eventDebug(strm);
+        // eventDebug(stream);
         var body = '';
         stream.on('data', (chunk) => { body += chunk; });
         stream.on('end', () => { this.openapi.handleRequest(s, body, stream) } );
