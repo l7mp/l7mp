@@ -55,12 +55,7 @@ describe('WebSocketListener', () => {
 
     context('#connect', () => {
         it('connect',    (done) => { c = new WebSocket('ws://127.0.0.1:12345'); assert.instanceOf(c, WebSocket); done(); });
-        // it('address',        () => { assert.equal(c.localAddress, '127.0.0.1'); });
-        // it('remote-address', () => { assert.equal(c.remoteAddress, '127.0.0.1'); });
-        // it('remote-port',    () => { assert.equal(c.remotePort, 54321); });
-        // it('isa stream',     () => { assert.instanceOf(c, Stream); });
-        // it('readable',       () => { assert.isOk(c.readable); });
-        // it('writeable',      () => { assert.isOk(c.writable); });
+        it('url',            () => { assert.equal(c.url, 'ws://127.0.0.1:12345'); });
     });
 
     context('emits session', () => {

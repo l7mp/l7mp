@@ -293,7 +293,7 @@ class Session {
         this.chain                   = { ingress: [], egress: [] };
         this.type                    = this.source.origin.type;  // init
         this.retry_on_disconnect_num = 0;
-        this.active_streams          = 0;
+        this.active_streams          = 0;   // except listener
         this.track                   = false
         this.events                  = [];  // an event log for tracked sessions
 
@@ -302,12 +302,15 @@ class Session {
 
     toJSON(){
         log.silly('Session.toJSON:', `"${this.name}"`);
+        // remove name from metadata to not dump it twice
+        const {name, ...m} = this.metadata;
         return {
-            metadata:    this.metadata,
-            source:      this.source,
-            destination: this.destination,
-            ingress:     this.chain.ingress,
-            egress:      this.chain.egress,
+            name:        this.name,
+            metadata:    m,
+            source:      this.source.toJSON(),
+            destination: this.destination.toJSON(),
+            ingress:     this.chain.ingress.map(x => x.toJSON()),
+            egress:      this.chain.egress.map(x => x.toJSON()),
             status:      this.status,
             events:      this.events,
         };
@@ -475,17 +478,6 @@ class Session {
                           `Empty stream for cluster`);
             }
 
-        // // set streams for each route elem
-        // let d = resolved_list.pop();
-        // this.destination.stream = d.stream;
-        // this.active_streams++;
-
-        // resolved_list.forEach( (r) => {
-        //     r.stage.stream = r.stream;
-        //     this.active_streams++;
-        // });
-        // this.num_streams = this.active_streams;
-
         this.num_streams = this.active_streams = resolved_list.length;
         log.verbose("Session.pipeline:",
                     `${this.active_streams} stream(s) initiated`);
@@ -614,7 +606,7 @@ class Session {
             this.emit('disconnect', stage.origin, error);
 
         // since we may reconnect the stream, make sure that the old stream is properly closed,
-        // otherwise the stream may remain alive, e.g., adter a 'connection refused' for a
+        // otherwise the stream may remain alive, e.g., after a 'connection refused' for a
         // connected UDP stream
         if(stream){
             stream.removeListener("close", stage.on_disc["close"]);
@@ -646,7 +638,6 @@ class Session {
 
                 this.active_streams++;
                 this.repipe(stage);
-
                 if(this.active_streams === this.num_streams)
                     this.connected();
             } catch(err){
@@ -658,6 +649,10 @@ class Session {
             break;
         case 'connect-failure': // does not involve re-connect
         case 'never': // never retry, fail immediately
+            log.info('Session.disconnect:', `Session ${this.name}:`,
+                     `stage "${stage.origin}": Retry policy is "${retry.retry_on}",`,
+                     `not retrying`);
+            this.end();
             break;
         default:
             let msg = `Unknown retry policy for session "${this.name}"`;
@@ -729,6 +724,7 @@ class Session {
 
     // state transitions
     connected(){
+        log.silly('Session.connected', `Session ${this.name}:`);
         this.status = 'CONNECTED';
         this.emit('connect');
 
@@ -740,6 +736,7 @@ class Session {
 
     // immediately closes the stream, possibly sends response headers
     error(err){
+        log.silly('Session.error', `Session ${this.name}:`);
         this.events.push({ event: 'ERROR',
                            timestamp: new Date().toISOString(),
                            message: err.message,
@@ -754,6 +751,7 @@ class Session {
     }
 
     end(err){
+        log.silly('Session.end', `Session ${this.name}:`);
         this.events.push({ event: 'END',
                            timestamp: new Date().toISOString(),
                            message: err ? err.message : 'Normal end',
@@ -768,7 +766,7 @@ class Session {
     // ongoing), otherwise keep route/session around until all retries
     // have been aborted
     destroy(){
-        log.silly('Session.destroy:', `${this.name}`);
+        log.silly('Session.destroy:', `Session ${this.name}`);
         let deleted = 0;
         let ret = 1;
 

@@ -1,11 +1,9 @@
 * Importance: superhigh
 
-** TODO Handle named RuleList references in Listener and Route objects
-** TODO RuleList API: add/delete rulelists
-** TODO Defer resolving named references (to clusters, routes, etc.) to runtime
-** TODO Endpoint API: addEndpoint(cluster, new endpoint, optional name), deleteEndPoint(name)
-** TODO Loadbalancer: Weighted/RoundRobin
-** DONE API validation: switch back!
+** TODO Listener should be reconnected after a connection refused on a send() call
+** TODO Fix error when JSONSocket client timeout does not initiate a reconnect
+** TODO deleteCluster() should be automatically recursive (should delete endpoints)
+** TODO Recursive delete
 ** TODO checkRoute
 
 * Importance: high
@@ -19,6 +17,7 @@
 
 * Wishlist
 
+** TODO Loadbalancer: Weighted/RoundRobin
 ** TODO Generic parser/deparser support in Listeners/Clusters
 ** TODO access_log
 
@@ -35,6 +34,13 @@
 
 * Importance: DONE
 
+** DONE Bring toJSON() before response validation
+** DONE Convert README.org to markdown
+** DONE Handle named RuleList references in Listener and Route objects
+** DONE RuleList API: add/delete rulelists
+** DONE Defer resolving named references (to clusters, routes, etc.) to runtime
+** DONE Endpoint API: addEndpoint(cluster, new endpoint, optional name), deleteEndPoint(name)
+** DONE API validation: switch back!
 ** DONE Add timestamps to log messages
 ** DONE Make sure binary mode works well (iperf should work through L7mp just fine)
 ** DONE UDP: return into "connect" mode (waiting for packet) after stream is destroyed

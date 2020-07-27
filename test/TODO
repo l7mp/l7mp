@@ -11,8 +11,8 @@
 
 ** EndPoint: 10-*
 *** DONE WebSocket
-*** TODO UDP
-*** TODO TCP
+*** DONE UDP
+*** DONE TCP
 *** DONE JSONSocket
 *** DONE Test
 
@@ -20,49 +20,49 @@
 *** TODO HTTP
 *** DONE WebSocket
 *** DONE UDP
-*** TODO TCP
-*** TODO UnixDomainSocket
-*** TODO JSONSocket
+*** DONE TCP
+*** DONE UnixDomainSocket
+*** DONE JSONSocket
 *** DONE Echo
 *** DONE JSONEncap
-*** TODO JSONDecap
-*** UNFINISHED Sync
+*** DONE JSONDecap
+*** DONE Sync
 *** DONE Test
 
 ** Listener: 12-*
 *** DONE HTTP
-*** TODO WebSocket
-*** TODO UDP
+*** DONE WebSocket
+*** DONE UDP singleton
+*** DONE UDP server
 *** DONE TCP
 *** DONE JSONSocket
 *** DONE UnixDomainSocket
-*** TODO Test
 
 ** Route, Rule, RuleList: 13-*
-*** UNFINISHED Route
-*** TODO Rule
-*** TODO RuleList
+*** DONE Route
+*** UNFINISHED Rule
+*** UNFINISHED RuleList
 
 ** Session: routing, retry, load-balancing: 14-*
 *** DONE Session
 *** TODO Routing
 *** DONE Retry
-*** TODO LoadBalancing
+*** DONE LoadBalancing
 
 * API tests
 
 ** Cluster & EndPoint API: 20-*
-*** TODO add/delete/list clusters via the API
-*** TODO add/delete/list endpoints to/from a cluster via the API
+*** DONE add/delete/list clusters via the API
+*** UNFINISHED add/delete/list endpoints to/from a cluster via the API
 *** TODO removeOrphanSessions test
 
 ** Listener API: 21-*
-*** TODO add/delete/list listeners via the API
+*** DONE add/delete/list listeners via the API
 *** TODO removeOrphanSessions test
 
 ** Route, Rule, RuleList: 22-*
-*** TODO add/delete/list routes via the API
-*** TODO add/delete/list rulelists via the API
+*** DONE add/delete/list routes via the API
+*** DONE add/delete/list rulelists via the API
 *** DONE add/delete/list rules via the API
 *** TODO compound delete: deleting the route from a rule should remove the rule
 *** TODO compound delete: deleting the last rule from a rulelist should remove the rulelist
@@ -71,3 +71,10 @@
 ** Session API: 22-*
 *** TODO delete/list sessions
 *** TODO monitoring
+
+* Integration tests 
+** TODO Gateway 31-* 
+
+** TODO Worker 32-*
+
+** TODO End-to-end 32-*

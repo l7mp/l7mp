@@ -46,6 +46,7 @@ describe('Session', () => {
     before( () => {
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'error' });
+        // l7mp.applyAdmin({ log_level: 'silly' });
         l7mp.run(); // should return
     });
 
@@ -845,7 +846,7 @@ describe('Session', () => {
                 assert.fail(error);
             }
         });
-        it('stage-status', () => { assert.equal(stage.session.source.status, 'READY'); });
+        it('stage-status', () => { assert.equal(sess.source.status, 'READY'); });
         it('active-streams', () => { assert.equal(sess.active_streams, 1); });
         it('sess-status', () => { assert.equal(sess.status, 'CONNECTED'); });
         it('last-event', () => { assert.equal(sess.events[sess.events.length - 1].event, 'CONNECT'); });

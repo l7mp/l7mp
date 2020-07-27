@@ -17,24 +17,37 @@ components:
         admin:
           $ref: '#/components/schemas/io.l7mp.api.v1.Admin'
         listeners:
-          description: A list of Listener objects.
+          description: A list of Listeners.
           type: array
           items:
             $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
         clusters:
-          description: A list of Cluster objects.
+          description: A list of Clusters.
           type: array
           items:
             $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
         sessions:
-          description: A list of Session objects.
+          description: A list of Sessions.
           type: array
           items:
             $ref: '#/components/schemas/io.l7mp.api.v1.Session'
+        rulelists:
+          description: A list of RuleLists.
+          type: array
+          items:
+            $ref: '#/components/schemas/io.l7mp.api.v1.RuleList'
+        rules:
+          description: A list of Rules.
+          type: array
+          items:
+            $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+        routes:
+          description: A list of Routes.
+          type: array
+          items:
+            $ref: '#/components/schemas/io.l7mp.api.v1.Route'
       required:
         - admin
-        - listeners
-        - clusters
 
     io.l7mp.api.v1.AdminRequest:
       description: 'Wrapper for addAdmin calls: contains only a single Admin object.'
@@ -427,7 +440,7 @@ components:
       type: object
       required:
         - protocol
-        - port
+        - transport
       properties:
         protocol:
           type: string
@@ -764,7 +777,9 @@ components:
             - type: string  # reference to a named RuleList
             - type: array
               items:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+                anyOf:
+                  - type: string  # reference to a named Rule
+                  - $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
 
     io.l7mp.api.v1.Metadata:
       description: "Metadata that describes a session's all known parameters, like ports and IP addresses, status, HTTP headers (if relevant), etc. In general, metadata are created by the listener and they can be modified/queried/matched in rules/actions."
@@ -1217,7 +1232,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   # Rule API
-  /api/v1/rule:
+  /api/v1/rules:
     get:
       description: Get a list of Rules.
       operationId: getRules

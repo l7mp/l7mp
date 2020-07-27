@@ -25,35 +25,37 @@ const L7mp        = require('../l7mp.js').L7mp;
 const http        = require('http');
 
 let static_config = {
-    "admin": {
-      "log_level": "info",
-      "log_file": "stdout",
-      "access_log_path": "/tmp/admin_access.log"
+    admin: {
+        log_level: "error",
+        // log_level: "silly",
+        log_file: "stdout",
+        access_log_path: "/tmp/admin_access.log",
+        strict: true,
     },
-    "listeners": [
-      {
-        "name": "controller-listener",
-        "spec": {
-          "protocol": "HTTP",
-          "port": 1234
-        },
-        "rules": [
-          {
-            "action": {
-              "route": {
-                "destination": {
-                  "name": "l7mp-controller",
-                  "spec": {
-                    "protocol": "L7mpController"
-                  }
+    listeners: [
+        {
+            name: "controller-listener",
+            spec: {
+                protocol: "HTTP",
+                port: 1234
+            },
+            rules: [
+                {
+                    action: {
+                        route: {
+                            destination: {
+                                name: "l7mp-controller",
+                                spec: {
+                                    protocol: "L7mpController"
+                                }
+                            }
+                        }
+                    }
                 }
-              }
-            }
-          }
-        ]
-      }
+            ]
+        }
     ]
-  };
+};
 
 function httpRequest(params, postData) {
     return new Promise((resolve, reject) => {
@@ -96,9 +98,7 @@ describe('Rule API', ()  => {
         this.timeout(5000);
         l7mp = new L7mp();
         l7mp.static_config = static_config;
-        l7mp.applyAdmin({ log_level: 'error', strict: true  });
-        // l7mp.applyAdmin({ log_level: 'silly', strict: true });
-        await l7mp.run();
+        await l7mp.run(); // should return
         return Promise.resolve();
     });
 

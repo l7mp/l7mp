@@ -58,7 +58,7 @@ class L7mpOpenAPI {
         // general config API
         this.api.registerHandler('getConf', (ctx, req, res) => {
             log.verbose("L7mp.api.getConf");
-            res.status = new Response(l7mp);
+            res.status = new Response(l7mp.toJSON());
         });
 
         this.api.registerHandler('setConf', (ctx, req, res) => {
@@ -74,20 +74,20 @@ class L7mpOpenAPI {
 
         this.api.registerHandler('getAdmin', (ctx, req, res) => {
             log.verbose("L7mp.api.getAdmin");
-            res.status = new Response(l7mp.getAdmin());
+            res.status = new Response(l7mp.getAdmin().toJSON());
         });
 
         // Listener API
         this.api.registerHandler('getListeners', (ctx, req, res) => {
             log.verbose("L7mp.api.getListeners");
-            res.status = new Response(l7mp.listeners);
+            res.status = new Response(l7mp.listeners.map(l => l.toJSON()));
         });
 
         this.api.registerHandler('getListener', (ctx, req, res) => {
             log.verbose("L7mp.api.getListener");
             let result = l7mp.getListener(ctx.request.params.name);
             if(result){
-                res.status = new Response(result);
+                res.status = new Response(result.toJSON());
             } else {
                 res.status = new BadRequestError('No such listener');
             }
@@ -116,14 +116,14 @@ class L7mpOpenAPI {
         // Cluster API
         this.api.registerHandler('getClusters', (ctx, req, res) => {
             log.verbose("L7mp.api.getClusters");
-            res.status = new Response(l7mp.clusters);
+            res.status = new Response(l7mp.clusters.map(c => c.toJSON()));
         });
 
         this.api.registerHandler('getCluster', (ctx, req, res) => {
             log.verbose("L7mp.api.getCluster");
             let result = l7mp.getCluster(ctx.request.params.name);
             if(result){
-                res.status = new Response(result);
+                res.status = new Response(result.toJSON());
             } else {
                 res.status = new BadRequestError('No such cluster');
             }
@@ -156,7 +156,7 @@ class L7mpOpenAPI {
                 let cluster = l7mp.getCluster(ctx.request.params.cluster_name);
                 if(!cluster)
                     throw new Error(`No such cluster: `+ ctx.request.params.cluster_name);
-                res.status = new Response(cluster.endpoints);
+                res.status = new Response(cluster.endpoints.map(e => e.toJSON()));
             } catch(e) {
                 res.status = new BadRequestError(e.message);
             }
@@ -173,7 +173,7 @@ class L7mpOpenAPI {
                 if(!endpoint)
                     throw new Error(`No such endpoint: {ctx.request.params.endpoint_name} in cluster `+
                                     ctx.request.params.cluster_name);
-                res.status = new Response(endpoint);
+                res.status = new Response(endpoint.toJSON());
             } catch(e) {
                 res.status = new BadRequestError(e.message);
             }
@@ -204,14 +204,14 @@ class L7mpOpenAPI {
         // Rule API
         this.api.registerHandler('getRules', (ctx, req, res) => {
             log.verbose("L7mp.api.getRules");
-            res.status = new Response(l7mp.rules);
+            res.status = new Response(l7mp.rules.map(r => r.toJSON()));
         });
 
         this.api.registerHandler('getRule', (ctx, req, res) => {
             log.verbose("L7mp.api.getRule");
             let result = l7mp.getRule(ctx.request.params.name);
             if(result){
-                res.status = new Response(result);
+                res.status = new Response(result.toJSON());
             } else {
                 res.status = new BadRequestError('No such rule');
             }
@@ -240,14 +240,14 @@ class L7mpOpenAPI {
         // RuleList API
         this.api.registerHandler('getRuleLists', (ctx, req, res) => {
             log.verbose("L7mp.api.getRuleLists");
-            res.status = new Response(l7mp.rulelists);
+            res.status = new Response(l7mp.rulelists.map(r => r.toJSON()));
         });
 
         this.api.registerHandler('getRuleList', (ctx, req, res) => {
             log.verbose("L7mp.api.getRuleList");
             let result = l7mp.getRuleList(ctx.request.params.name);
             if(result){
-                res.status = new Response(result);
+                res.status = new Response(result.toJSON());
             } else {
                 res.status = new BadRequestError('No such rule list');
             }
@@ -288,7 +288,7 @@ class L7mpOpenAPI {
             let name = rulelist.rules[position];
             let result = l7mp.getRule(name);
             if(result){
-                res.status = new Response(result);
+                res.status = new Response(result.toJSON());
             } else {
                 res.status = new NotFoundError(`Invalid rule "${name}" at position "${position}" in RuleList`);
                 return;
@@ -328,14 +328,14 @@ class L7mpOpenAPI {
         // Route API
         this.api.registerHandler('getRoutes', (ctx, req, res) => {
             log.verbose("L7mp.api.getRoutes");
-            res.status = new Response(l7mp.routes);
+            res.status = new Response(l7mp.routes.map(r => r.toJSON()));
         });
 
         this.api.registerHandler('getRoute', (ctx, req, res) => {
             log.verbose("L7mp.api.getRoute");
             let result = l7mp.getRoute(ctx.request.params.name);
             if(result){
-                res.status = new Response(result);
+                res.status = new Response(result.toJSON());
             } else {
                 res.status = new BadRequestError('No such route');
             }
@@ -364,14 +364,14 @@ class L7mpOpenAPI {
         // Session API
         this.api.registerHandler('getSessions', (ctx, req, res) => {
             log.verbose("L7mp.api.getSessions");
-            res.status = new Response(l7mp.sessions);
+            res.status = new Response(l7mp.sessions.map(s => s.toJSON()));
         });
 
         this.api.registerHandler('getSession', (ctx, req, res) => {
             log.verbose("L7mp.api.getSession");
             let result = l7mp.getSession(ctx.request.params.name);
             if(result){
-                res.status = new Response(result);
+                res.status = new Response(result.toJSON());
             } else {
                 res.status = new BadRequestError('No such session');
             }
@@ -429,7 +429,7 @@ class L7mpOpenAPI {
                                                      ctx.operation, res.status.status);
                 if (valid.errors) {
                     log.silly('l7mp.openapi: postResponseHandler failed on response:',
-                              dumper(res.status, 6), ',',
+                              dumper(res.response, 6), ',',
                               `Error: ${dumper(res.status.content, 6)}`);
                     res.status = new InternalError(valid.errors);
                     res.status.message = 'Internal Server Error: Response validation failed';

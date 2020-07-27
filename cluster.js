@@ -449,8 +449,8 @@ class Cluster {
             name:         this.name,
             spec:         this.spec,
             // type:         this.type,
-            endpoints:    this.endpoints,
-            loadbalancer: this.loadbalancer,
+            endpoints:    this.endpoints.map(x => x.toJSON()),
+            loadbalancer: this.loadbalancer.toJSON(),
             // retriable:    this.retriable
             options:      this.options,
         };
@@ -670,7 +670,8 @@ class JSONSocketCluster extends Cluster {
                         // _.merge(req_header, value);
                     } else {
                         log.warn('JSONSocketCluster.stream:', `${this.name}:`,
-                                 `Cannot find path "${h.path} in metadata`);
+                                 `Cannot find path "${dumper(h.path, 6)} in metadata:`,
+                                 dumper(s.metadata,6));
                     }
                 } else if(h.set &&
                           typeof h.set.path !== "undefined" &&
@@ -758,13 +759,15 @@ class L7mpControllerCluster extends Cluster {
             spec:         { protocol: 'L7mpController' },
             type:         'byte-stream'
         });
-        this.openapi = new L7mpOpenAPI();
+        // we might have already initialized OpenAPI backend for
+        // validating the static config file
+        this.openapi = l7mp.openapi || new L7mpOpenAPI();
         this.retriable = false;
     }
 
     async run(){
         log.silly('L7mpControllerCluster.run');
-        return this.openapi.init();
+        return l7mp.openapi ? Promise.resolve() : this.openapi.init();
     }
 
     toJSON(){

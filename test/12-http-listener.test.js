@@ -23,8 +23,7 @@
 const Stream       = require('stream');
 const assert       = require('chai').assert;
 const EventEmitter = require('events').EventEmitter;
-const Net          = require('net');
-const http         = require('http');
+const net          = require('net');
 const L7mp         = require('../l7mp.js').L7mp;
 const Listener     = require('../listener.js').Listener;
 const Session      = require('../session.js').Session;
@@ -58,7 +57,7 @@ describe('HTTPListener', () => {
     });
 
     context('#connect', () => {
-        it('connect',    (done) => { c = new Net.connect({port: 12345}, () => { assert.isOk(true); done(); }) });
+        it('connect',    (done) => { c = new net.connect({port: 12345}, () => { assert.isOk(true); done(); }) });
         it('address',        () => { assert.equal(c.localAddress, '127.0.0.1'); });
         it('remote-address', () => { assert.equal(c.remoteAddress, '127.0.0.1'); });
         it('remote-port',    () => { assert.equal(c.remotePort, 12345); });
@@ -69,8 +68,13 @@ describe('HTTPListener', () => {
 
     context('emits session', () => {
         it('http-connect', (done) => {
-            req = http.get('http:localhost:12345').on('error', (e) => { assert.fail(); });
-            setImmediate( () => { assert.isOk(true); done() });
+            c = new net.Socket();
+            c.on('connect', () => { assert.isOk(true); done(); });
+            c.connect({port: 12345}, () => {c.write(`GET / HTTP/1.0
+Host: example.com
+
+`);
+                                           });
         });
         it('emits',                        () => { assert.isOk(s); });
         it('session-metadata',             () => { assert.property(s, 'metadata'); });
@@ -84,7 +88,7 @@ describe('HTTPListener', () => {
         it('session-metadata-src-port',    () => { assert.nestedProperty(s, 'metadata.TCP.src_port'); });
         it('session-metadata-dst-port',    () => { assert.nestedPropertyVal(s, 'metadata.TCP.dst_port', 12345); });
         it('session-metadata-http',        () => { assert.nestedProperty(s, 'metadata.HTTP'); });
-        it('session-metadata-http-ver',    () => { assert.equal(s.metadata.HTTP.version, 1.1); });
+        it('session-metadata-http-ver',    () => { assert.equal(s.metadata.HTTP.version, 1.0); });
         it('session-metadata-http-method', () => { assert.equal(s.metadata.HTTP.method, 'GET'); });
         it('session-metadata-http-url',    () => { assert.isObject(s.metadata.HTTP.url); });
         it('session-listener',             () => { assert.nestedPropertyVal(s, 'source.origin', 'HTTP'); });
@@ -97,9 +101,7 @@ describe('HTTPListener', () => {
     context('stop', () => {
         it('stop-server',  () => {
             l.close();
-            req.removeAllListeners();
-            req.on('error', () => { /* do nothing */ });
-            req.socket.destroy();
+            c.destroy();
             assert.isOk(true);
         });
     });

@@ -35,6 +35,7 @@ const Session    = require('./session.js').Session;
 const Rule       = require('./rule.js').Rule;
 const RuleList   = require('./rule.js').RuleList;
 const Route      = require('./route.js').Route;
+const L7mpOpenAPI= require('./l7mp-openapi.js').L7mpOpenAPI;
 
 const {L7mpError, Ok, InternalError, BadRequestError, NotFoundError, ValidationError, GeneralError} = require('./error.js');
 
@@ -72,7 +73,8 @@ const validate = (object, schema) => {
 }
 
 class L7mp {
-    constructor() {
+    constructor(n) {
+        this.name = n || `L7mp-${L7mp.index++}`;
         this.static_config = {};
         // object hierarchy
         this.admin      = {};
@@ -87,16 +89,16 @@ class L7mp {
     }
 
     toJSON(){
-        log.silly('L7MP.toJSON:', `"${this.name}"`);
+        log.silly('L7mp.toJSON:', `"${this.name}"`);
         return {
             admin:      this.getAdmin(),
-            listeners:  this.listeners,
-            clusters:   this.clusters,
-            rulelists:  this.rulelists,
-            rules:      this.rules,
-            sessions:   this.sessions,
-            routes:     this.routes,
-            endpoints:  this.endpoints,
+            listeners:  this.listeners.map(l => l.toJSON()),
+            clusters:   this.clusters.map(c => c.toJSON()),
+            rulelists:  this.rulelists.map(r => r.toJSON()),
+            rules:      this.rules.map(r => r.toJSON()),
+            sessions:   this.sessions.map(s => s.toJSON()),
+            routes:     this.routes.map(r => r.toJSON()),
+            endpoints:  this.endpoints.map(e => e.toJSON()),
         };
     }
 
@@ -115,22 +117,51 @@ class L7mp {
         return newname;
     }
 
-    readConfig(config){
+    async readConfig(config){
         log.silly('L7mp.readConfig', config);
         try {
+            this.static_config = {};
             if(path.extname(config).toLowerCase() === '.yaml')
                 this.static_config = YAML.parse(fs.readFileSync(config, 'utf8'));
             else
                 this.static_config = JSON.parse(fs.readFileSync(config));
-            this.static_config = this.static_config || {};
-            this.applyAdmin(this.static_config.admin || {});
         } catch(err) {
             log.error(`Could not read static configuration ${config}:`,
                       err.code ? `${err.code}: ${err.message}` : err.message);
         }
     }
 
-    async run(){
+    async run(argv){
+        // validate and execute static config
+        if(this.admin.strict){
+            log.info('L7mp.run: Initializing OpenAPI backend');
+
+            this.openapi = new L7mpOpenAPI();
+            await this.openapi.init();
+
+            // mock a request object for the openapi-backend validator
+            let req = {
+                version: '1.1',
+                method: 'POST',
+                url: '/api/v1/setConf',
+                query: {},
+                headers: { host: 'localhost:65555'},
+                'content-type': 'application/json',
+                body: this.static_config,
+            };
+
+            let res = this.openapi.api.validator.validateRequest(req, 'setConf');
+            if(!res.valid)
+                log.error("Config file JSON validation error (strict mode: on):\n",
+                          JSON.stringify(res.errors, null, 4));
+        }
+
+        this.applyAdmin(this.static_config.admin || {});
+
+        // override anything that was set in the config file
+        if(argv && 's' in argv) l7mp.admin.strict = true;
+        if(argv && 'l' in argv) log.level = argv.l;
+
         log.info(`Starting l7mp version: ${this.admin.version} Log-level: ${log.level}`,
                  'Strict mode:', l7mp.admin.strict ? 'enabled' : 'disabled');
 
@@ -167,7 +198,7 @@ class L7mp {
     ////////////////////////////////////////////////////
 
     applyAdmin(admin) {
-        log.silly('L7mp.applyAdmin', dumper(admin));
+        log.silly('L7mp.applyAdmin:', dumper(admin));
         this.admin.log_level = log.level = 'log_level' in admin ?
             admin.log_level : log.level;
         this.admin.strict = 'strict' in admin ? admin.strict : false;
@@ -517,9 +548,10 @@ class L7mp {
             throw new Error(`Cannot add rule to rulelist: ${e}`);
         }
 
-        if(pos < 0 || pos > rl.length){
-            res.status = new Error(`Cannot insert rule at position ${pos} into rulelist`);
-            return;
+        if(pos < 0 || pos > rl.rules.length){
+            let e = `Cannot insert rule at position ${pos} into rulelist`;
+            log.warn(`L7mp.addRuleToRuleList:`, e);
+            throw new Error(e);
         }
 
         let name = rule;
@@ -543,13 +575,14 @@ class L7mp {
 
         if(!(rl instanceof RuleList)){
             let e = `Invalid rulelist`;
-            log.warn(`L7mp.addRuleToRuleList:`, e );
-            throw new Error(`Cannot add rule to rulelist: ${e}`);
+            log.warn(`L7mp.deleteRuleFromRuleList:`, e );
+            throw new Error(`Cannot delete rule from rulelist: ${e}`);
         }
 
-        if(pos < 0 || pos >= rl.length){
-            res.status = new Error(`Cannot delete rule at position ${pos} in rulelist`);
-            return;
+        if(pos < 0 || pos > rl.rules.length){
+            let e = `Cannot delete rule at position ${pos} from rulelist`;
+            log.warn(`L7mp.deleteRuleFromRuleList:`, e);
+            throw new Error(e);
         }
 
         rl.rules.splice(pos, 1);
@@ -808,5 +841,6 @@ class L7mp {
     }
 
 };
+L7mp.index = 0;
 
 module.exports.L7mp = L7mp;

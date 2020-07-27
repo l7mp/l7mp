@@ -41,8 +41,8 @@ class Route {
     constructor(r){
         this.name        = r.name || `Route_${Route.index++}`;  // id
         this.destination = r.destination || r.cluster ;
-        this.ingress     = r.ingress;
-        this.egress      = r.egress;
+        this.ingress     = r.ingress || [];
+        this.egress      = r.egress || [];
         this.retry       = r.retry || retry_default_policy;
     }
 
