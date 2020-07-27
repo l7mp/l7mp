@@ -96,7 +96,7 @@
 - Target objects specify the client-side settings for a connection (the upstream "cluster" as per
   =l7mp= and Envoy), i.e., load-balancing rules, local connection parameters (e.g., local bind
   address and port).  In addition, Targets also specify the endpoints the client should connect to,
-  either via referring to a VirtualService under the =serviceName= key or inline,
+  either via referring to a VirtualService under the =linkedVirtualService= key or inline,
   statically. Targets appear as the entries in the ingress/egress chains and as the destination in
   Route objects.
 - Targets can either be specified explicitly with a unique name, which allows multiple
@@ -118,16 +118,24 @@
   4) If a naked Kubernetes service does no exist either, return an error.
 - If, on the other hand, the a =destination= or an =ingress= or =egress= list entry is an object,
   then it is assumed to be a fully specified unnamed in-line Target specification.
-- If a Target refers to a VirtualService (under the key =serviceName=), then the Kubernetes control
-  plane operator will generate the list of endpoint/pod IP addresses for the dataplane from that
-  VirtualService (i.e., "all pod IPs in the deployment of the =worker= service" or "all IPs of pods
-  labeled =app:worker="). This allows the sidecar proxy to implement its own load-balancing policy
-  independently from the default Kubernetes load-balancing mechanism.  Otherwise, the Target lists
-  a fixed set of endpoints statically (this is useful to call external services or to expose, e.g.,
-  a UNIX domain socket server via a remote access protocol like WebSocket or UDP, see below).  The
-  endpoint address in this case may be any proper domain name; e.g., specifying =kube-dns= domain
-  name of a Kubernetes service as an endpoint address will fall back to standard Kubernetes
-  load-balancing for the Target.
+- If a Target refers to a VirtualService (under the key
+  =linkedVirtualService==), then the Kubernetes control plane operator
+  will generate the list of endpoint/pod IP addresses for the
+  dataplane from that VirtualService (i.e., "all pod IPs in the
+  deployment of the =worker= service" or "all IPs of pods labeled
+  =app:worker=").  More precisely, using linkedVirtualService is the
+  same as appending the spec.selector of the linked VirtualService to
+  spec.cluster.endpoints of the Target and copying the spec.listener
+  of the linked VirtualService to spec.cluster.spec.spec of the
+  Target.  This allows the sidecar proxy to implement its own
+  load-balancing policy independently from the default Kubernetes
+  load-balancing mechanism.  Otherwise, the Target lists a fixed set
+  of endpoints statically (this is useful to call external services or
+  to expose, e.g., a UNIX domain socket server via a remote access
+  protocol like WebSocket or UDP, see below).  The endpoint address in
+  this case may be any proper domain name; e.g., specifying =kube-dns=
+  domain name of a Kubernetes service as an endpoint address will fall
+  back to standard Kubernetes load-balancing for the Target.
 
 * Example 1: Request Filtering, Routing, and Protocol Conversion
 
@@ -171,7 +179,7 @@
   the inline route contains and inline Target for brevity.
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/MSM/v1
+  apiVersion: l7mp.io/v1
   kind: VirtualService
   metadata:
     name: transcoder-vsvc
@@ -184,11 +192,11 @@
       protocol: WebSocket
       port: 8888
     rules:
-      action:
-        route:
-          destination:
-            unixdomainsocket:
-              filename: "/var/run/sock/uds-echo.sock"
+      - action:
+          route:
+            destination:
+              unixdomainsocket:
+                filename: "/var/run/sock/uds-echo.sock"
   #+END_SRC
 
 *** Worker
@@ -203,7 +211,7 @@
   result an actual sidecar config.
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/MSM/v1
+  apiVersion: l7mp.io/v1
   kind: VirtualService
   metadata:
     name: worker-svc
@@ -229,7 +237,7 @@
   indentically named Targets for the corresponding VitualServices (see later).
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/MSM/v1
+  apiVersion: l7mp.io/v1
   kind: VirtualService
   metadata:
     name: gateway-vsvc
@@ -288,7 +296,7 @@ The below setup implements a fully-fledged IMS media plane.
   endpoint/pod IPs (via the Kubernetes service =worker-svc=).
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/MSM/v1
+  apiVersion: l7mp.io/v1
   kind: Target
   metadata:
     name: worker-target
@@ -318,7 +326,7 @@ The below setup implements a fully-fledged IMS media plane.
   target service 3 times, with a 2 sec timeout).
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/MSM/v1
+  apiVersion: l7mp.io/v1
   kind: Route
   metadata:
     name: gateway-route
@@ -350,7 +358,7 @@ The below setup implements a fully-fledged IMS media plane.
   separate rendezvous point for each stream, which defeats the purpose).
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/MSM/v1
+  apiVersion: l7mp.io/v1
   kind: Target
   metadata:
     name: sync-target
@@ -375,7 +383,7 @@ The below setup implements a fully-fledged IMS media plane.
   essentially random.)
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/MSM/v1
+  apiVersion: l7mp.io/v1
   kind: Target
   metadata:
     name: transcoder-target
@@ -400,7 +408,7 @@ The below setup implements a fully-fledged IMS media plane.
   specified above, and the transcoder will be traversed in the inbound direction.
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/MSM/v1
+  apiVersion: l7mp.io/v1
   kind: VirtualService
   metadata:
     name: worker-vsvc
@@ -435,7 +443,7 @@ The below setup implements a fully-fledged IMS media plane.
   VirtualService itself is deleted.
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/MSM/v1
+  apiVersion: l7mp.io/v1
   kind: VirtualService
   metadata:
     name: gateway-user-a-vsvc
@@ -464,7 +472,7 @@ The below setup implements a fully-fledged IMS media plane.
   call (after processing both ingress streams through the transcoder).
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/MSM/v1
+  apiVersion: l7mp.io/v1
   kind: VirtualService
   metadata:
     name: gateway-user-b-vsvc
@@ -486,6 +494,35 @@ The below setup implements a fully-fledged IMS media plane.
       removeOrphanSessions: true
   #+END_SRC
 
+* Selectors
+
+- Selectors are used in two places in custom resources.  First, a
+  selector defines a set of pods which the custom resource is deployed
+  on.  Second, selectors may be used to dynamically define the
+  endpoints of a target.
+
+- Currently, the standard matchLabels selector type is implemented,
+  but the more advanced matchExpressions is planned as well.
+  Additionally, the operator supports a simple matchNamespace type:
+
+  #+BEGIN_SRC yaml
+  apiVersion: l7mp.io/v1
+  kind: VirtualService
+  metadata:
+    name: my-source-vsvc
+  spec:
+    selector:
+      matchNamespace: default
+      matchLabels:
+       app: my-source-app
+    listener:
+      protocol: UDP
+      port: 8000
+    rules:
+      - action:
+          route: my-route
+  #+END_SRC
+
 * Mapping Control Plane Objects to =l7mp= REST API Calls
 
 - VirtualServices map to =l7mp= Listeners, Routes map to =l7mp= Routes, and Targets map to =l7mp=
@@ -504,7 +541,7 @@ The below setup implements a fully-fledged IMS media plane.
   VirtualService =my-source-vsvc=.
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/MSM/v1
+  apiVersion: l7mp.io/v1
   kind: Route
   metadata:
     name: my-route
@@ -516,7 +553,7 @@ The below setup implements a fully-fledged IMS media plane.
 
   ---
 
-  apiVersion: l7mp.io/MSM/v1
+  apiVersion: l7mp.io/v1
   kind: VirtualService
   metadata:
     name: my-source-vsvc
@@ -583,7 +620,7 @@ The below setup implements a fully-fledged IMS media plane.
 - Note that the selector is that of the target service, i.e., of =my-destination-svc=.
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/MSM/v1
+  apiVersion: l7mp.io/v1
   kind: VirtualService
   metadata:
     name: my-destination-svc
@@ -602,7 +639,21 @@ The below setup implements a fully-fledged IMS media plane.
   (i.e., with the selector =serviceName:my-source-svc=).
 
   #+BEGIN_SRC yaml
-  apiVersion: l7mp.io/MSM/v1
+  apiVersion: l7mp.io/v1
+  kind: Target
+  metadata:
+    name: my-destination-svc
+    namespace: default
+  spec:
+    selector:
+      serviceName: my-source-svc
+    linkedVirtualService: my-destination-svc
+  #+END_SRC
+
+  The above is equivalent with the following.
+
+  #+BEGIN_SRC yaml
+  apiVersion: l7mp.io/v1
   kind: Target
   metadata:
     name: my-destination-svc
