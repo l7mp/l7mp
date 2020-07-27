@@ -20,23 +20,45 @@
 // ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-const assert   = require('chai').assert;
-const L7mp     = require('../l7mp.js').L7mp;
-const Rule         = require('../rule.js').Rule;
-const RuleList     = require('../rule.js').RuleList;
-const http     = require('http');
-const Session      = require('../session.js').Session;
+const assert            = require('chai').assert;
+const http              = require('http');
+
+const L7mp              = require('../l7mp.js').L7mp;
+const Rule              = require('../rule.js').Rule;
+const RuleList          = require('../rule.js').RuleList;
+const Session           = require('../session.js').Session;
 const DuplexPassthrough = require('../stream.js').DuplexPassthrough;
 
 let static_config = {
     admin: {
-        // log_level: "error",
-        log_level: "silly",
+        log_level: "error",
+        // log_level: "silly",
         log_file: "stdout",
         access_log_path: "/tmp/admin_access.log",
         strict: true,
     },
     listeners: [
+        {
+            name: "test-listener",
+            spec: {
+                protocol: "Test",
+            },
+            rules: [
+                {
+                    action: {
+                        route: {
+                            destination: {
+                                name: "test-cluster",
+                                spec: {
+                                    protocol: "Test",
+                                },
+                                endpoints: [{ name: 'Test-e', spec: {}}]
+                            }
+                        }
+                    }
+                }
+            ]
+        },
         {
             name: "controller-listener",
             spec: {
@@ -99,17 +121,20 @@ function httpRequest(params, postData) {
 describe('Session API', ()  => {
     let s;
     before( async function () {
-        this.timeout(5000);
+        this.timeout(8000);
         l7mp = new L7mp();
         l7mp.static_config = static_config;
+        // do not validate config: Test listener/cluster is not exposed in OpenAPI
+        l7mp.admin.strict = false;
         await l7mp.run(); // should return
         const du = new DuplexPassthrough;
         let x = { metadata: {name: 'test-session'},
-            source: { origin: 'controller-listener', stream: du.right }};
-        s = new Session(x);
-        l7mp.sessions.push(s);
-        s.create();
-        await s.router();
+            source: { origin: 'test-listener', stream: du.right }};
+        // s = new Session(x);
+        // l7mp.sessions.push(s);
+        // s.create();
+        // await s.router();
+        await l7mp.addSession(x);
     });
 
     after(() => {
@@ -145,11 +170,11 @@ describe('Session API', ()  => {
             return Promise.resolve();
         });
         it('has-metadata', ()=>{ assert.property(res,'metadata')});
-        it('has-metadata-name', ()=>{ assert.nestedProperty(res,'metadata.name')});
-        it('metadata-name-value', ()=>{ assert.nestedPropertyVal(res,'metadata.name','test-session')});
+        it('has-name', ()=>{ assert.nestedProperty(res,'name')});
+        it('name-value', ()=>{ assert.nestedPropertyVal(res,'name','test-session')});
         it('has-source', ()=>{ assert.property(res,'source')});
         it('has-source-origin', ()=>{ assert.nestedProperty(res,'source.origin')});
-        it('source-origin-value', ()=>{ assert.nestedPropertyVal(res,'source.origin','controller-listener')});
+        it('source-origin-value', ()=>{ assert.nestedPropertyVal(res,'source.origin','test-listener')});
         it('has-source-listener', ()=>{ assert.nestedProperty(res,'source.listener')});
         it('has-source-status', ()=>{ assert.nestedProperty(res,'source.status')});
         it('source-status-value', ()=>{ assert.nestedPropertyVal(res,'source.status','READY')});
@@ -190,7 +215,7 @@ describe('Session API', ()  => {
                     () =>{ return Promise.reject(new Error('Expected method to reject.'))},
                     err => { assert.instanceOf(err, Error); return Promise.resolve()}
                 );
-        })
+        });
     });
 
 });
