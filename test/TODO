@@ -63,7 +63,7 @@
 ** Route, Rule, RuleList: 22-*
 *** TODO add/delete/list routes via the API
 *** TODO add/delete/list rulelists via the API
-*** TODO add/delete/list rules via the API
+*** DONE add/delete/list rules via the API
 *** TODO compound delete: deleting the route from a rule should remove the rule
 *** TODO compound delete: deleting the last rule from a rulelist should remove the rulelist
 *** TODO compound delete: deleting the rulelist from a listener should remove the listener (?)
