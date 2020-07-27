@@ -56,6 +56,37 @@ let static_config = {
                 }
             ]
         }
+    ],
+    "clusters": [
+        {
+            "name": "websocket-cluster",
+            "spec": {
+                "protocol": "WebSocket", "port" : 15001
+            }
+        },
+        {
+            "name": "tcp-cluster",
+            "spec": {
+                "protocol": "TCP", "port" : 15002
+            }
+        },
+        {
+            "name": "uds-cluster",
+            "spec": {
+                "protocol": "UnixDomainSocket"
+            }
+        },
+        {
+            "name": "jsonsocket-cluster",
+            "spec": {
+                "protocol" : "JSONSocket",
+                "port" : 15003,
+                "transport" : {
+                    "protocol" : "UDP",
+                    "port" : 15003
+                }
+            }
+        },
     ]
 };
 
@@ -124,12 +155,22 @@ describe('EndPoint API', ()  => {
                 , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
             }
             let res = await httpRequest(options, postData);
-
             assert.nestedPropertyVal(res, 'status', 200)
             return Promise.resolve()
         });
+        ///
+        it('has-endpoint-name', async() =>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/config',
+                method: 'GET'
+            };
+            let res = await httpRequest(options);
+            return Promise.resolve();
+        });
+        ///
     });
-    context('add-check-delete-endpoints-via-api', ()=> {
+    context('UDP-add-check-delete-endpoints-via-api', ()=> {
         let res;
 
         it('add-endpoint', async () => {
@@ -322,6 +363,185 @@ describe('EndPoint API', ()  => {
                     ()=>{ return Promise.reject(new Error('Expected method to reject'))},
                     err => { assert.instanceOf(err, Error); return Promise.resolve()}
                 )
+        });
+    });
+
+    context('WebSocket endpoint',()=>{
+        let res;
+        it('add', async ()=>{
+            const postData = JSON.stringify({
+                'endpoint':
+                    {
+                        name: 'websocket-cluster-endpoint',
+                        spec: { port: 15005, address: '127.0.0.1'}
+                    }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters/websocket-cluster/endpoints', method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            }
+            res = await httpRequest(options, postData);
+            assert.nestedPropertyVal(res, 'status', 200);
+            return Promise.resolve()
+        });
+        it('has-endpoint-name', async() =>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters/websocket-cluster/endpoints',
+                method: 'GET'
+            };
+            res = await httpRequest(options);
+            assert.nestedPropertyVal(res[0], 'name', 'websocket-cluster-endpoint');
+            return Promise.resolve();
+        });
+        it('has-endpoint-spec', ()=>{ assert.nestedProperty(res[0], 'spec')});
+        it('has-endpoint-spec-address', ()=>{ assert.nestedProperty(res[0], 'spec.address', '127.0.0.1')});
+        it('has-endpoint-spec-port', ()=>{ assert.nestedProperty(res[0], 'spec.port', 15005)});
+        it('delete-endpoint-default', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/clusters/websocket-cluster/endpoints/${res[0].name}`,
+                method: 'DELETE'
+            };
+
+            res = await httpRequest(options)
+            assert.nestedPropertyVal(res, 'status', 200);
+            return Promise.resolve();
+        });
+    });
+
+    context('TCP endpoint',()=>{
+        let res;
+        it('add', async ()=>{
+            const postData = JSON.stringify({
+                'endpoint':
+                    {
+                        name: 'tcp-cluster-endpoint',
+                        spec: { port: 15004, address: '127.0.0.1'}
+                    }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters/tcp-cluster/endpoints', method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            }
+            res = await httpRequest(options, postData);
+            assert.nestedPropertyVal(res, 'status', 200);
+            return Promise.resolve()
+        });
+        it('has-endpoint-name', async() =>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters/tcp-cluster/endpoints',
+                method: 'GET'
+            };
+            res = await httpRequest(options);
+            assert.nestedPropertyVal(res[0], 'name', 'tcp-cluster-endpoint');
+            return Promise.resolve();
+        });
+        it('has-endpoint-spec', ()=>{ assert.nestedProperty(res[0], 'spec')});
+        it('has-endpoint-spec-address', ()=>{ assert.nestedProperty(res[0], 'spec.address', '127.0.0.1')});
+        it('has-endpoint-spec-port', ()=>{ assert.nestedProperty(res[0], 'spec.port', 15004)});
+        it('delete-endpoint-default', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/clusters/tcp-cluster/endpoints/${res[0].name}`,
+                method: 'DELETE'
+            };
+
+            res = await httpRequest(options)
+            assert.nestedPropertyVal(res, 'status', 200);
+            return Promise.resolve();
+        });
+    });
+
+    context('UDS endpoint',()=>{
+        let res;
+        it('add', async ()=>{
+            const postData = JSON.stringify({
+                'endpoint':
+                    {
+                        name: 'uds-cluster-endpoint',
+                        spec: { address: '/tmp/unixSocket.sock'}
+                    }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters/uds-cluster/endpoints', method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            }
+            res = await httpRequest(options, postData);
+            assert.nestedPropertyVal(res, 'status', 200);
+            return Promise.resolve()
+        });
+        it('has-endpoint-name', async() =>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters/uds-cluster/endpoints',
+                method: 'GET'
+            };
+            res = await httpRequest(options);
+            assert.nestedPropertyVal(res[0], 'name', 'uds-cluster-endpoint');
+            return Promise.resolve();
+        });
+        it('has-endpoint-spec', ()=>{ assert.nestedProperty(res[0], 'spec')});
+        it('has-endpoint-spec-address', ()=>{ assert.nestedProperty(res[0], 'spec.address', '/tmp/unixSocket.sock')});
+        it('delete-endpoint-default', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/clusters/uds-cluster/endpoints/${res[0].name}`,
+                method: 'DELETE'
+            };
+
+            res = await httpRequest(options)
+            assert.nestedPropertyVal(res, 'status', 200);
+            return Promise.resolve();
+        });
+    });
+
+    context('JSONSocket endpoint',()=>{
+        let res;
+        it('add', async ()=>{
+            const postData = JSON.stringify({
+                'endpoint':
+                    {
+                        name: 'jsonsocket-cluster-endpoint',
+                        spec: { port: 15005, address: '127.0.0.1'}
+                    }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters/jsonsocket-cluster/endpoints', method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            }
+            res = await httpRequest(options, postData);
+            assert.nestedPropertyVal(res, 'status', 200);
+            return Promise.resolve()
+        });
+        it('has-endpoint-name', async() =>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters/jsonsocket-cluster/endpoints',
+                method: 'GET'
+            };
+            res = await httpRequest(options);
+            assert.nestedPropertyVal(res[0], 'name', 'jsonsocket-cluster-endpoint');
+            return Promise.resolve();
+        });
+        it('has-endpoint-spec', ()=>{ assert.nestedProperty(res[0], 'spec')});
+        it('has-endpoint-spec-address', ()=>{ assert.nestedProperty(res[0], 'spec.address', '127.0.0.1')});
+        it('has-endpoint-spec-port', ()=>{ assert.nestedProperty(res[0], 'spec.port', 15005)});
+        it('delete-endpoint-default', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/clusters/jsonsocket-cluster/endpoints/${res[0].name}`,
+                method: 'DELETE'
+            };
+
+            res = await httpRequest(options)
+            assert.nestedPropertyVal(res, 'status', 200);
+            return Promise.resolve();
         });
     });
 });
