@@ -368,7 +368,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('getSession', (ctx, req, res) => {
-            log.verbose("L7mp.api.getSession");
+            log.verbose("L7mp.api.getSession:", ctx.request.params.name);
             let result = l7mp.getSession(ctx.request.params.name);
             if(result){
                 res.status = new Response(result.toJSON());
@@ -379,13 +379,13 @@ class L7mpOpenAPI {
 
         this.api.registerHandler('deleteSession', (ctx, req, res) => {
             log.verbose("L7mp.api.deleteSession");
-            try {
-                let s = l7mp.getSession(ctx.request.params.name);
-                if(s) s.destroy(new GeneralError('Session removed from the API'));
+            let session = l7mp.getSession(ctx.request.params.name);
+            if(session){
+                session.end(new Ok('Session removed from the API'));
                 // l7mp.deleteSession(ctx.request.params.name);
                 res.status = new Ok();
-            } catch(e) {
-                res.status = new BadRequestError(e.message);
+            } else {
+                res.status = new BadRequestError('No such session');
             }
         });
 
@@ -449,7 +449,7 @@ class L7mpOpenAPI {
     }
 
     async handleRequest(s, body, stream){
-        log.silly('l7mp.openapi: handleRequest');
+        log.silly('l7mp.openapi: handleRequest:', dumper(s.metadata, 10));
 
         // prepare
         if(!(s.metadata.HTTP && s.metadata.HTTP.method && s.metadata.HTTP.url.path)){
