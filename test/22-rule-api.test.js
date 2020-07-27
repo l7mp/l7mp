@@ -64,6 +64,8 @@ describe('Rule API', ()  => {
         this.timeout(5000);
         l7mp = new L7mp();
         l7mp.static_config = static_config;
+        // validate the static config
+        l7mp.admin.strict = true;
         await l7mp.run(); // should return
         return Promise.resolve();
     });
