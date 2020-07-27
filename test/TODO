@@ -40,7 +40,7 @@
 
 ** Route, Rule, RuleList: 13-*
 *** DONE Route
-*** UNFINISHED Rule
+*** DONE Rule
 *** UNFINISHED RuleList
 
 ** Session: routing, retry, load-balancing: 14-*
