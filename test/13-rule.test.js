@@ -44,8 +44,8 @@ describe('Rule', () => {
 
     context('Apply-WildCard', () => {
         it('applied',       () => { s = r.apply({name: 'Rule'}); assert.exists(s); });
-        it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-        it('action-equal',  () => { assert.equal(s, r.action); }); 
+        it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+        it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
     });
 
     context('Contains-JSONPredicate', () => {
@@ -58,14 +58,14 @@ describe('Rule', () => {
         
         context('Apply-JSONPredicate-true', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {name: 'test'}}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {name: 'not'}}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { console.log(s); assert.notEqual(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
 
@@ -79,14 +79,14 @@ describe('Rule', () => {
         
         context('Apply-JSONPredicate-true', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {name: 'test'}}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {name: 'NOT'}}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { console.log(s); assert.notEqual(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
 
@@ -100,13 +100,13 @@ describe('Rule', () => {
         
         context('Apply-JSONPredicate-true', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {name: null}}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {names: null}}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
             it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
@@ -121,13 +121,13 @@ describe('Rule', () => {
         
         context('Apply-JSONPredicate-true', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {name: 'This is a test'}}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {names: 'test a is This'}}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
             it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
@@ -142,13 +142,13 @@ describe('Rule', () => {
         
         context('Apply-JSONPredicate-true', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {name: 'This is a TEST'}}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {names: 'TEST A IS THIS'}}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
             it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
@@ -163,13 +163,13 @@ describe('Rule', () => {
         
         context('Apply-JSONPredicate-true', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {name: 10}}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {names: 11}}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
             it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
@@ -184,13 +184,13 @@ describe('Rule', () => {
         
         context('Apply-JSONPredicate-true', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {name: 10}}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {names: 15}}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
             it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
@@ -205,13 +205,13 @@ describe('Rule', () => {
         
         context('Apply-JSONPredicate-true', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {name: 'test'}}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {names: 'TEST'}}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
             it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
@@ -226,13 +226,13 @@ describe('Rule', () => {
         
         context('Apply-JSONPredicate-true', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {name: 'TEST'}}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {names: 'test '}}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
             it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
@@ -247,13 +247,13 @@ describe('Rule', () => {
         
         context('Apply-JSONPredicate-true', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {name: 10}}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {names: 0}}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
             it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
@@ -268,13 +268,13 @@ describe('Rule', () => {
         
         context('Apply-JSONPredicate-true', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {name: 'test '}}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {names: 'This a test'}}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
             it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
@@ -289,13 +289,13 @@ describe('Rule', () => {
         
         context('Apply-JSONPredicate-true', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {name: 'TEST is it'}}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {names: 'THIS IS A TEST'}}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
             it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
@@ -310,13 +310,13 @@ describe('Rule', () => {
         
         context('Apply-JSONPredicate-true', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {name: 'test'}}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {names: 'This a test'}}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
             it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
@@ -331,13 +331,13 @@ describe('Rule', () => {
         
         context('Apply-JSONPredicate-true', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {name: 'test'}}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {names: true}}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
             it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
@@ -352,13 +352,13 @@ describe('Rule', () => {
         
         context('Apply-JSONPredicate-true', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {not_name: null}}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
             it('applied',       () => { s = r.apply({name: 'Rule', metadata: {name: null}}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
             it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
@@ -386,8 +386,8 @@ describe('Rule', () => {
                     }
                 }
             }}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
@@ -399,7 +399,7 @@ describe('Rule', () => {
                     }
                 }
             }}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
             it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
@@ -427,8 +427,8 @@ describe('Rule', () => {
                     }
                 }
             }}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
@@ -440,7 +440,7 @@ describe('Rule', () => {
                     }
                 }
             }}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
             it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
@@ -468,8 +468,8 @@ describe('Rule', () => {
                     }
                 }
             }}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
@@ -481,7 +481,7 @@ describe('Rule', () => {
                     }
                 }
             }}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
             it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
@@ -520,8 +520,8 @@ describe('Rule', () => {
                     }
                 }
             }}); assert.exists(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
-            it('action-equal',  () => { assert.equal(s, r.action); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
+            it('action-equal',  () => { assert.strictEqual(s, r.action); }); 
         });
 
         context('Apply-JSONPredicate-false', () => {
@@ -532,7 +532,7 @@ describe('Rule', () => {
                     }
                 }
             }}); assert.isUndefined(s); });
-            it('Stats-applied', () => { assert.equal(r.stats.total_applied, 1); }); 
+            it('Stats-applied', () => { assert.strictEqual(r.stats.total_applied, 1); }); 
             it('action-equal',  () => { assert.notEqual(s, r.action); }); 
         });
     });
