@@ -31,7 +31,7 @@
 
 ** Listener: 12-*
 *** DONE HTTP
-*** UNFINISHED WebSocket
+*** DONE WebSocket
 *** DONE UDP singleton
 *** DONE UDP server
 *** DONE TCP
