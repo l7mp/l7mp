@@ -294,7 +294,7 @@ class Session {
         this.type                    = this.source.origin.type;  // init
         this.retry_on_disconnect_num = 0;
         this.active_streams          = 0;   // except listener
-        this.track                   = false
+        this.track                   = 0;
         this.events                  = [];  // an event log for tracked sessions
 
         this.init();
@@ -822,10 +822,9 @@ class Session {
                            message: "Session destroyed",
                            content: ''});
 
-        if(this.track)
+        if(this.track){
             log.silly('Session.destroy:', `${this.name}:`,
                       `Tracking session for ${this.track} seconds`);
-        if(this.track){
             setTimeout(() => this.emit('destroy'), this.track * 1000);
         } else {
             this.emit('destroy');

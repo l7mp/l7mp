@@ -57,20 +57,10 @@ class Listener {
             accepted_sessions: 0,
             counter: new StreamCounter()
         };
-        this.options = l.options || {track: false};
+        this.options = l.options || {track: 0};
     }
 
     getNewSessionId() { return this.sessionId++; }
-
-    toJSON(){
-        log.silly('Listener.toJSON', `"${this.name}"`);
-        return {
-            name:    this.name,
-            spec:    this.spec,
-            rules:   this.rules, // string
-            options: this.options,
-        };
-    }
 
     json(res){
         let json = {
