@@ -76,7 +76,7 @@ class BadRequestError extends L7mpError {
 // Input validation errors from the API
 class ValidationError extends L7mpError {
     constructor(content) {
-        super(422, 'Unprocessable Entity: Input validation failed', content);
+        super(422, 'Unprocessable Entity: Input JSON schema validation failed', content);
         this.name = this.constructor.name;
     }
 }
