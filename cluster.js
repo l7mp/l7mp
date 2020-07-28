@@ -580,12 +580,8 @@ class UDPCluster extends Cluster {
 
 class JSONSocketCluster extends Cluster {
     constructor(c) {
-        // do not add endpoints, transport is not initialized yet
-        let es = c.endpoints;
-        c.endpoints = undefined;
         super(c);
 
-        // 1. create transport
         let cu = {
             name: c.name + '-transport-cluster',
             spec: c.spec.transport_spec || c.spec.transport,
@@ -600,8 +596,8 @@ class JSONSocketCluster extends Cluster {
         this.type = this.transport.type;
         this.header = c.spec.header || [];
 
-        if(es)
-            es.forEach( (e) => this.addEndPoint(e) );
+        // if(es)
+        //     es.forEach( (e) => this.addEndPoint(e) );
 
         log.info('JSONSocketCluster:', `${this.name} initialized, using transport:`,
                  dumper(this.transport, 2));
