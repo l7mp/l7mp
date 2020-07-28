@@ -55,7 +55,6 @@ describe('WebSocketCluster', () => {
         it('has-policy',       () => { assert.instanceOf(c.loadbalancer, LoadBalancer); });
         it('has-type',         () => { assert.property(c, 'type'); });
         it('has-retry',        () => { assert.deepPropertyVal(c, 'retriable', true); });
-        it('has-options',      () => { assert.deepPropertyVal(c, 'options', {removeOrphanSessions: true}); });
         it('has-objectmode',   () => { assert.property(c, 'objectMode'); });
     });
 
