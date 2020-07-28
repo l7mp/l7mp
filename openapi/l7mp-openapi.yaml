@@ -129,9 +129,6 @@ components:
           description: Optional features.
           type: object
           properties:
-            removeOrphanSessions:
-              description: On removing the listener also remove all sessions emitted by this listener.
-              type: boolean
             track:
               description: Sessions created by this listener will be tracked and will be available after ending for a specified amount of time, to help post-mortem analysis. If specified, then value must be an integer, providing the number of seconds during which the session will be available before deletion.
               type: integer
@@ -369,10 +366,6 @@ components:
         options:
           description: Optional features.
           type: object
-          properties:
-            removeOrphanSessions:
-              description: On removing the cluster also remove all sessions router through the cluster.
-              type: boolean
 
     io.l7mp.api.v1.WebSocketClusterSpec:
       description: A WebSocket cluster specification that forwards HTTP/WebSocket connections to an upstream cluster.
