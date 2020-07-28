@@ -61,7 +61,7 @@ class Route {
 Route.index = 0;
 
 Route.create = (r) => {
-    log.silly("Route.create:", r.name);
+    log.silly(`Route.create:`, dumper(r, 6));
     return new Route(r);
 }
 
