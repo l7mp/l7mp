@@ -148,26 +148,37 @@ describe('EndPoint API', ()  => {
                 'cluster':{
                     name: 'test-cluster',
                     spec: {protocol: 'UDP', port: 16000, bind: {port: 16001, address: '127.0.0.1'}},
-                    endpoints: [{spec: {address: '127.0.0.1'}}]
+                    endpoints: [{name: 'Test-e', spec: {address: '127.0.0.1'}}]
                 }
             });
             let options = {
                 host: 'localhost', port: 1234,
-                path: '/api/v1/clusters', method: 'POST'
-                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+                path: '/api/v1/clusters', method: 'POST',
+                headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
             }
             let res = await httpRequest(options, postData);
             assert.nestedPropertyVal(res, 'status', 200)
             return Promise.resolve()
         });
         ///
-        it('has-endpoint-name', async() =>{
+        it('has-endpoint', async() =>{
             let options = {
                 host: 'localhost', port: 1234,
-                path: '/api/v1/config',
+                path: '/api/v1/clusters/test-cluster/endpoints',
                 method: 'GET'
             };
             let res = await httpRequest(options);
+            assert.lengthOf(res, 1);
+            return Promise.resolve();
+        });
+        it('has-endpoint', async() =>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters/test-cluster/endpoints',
+                method: 'GET'
+            };
+            let res = await httpRequest(options);
+            assert.nestedPropertyVal(res[0], 'name', 'Test-e')
             return Promise.resolve();
         });
         ///
@@ -209,7 +220,7 @@ describe('EndPoint API', ()  => {
         it('delete-endpoint-default', async ()=>{
             let options = {
                 host: 'localhost', port: 1234,
-                path: `/api/v1/clusters/test-cluster/endpoints/${res[0].name}`,
+                path: `/api/v1/endpoints/${res[0].name}`,
                 method: 'DELETE'
             };
 
@@ -220,7 +231,7 @@ describe('EndPoint API', ()  => {
         it('delete-endpoint-added-via-api', async ()=>{
             let options = {
                 host: 'localhost', port: 1234,
-                path: `/api/v1/clusters/test-cluster/endpoints/${res[1].name}`,
+                path: `/api/v1/endpoints/${res[1].name}`,
                 method: 'DELETE'
             };
 
@@ -270,7 +281,7 @@ describe('EndPoint API', ()  => {
             for(let i = 1; i < 6; i++){
                 let options = {
                     host: 'localhost', port: 1234,
-                    path: `/api/v1/clusters/test-cluster/endpoints/test-cluster-EndPoint-${i}`,
+                    path: `/api/v1/endpoints/test-cluster-EndPoint-${i}`,
                     method: 'DELETE'
                 };
                 reqs.push(httpRequest(options))
@@ -403,7 +414,7 @@ describe('EndPoint API', ()  => {
         it('delete-endpoint-default', async ()=>{
             let options = {
                 host: 'localhost', port: 1234,
-                path: `/api/v1/clusters/websocket-cluster/endpoints/${res[0].name}`,
+                path: `/api/v1/endpoints/${res[0].name}`,
                 method: 'DELETE'
             };
 
@@ -448,7 +459,7 @@ describe('EndPoint API', ()  => {
         it('delete-endpoint-default', async ()=>{
             let options = {
                 host: 'localhost', port: 1234,
-                path: `/api/v1/clusters/tcp-cluster/endpoints/${res[0].name}`,
+                path: `/api/v1/endpoints/${res[0].name}`,
                 method: 'DELETE'
             };
 
@@ -492,7 +503,7 @@ describe('EndPoint API', ()  => {
         it('delete-endpoint-default', async ()=>{
             let options = {
                 host: 'localhost', port: 1234,
-                path: `/api/v1/clusters/uds-cluster/endpoints/${res[0].name}`,
+                path: `/api/v1/endpoints/${res[0].name}`,
                 method: 'DELETE'
             };
 
@@ -537,7 +548,7 @@ describe('EndPoint API', ()  => {
         it('delete-endpoint-default', async ()=>{
             let options = {
                 host: 'localhost', port: 1234,
-                path: `/api/v1/clusters/jsonsocket-cluster/endpoints/${res[0].name}`,
+                path: `/api/v1/endpoints/${res[0].name}`,
                 method: 'DELETE'
             };
 

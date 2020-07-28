@@ -97,7 +97,7 @@ function httpRequest(params, postData) {
 describe('RuleList API', ()  => {
     let controller_rulelist_name;
     before( async function () {
-        this.timeout(5000);
+        this.timeout(8000);
         l7mp = new L7mp();
         l7mp.static_config = static_config;
         // validate the static config

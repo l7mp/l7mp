@@ -37,9 +37,9 @@ const Route        = require('../route.js').Route;
 const DuplexPassthrough = require('../stream.js').DuplexPassthrough;
 const delay        = require('delay');
 
-// TODO: killing session during retry, killing cluster/lisener under session
+// TODO: killing session during retry, killing cluster/listener under session
 
-describe('Rerty', ()  => {
+describe('Retry', ()  => {
     var l, e, c, s, r, ru, rl, u;
     before( async () => {
         l7mp = new L7mp();
@@ -50,8 +50,8 @@ describe('Rerty', ()  => {
         l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
 
         l7mp.listeners.push(l);
-        c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'},
-                             endpoints: [{ name: 'Test-e', spec: {}}]});
+        c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}});
+        c.addEndPoint({ name: 'Test-e', spec: {}});
         await c.run();
         e = c.endpoints[0];
         l7mp.clusters.push(c);
@@ -716,8 +716,8 @@ describe('Rerty', ()  => {
     context('2-retry-disconnect-fail-kill-session', () => {
         var du = new DuplexPassthrough();
         it('route', async () => {
-            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'},
-                                 endpoints: [{ name: 'Test-e', spec: {}}]});
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}});
+            c.addEndPoint({ name: 'Test-e', spec: {}});
             await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
@@ -840,8 +840,8 @@ describe('Rerty', ()  => {
                        transport: { protocol: 'UDP', port: 54321 },
                        header: [ { path: '/' } ]
                       },
-                endpoints: [{ name: 'Test-e', spec: {address: '127.0.0.1'}}],
             });
+            c.addEndPoint({ name: 'Test-e', spec: {address: '127.0.0.1'}});
             await c.run();
             e = c.endpoints[0];
             l7mp.clusters.push(c);
