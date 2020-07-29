@@ -57,13 +57,13 @@ class L7mpOpenAPI {
 
         // general config API
         this.api.registerHandler('getConf', (ctx, req, res) => {
-            log.verbose("L7mp.api.getConf");
+            log.info("L7mp.api.getConf");
             // cannot be recursive
             res.status = new Response(l7mp.dumpL7mp());
         });
 
         this.api.registerHandler('setConf', (ctx, req, res) => {
-            log.verbose("L7mp.api.setConf");
+            log.info("L7mp.api.setConf");
             res.status = new BadRequestError('Not implemented');
             // try {
             //     l7mp.static_config = req.body;
@@ -75,13 +75,13 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('getAdmin', (ctx, req, res) => {
-            log.verbose("L7mp.api.getAdmin");
+            log.info("L7mp.api.getAdmin");
             res.status = new Response(l7mp.getAdmin().toJSON());
         });
 
         // Listener API
         this.api.registerHandler('getListeners', (ctx, req, res) => {
-            log.verbose("L7mp.api.getListeners");
+            log.info("L7mp.api.getListeners");
             let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
                 ctx.request.query.recursive : false;
             let ls = l7mp.listeners.map(
@@ -90,7 +90,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('getListener', (ctx, req, res) => {
-            log.verbose("L7mp.api.getListener");
+            log.info("L7mp.api.getListener");
             let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
                 ctx.request.query.recursive : false;
             try {
@@ -102,7 +102,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('addListener', async (ctx, req, res) => {
-            log.verbose("L7mp.api.addListener");
+            log.info("L7mp.api.addListener");
             try {
                 let result = await l7mp.addListener(req.body.listener);
                 res.status = new Ok();
@@ -112,7 +112,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('deleteListener', (ctx, req, res) => {
-            log.verbose("L7mp.api.deleteListener");
+            log.info("L7mp.api.deleteListener");
             let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
                 ctx.request.query.recursive : false;
             try {
@@ -125,7 +125,7 @@ class L7mpOpenAPI {
 
         // Cluster API
         this.api.registerHandler('getClusters', (ctx, req, res) => {
-            log.verbose("L7mp.api.getClusters");
+            log.info("L7mp.api.getClusters");
             let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
                 ctx.request.query.recursive : false;
             let cs = l7mp.clusters.map(
@@ -134,7 +134,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('getCluster', (ctx, req, res) => {
-            log.verbose("L7mp.api.getCluster");
+            log.info("L7mp.api.getCluster");
             try {
                 let c = l7mp.dumpCluster(ctx.request.params.name);
                 res.status = new Response(c);
@@ -144,7 +144,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('addCluster', async (ctx, req, res) => {
-            log.verbose("L7mp.api.addCluster");
+            log.info("L7mp.api.addCluster");
             try {
                 let result = await l7mp.addCluster(req.body.cluster);
                 res.status = new Ok();
@@ -154,7 +154,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('deleteCluster', (ctx, req, res) => {
-            log.verbose("L7mp.api.deleteCluster");
+            log.info("L7mp.api.deleteCluster");
             let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
                 ctx.request.query.recursive : false;
             try {
@@ -167,7 +167,7 @@ class L7mpOpenAPI {
 
         // EndPoint API
         this.api.registerHandler('getEndPoints', (ctx, req, res) => {
-            log.verbose("L7mp.api.getEndPoints");
+            log.info("L7mp.api.getEndPoints");
             try {
                 let cluster = l7mp.getCluster(ctx.request.params.name);
                 if(!cluster)
@@ -180,7 +180,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('getEndPoint', (ctx, req, res) => {
-            log.verbose("L7mp.api.getEndPoint");
+            log.info("L7mp.api.getEndPoint");
             try {
                 let e = l7mp.dumpEndPoint(ctx.request.params.name);
                 res.status = new Response(c);
@@ -190,7 +190,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('addEndPoint', async (ctx, req, res) => {
-            log.verbose("L7mp.api.addEndPoint");
+            log.info("L7mp.api.addEndPoint");
             try {
                 let result = await l7mp.addEndPoint(ctx.request.params.name,
                                                     req.body.endpoint);
@@ -201,7 +201,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('deleteEndPoint', (ctx, req, res) => {
-            log.verbose("L7mp.api.deleteEndPoint");
+            log.info("L7mp.api.deleteEndPoint");
             // cannot be resursive
             try {
                 l7mp.deleteEndPoint(ctx.request.params.name);
@@ -213,7 +213,7 @@ class L7mpOpenAPI {
 
         // RuleList API
         this.api.registerHandler('getRuleLists', (ctx, req, res) => {
-            log.verbose("L7mp.api.getRuleLists");
+            log.info("L7mp.api.getRuleLists");
 
             let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
                 ctx.request.query.recursive : false;
@@ -223,7 +223,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('getRuleList', (ctx, req, res) => {
-            log.verbose("L7mp.api.getRuleList");
+            log.info("L7mp.api.getRuleList");
             let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
                 ctx.request.query.recursive : false;
 
@@ -236,7 +236,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('addRuleList', async (ctx, req, res) => {
-            log.verbose("L7mp.api.addRuleList");
+            log.info("L7mp.api.addRuleList");
             try {
                 let result = await l7mp.addRuleList(req.body.rulelist);
                 res.status = new Ok();
@@ -246,7 +246,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('deleteRuleList', (ctx, req, res) => {
-            log.verbose("L7mp.api.deleteRuleList");
+            log.info("L7mp.api.deleteRuleList");
             let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
                 ctx.request.query.recursive : false;
             try {
@@ -258,7 +258,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('getRuleFromRuleList', (ctx, req, res) => {
-            log.verbose("L7mp.api.getRuleFromRuleList");
+            log.info("L7mp.api.getRuleFromRuleList");
             let rulelist = l7mp.getRuleList(ctx.request.params.name);
             if(!rulelist){
                 res.status = new BadRequestError('No such rule list');
@@ -281,7 +281,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('addRuleToRuleList', async (ctx, req, res) => {
-            log.verbose("L7mp.api.addRuleToRuleList");
+            log.info("L7mp.api.addRuleToRuleList");
             let rulelist = l7mp.getRuleList(ctx.request.params.name);
             if(!rulelist){
                 res.status = new BadRequestError('No such rule list');
@@ -296,7 +296,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('deleteRuleFromRuleList', (ctx, req, res) => {
-            log.verbose("L7mp.api.deleteRuleFromRuleList");
+            log.info("L7mp.api.deleteRuleFromRuleList");
             // cannot be resursive
             let rulelist = l7mp.getRuleList(ctx.request.params.name);
             if(!rulelist){
@@ -313,7 +313,7 @@ class L7mpOpenAPI {
 
         // Rule API
         this.api.registerHandler('getRules', (ctx, req, res) => {
-            log.verbose("L7mp.api.getRules");
+            log.info("L7mp.api.getRules");
             let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
                 ctx.request.query.recursive : false;
             let rs = l7mp.rules.map(
@@ -322,7 +322,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('getRule', (ctx, req, res) => {
-            log.verbose("L7mp.api.getRule");
+            log.info("L7mp.api.getRule");
             let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
                 ctx.request.query.recursive : false;
             try {
@@ -334,7 +334,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('addRule', async (ctx, req, res) => {
-            log.verbose("L7mp.api.addRule");
+            log.info("L7mp.api.addRule");
             try {
                 let result = await l7mp.addRule(req.body.rule);
                 res.status = new Ok();
@@ -344,7 +344,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('deleteRule', (ctx, req, res) => {
-            log.verbose("L7mp.api.deleteRule");
+            log.info("L7mp.api.deleteRule");
             let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
                 ctx.request.query.recursive : false;
 
@@ -358,7 +358,7 @@ class L7mpOpenAPI {
 
         // Route API
         this.api.registerHandler('getRoutes', (ctx, req, res) => {
-            log.verbose("L7mp.api.getRoutes");
+            log.info("L7mp.api.getRoutes");
             let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
                 ctx.request.query.recursive : false;
             let rs = l7mp.routes.map(
@@ -367,7 +367,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('getRoute', (ctx, req, res) => {
-            log.verbose("L7mp.api.getRoute");
+            log.info("L7mp.api.getRoute");
             let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
                 ctx.request.query.recursive : false;
             try {
@@ -379,7 +379,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('addRoute', async (ctx, req, res) => {
-            log.verbose("L7mp.api.addRoute");
+            log.info("L7mp.api.addRoute");
             try {
                 let result = await l7mp.addRoute(req.body.route);
                 res.status = new Ok();
@@ -389,7 +389,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('deleteRoute', (ctx, req, res) => {
-            log.verbose("L7mp.api.deleteRoute");
+            log.info("L7mp.api.deleteRoute");
             let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
                 ctx.request.query.recursive : false;
             try {
@@ -402,12 +402,12 @@ class L7mpOpenAPI {
 
         // Session API
         this.api.registerHandler('getSessions', (ctx, req, res) => {
-            log.verbose("L7mp.api.getSessions");
+            log.info("L7mp.api.getSessions");
             res.status = new Response(l7mp.sessions.map(s => s.toJSON()));
         });
 
         this.api.registerHandler('getSession', (ctx, req, res) => {
-            log.verbose("L7mp.api.getSession:", ctx.request.params.name);
+            log.info("L7mp.api.getSession:", ctx.request.params.name);
             let result = l7mp.getSession(ctx.request.params.name);
             if(result){
                 res.status = new Response(result.toJSON());
@@ -417,7 +417,7 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('deleteSession', (ctx, req, res) => {
-            log.verbose("L7mp.api.deleteSession");
+            log.info("L7mp.api.deleteSession");
             let session = l7mp.getSession(ctx.request.params.name);
             if(session){
                 session.end(new Ok('Session removed from the API'));
@@ -430,18 +430,18 @@ class L7mpOpenAPI {
 
         // Miscellaneous API endpoints
         this.api.register('validationFail', (ctx, req, res) => {
-            log.verbose("L7mp.api.validationFail: operation:", ctx.operation.operationId,
+            log.info("L7mp.api.validationFail: operation:", ctx.operation.operationId,
                         'error:', dumper(ctx.validation.errors, 10));
             res.status = new ValidationError(ctx.validation.errors);
         });
 
         this.api.register('notFound', (ctx, req, res) => {
-            log.verbose("L7mp.api.notFound");
+            log.info("L7mp.api.notFound");
             res.status = new NotFoundError('Unknown API operation');
         });
 
         this.api.register('notImplemented', (ctx, req, res) => {
-            log.verbose("L7mp.api.notImplemented");
+            log.info("L7mp.api.notImplemented");
             res.status = new GeneralError(501, 'Not Implemented',
                                    'No handler registered for operation');
         });
@@ -468,7 +468,7 @@ class L7mpOpenAPI {
                 let valid = ctx.api.validateResponse(res.response,
                                                      ctx.operation, res.status.status);
                 if (valid.errors) {
-                    log.silly('l7mp.openapi: postResponseHandler failed on response:',
+                    log.verbose('l7mp.openapi: postResponseHandler failed on response:',
                               dumper(res.response, 6), ',',
                               `Error: ${dumper(res.status.content, 6)}`);
                     res.status = new ValidationError(valid.errors);
