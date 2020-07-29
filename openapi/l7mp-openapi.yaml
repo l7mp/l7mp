@@ -1320,7 +1320,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     delete:
-      description: Remove a Rule from a RuleList. Note that the Rule itself will not be deleted, just removed from this rulelist; to actually delete the Rule, use the delete operation of the Rule API (deleteRule).
+      description: >
+        Remove a Rule from a RuleList either by position (if the "position" parameter is an
+        integer) or by name (if the "position" parameter is a string and it refers to the name of a
+        rule existing in the rulelist). Note that the Rule itself will not be deleted, just removed
+        from this rulelist; to actually delete the Rule, use the delete operation of the Rule API
+        (deleteRule).
       operationId: deleteRuleFromRuleList
       parameters:
         - name: name
@@ -1333,8 +1338,10 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-          description: Position.
+            anyOf:
+              - type: integer
+              - type: string
+          description: Position or name of the Rule to delete.
       responses:
         '200':
           description: Status.

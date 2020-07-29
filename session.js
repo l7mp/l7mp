@@ -755,8 +755,8 @@ class Session {
                   (err && err.message) ? err.message : '');
         this.events.push({ event: 'END',
                            timestamp: new Date().toISOString(),
-                           message: err ? err.message : 'Normal end',
-                           content: err});
+                           message: err ? err.message : 'Normal end'
+                         });
 
         this.status = 'FINALIZING';
         this.emit('end', err);

@@ -12,13 +12,17 @@ listeners:
   - name: ws-l
     spec: { protocol: WebSocket, port: 9999 }
     rules:
-      - match: { op: starts, path: '/HTTP/url/path', value: '/admin' }
+      - name: rule-1
+        match: { op: starts, path: '/HTTP/url/path', value: '/admin' }
         action:
           route:
             destination: echo
-      - action:
+      - name: rule-2
+        action:
           route:
             destination: stdio
+    options:
+      track: 3600
 clusters:
   - name: controller
     spec: { protocol: L7mpController }

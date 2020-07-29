@@ -298,13 +298,23 @@ class L7mpOpenAPI {
         this.api.registerHandler('deleteRuleFromRuleList', (ctx, req, res) => {
             log.info("L7mp.api.deleteRuleFromRuleList");
             // cannot be resursive
-            let rulelist = l7mp.getRuleList(ctx.request.params.name);
-            if(!rulelist){
-                res.status = new BadRequestError('No such rule list');
-                return;
-            }
             try {
-                l7mp.deleteRuleFromRuleList(rulelist, ctx.request.params.position);
+                let name = ctx.request.params.name;
+                let rulelist = l7mp.getRuleList(name);
+                if(!rulelist)
+                    throw new Error('No such rule list: '+ name);
+                let pos = ctx.request.params.position;
+                if(!isNaN(parseInt(pos, 10))){
+                    // integer arg
+                    l7mp.deleteRuleFromRuleList(rulelist, pos);
+                } else if(typeof pos === 'string' || pos instanceof String){
+                    let i = rulelist.rules.findIndex( (n) => n === pos);
+                    if(i<0)
+                        throw new Error(`No rule ${pos} on rulelist ${name}`);
+                    l7mp.deleteRuleFromRuleList(rulelist, i);
+                } else {
+                    throw new Error(`Parmaeter ${pos} must be string or integer`);
+                }
                 res.status = new Ok();
             } catch(err){
                 res.status = new BadRequestError(err.message);

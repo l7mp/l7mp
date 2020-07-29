@@ -1,5 +1,6 @@
 * Importance: superhigh
 
+** TODO UDP inactivity timeout should be settable and exceeding the timeout should kill session
 ** TODO Listener should be reconnected after a connection refused on a send() call
 ** TODO Fix error when JSONSocket client timeout does not initiate a reconnect
 ** TODO checkRoute
