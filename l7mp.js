@@ -304,10 +304,11 @@ class L7mp {
         // this may fail: promise
         try {
             await li.run();
-        } catch(e){
-            log.silly(`L7mp.addListener:`, e);
-            log.warn(`Cannot add listener: ${e.message}`);
-            throw e;
+        } catch(err){
+            log.silly(`L7mp.addListener:`, dumper(err, 6));
+            log.warn(`Cannot add listener: ${err.message}`);
+            this.deleteListener(li.name, {recursive: true});
+            throw err;
         }
         return li;
     }
@@ -418,7 +419,15 @@ class L7mp {
                 this.addEndPoint(cu.name, e);
             }
 
-        await cu.run();
+        try {
+            await cu.run();
+        } catch(err){
+            log.silly(`L7mp.addCluster:`, dumper(err, 6));
+            log.warn(`Cannot add cluster: ${err.message}`);
+            this.deleteCluster(cu.name, {recursive: true});
+            throw err;
+        }
+
         return cu;
     }
 
