@@ -736,7 +736,7 @@ class Session {
 
     // immediately closes the stream, possibly sends response headers
     error(err){
-        log.silly('Session.error', `Session ${this.name}:`);
+        log.silly('Session.error', `Session ${this.name}:`, err.message);
         this.events.push({ event: 'ERROR',
                            timestamp: new Date().toISOString(),
                            message: err.message,
@@ -751,7 +751,8 @@ class Session {
     }
 
     end(err){
-        log.silly('Session.end', `Session ${this.name}:`);
+        log.silly('Session.end', `Session ${this.name}`,
+                  (err && err.message) ? err.message : '');
         this.events.push({ event: 'END',
                            timestamp: new Date().toISOString(),
                            message: err ? err.message : 'Normal end',
