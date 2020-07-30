@@ -61,7 +61,7 @@ let static_config = {
                                 name: "L7mpControllerCluster",
                                 spec: {
                                     protocol: "L7mpController"
-                                }
+                                },
                             }
                         }
                     }
@@ -265,8 +265,60 @@ describe('Cluster-API', ()  => {
                 return Promise.resolve();
             });
         });
+    });
+    context('recursive-get-delete', ()=>{
+        let res;
+        it('recursive-get', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters?recursive=true',
+                method: 'GET',
+            };
+            res = await httpRequest(options);
+            assert.instanceOf(res[0].endpoints[0],Object);
+            return Promise.resolve();
+        });
+        //TODO what does non recursive getClusters return for the endpoints
+        //
+        // it('non-recursive-get', async ()=>{
+        //     let options = {
+        //         host: 'localhost', port: 1234,
+        //         path: '/api/v1/clusters?recursive=false',
+        //         method: 'GET',
+        //     };
+        //     res = await httpRequest(options);
+        //     console.log(res);
+        //     assert.instanceOf(res[0].endpoints[0],String);
+        //     return Promise.resolve();
+        // });
 
-        context('invalid-request',()=>{
+        it('recursive-delete', async ()=>{
+            const postData = JSON.stringify({
+                'cluster':{
+                    name: 'recursive-delete-cluster',
+                    spec: {protocol: 'UDP', port: 16000, bind: {port: 16001, address: '127.0.0.1'}},
+                    endpoints: [{name: 'rec-endpoint-0', spec: {address: '127.0.0.1'}},{name: 'rec-endpoint-1', spec: {address: '127.0.0.2'}}]
+                }
+            });
+            let options_post = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options_post,postData)
+
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters/recursive-delete-cluster',
+                method: 'DELETE',
+            };
+            res = await httpRequest(options);
+            assert.isNotOk(l7mp.getEndPoint('rec-endpoint-0'));
+            assert.isNotOk(l7mp.getEndPoint('rec-endpoint-1'));
+            return Promise.resolve();
+        });
+    });
+    context('invalid-request',()=>{
             it('add-existing-cluster', async ()=>{
 
                 const postData = JSON.stringify({
@@ -301,7 +353,7 @@ describe('Cluster-API', ()  => {
                     );
             });
         });
-    });
+
 
     // TODO: http cluster is not implemented yet
     // context('HTTP-cluster', ()=>{
@@ -311,480 +363,480 @@ describe('Cluster-API', ()  => {
     //     })
     // })
 
-    context('add-check-delete-WebSocket-cluster-via-API', ()=>{
-        let res;
-        it('add-cluster', async ()=>{
-            const postData = JSON.stringify({
-                'cluster':{
-                    name: 'websocket-cluster',
-                    spec: {protocol: 'WebSocket', port: 16000}
-                }
-            });
-            let options = {
-                host: 'localhost', port: 1234,
-                path: '/api/v1/clusters', method: 'POST'
-                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
-            }
-            res = await httpRequest(options, postData);
-            assert.nestedPropertyVal(res, 'status', 200)
-            return Promise.resolve()
-        });
-        context('check-properties',()=>{
-            it('cluster-name', async() =>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v' +
-                        '1/clusters',
-                    method: 'GET'
-                };
-                res = await httpRequest(options);
-                assert.nestedPropertyVal(res[1], 'name', 'websocket-cluster');
-                return Promise.resolve();
-
-            });
-            it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
-            it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','WebSocket')});
-            it('has-port', () =>{assert.nestedProperty(res[1],'spec.port')});
-            it('port', () =>{assert.nestedPropertyVal(res[1],'spec.port',16000)});
-        });
-        context('delete', ()=>{
-            it('delete-cluster', async ()=>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters/websocket-cluster',
-                    method: 'DELETE'
-                };
-                res = await httpRequest(options);
-                assert.nestedPropertyVal(res, 'status', 200)
-                return Promise.resolve();
-            });
-        });
-    });
-    context('add-check-delete-TCP-cluster-via-API', ()=>{
-        let res;
-        it('add-cluster', async ()=>{
-            const postData = JSON.stringify({
-                'cluster':{
-                    name: 'tcp-cluster',
-                    spec: {protocol: 'TCP', port: 16000}
-                }
-            });
-            let options = {
-                host: 'localhost', port: 1234,
-                path: '/api/v1/clusters', method: 'POST'
-                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
-            }
-            let res = await httpRequest(options, postData);
-
-            assert.nestedPropertyVal(res, 'status', 200)
-            return Promise.resolve()
-        })
-        context('check-properties',()=>{
-            it('cluster-name', async() =>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters',
-                    method: 'GET'
-                };
-                res = await httpRequest(options);
-                assert.nestedPropertyVal(res[1], 'name', 'tcp-cluster');
-                return Promise.resolve();
-
-            });
-            it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
-            it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','TCP')});
-            it('has-port', () =>{assert.nestedProperty(res[1],'spec.port')});
-            it('port', () =>{assert.nestedPropertyVal(res[1],'spec.port',16000)});
-        });
-        context('delete', ()=>{
-            it('delete-cluster', async ()=>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters/tcp-cluster',
-                    method: 'DELETE'
-                };
-                let res = await httpRequest(options);
-                assert.nestedPropertyVal(res, 'status', 200)
-                return Promise.resolve();
-            });
-        });
-    });
-    context('add-check-delete-UnixDomainSocket-cluster-via-API', ()=>{
-        let res;
-        it('add-cluster', async ()=> {
-            const postData = JSON.stringify({
-                'cluster': {
-                    name: 'uds-cluster',
-                    spec: {protocol: 'UnixDomainSocket'}
-                }
-            });
-            let options = {
-                host: 'localhost', port: 1234,
-                path: '/api/v1/clusters', method: 'POST'
-                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
-            }
-            let res = await httpRequest(options, postData);
-
-            assert.nestedPropertyVal(res, 'status', 200)
-            return Promise.resolve()
-        });
-        context('check-properties',()=>{
-            it('cluster-name', async() =>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters',
-                    method: 'GET'
-                };
-                res = await httpRequest(options);
-                assert.nestedPropertyVal(res[1], 'name', 'uds-cluster');
-                return Promise.resolve();
-
-            });
-            it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
-            it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','UnixDomainSocket')});
-        });
-        context('delete', ()=>{
-            it('delete-cluster', async ()=>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters/uds-cluster',
-                    method: 'DELETE'
-                };
-                let res = await httpRequest(options);
-                assert.nestedPropertyVal(res, 'status', 200)
-                return Promise.resolve();
-            });
-        });
-    });
-    context('add-check-delete-Stdio-cluster-via-API', ()=>{
-        let res;
-        it('add-cluster', async ()=>{
-            const postData = JSON.stringify({
-                'cluster':{
-                    name: 'stdio-cluster',
-                    spec: {protocol: 'Stdio'}
-                }
-            });
-            let options = {
-                host: 'localhost', port: 1234,
-                path: '/api/v1/clusters', method: 'POST'
-                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
-            }
-            let res = await httpRequest(options, postData);
-
-            assert.nestedPropertyVal(res, 'status', 200)
-            return Promise.resolve()
-        });
-        context('check-properties',()=>{
-            it('cluster-name', async() =>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters',
-                    method: 'GET'
-                };
-                res = await httpRequest(options);
-                assert.nestedPropertyVal(res[1], 'name', 'stdio-cluster');
-                return Promise.resolve();
-
-            });
-            it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
-            it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','Stdio')});
-        });
-        context('delete', ()=>{
-            it('delete-cluster', async ()=>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters/stdio-cluster',
-                    method: 'DELETE'
-                };
-                let res = await httpRequest(options);
-                assert.nestedPropertyVal(res, 'status', 200)
-                return Promise.resolve();
-            });
-        });
-    });
-    context('add-check-delete-Echo-cluster-via-API', ()=>{
-        let res;
-        it('add-cluster', async ()=>{
-            const postData = JSON.stringify({
-                'cluster':{
-                    name: 'echo-cluster',
-                    spec: {protocol: 'Echo'}
-                }
-            });
-            let options = {
-                host: 'localhost', port: 1234,
-                path: '/api/v1/clusters', method: 'POST'
-                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
-            }
-            let res = await httpRequest(options, postData);
-
-            assert.nestedPropertyVal(res, 'status', 200)
-            return Promise.resolve()
-        });
-        context('check-properties',()=>{
-            it('cluster-name', async() =>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters',
-                    method: 'GET'
-                };
-                res = await httpRequest(options);
-                assert.nestedPropertyVal(res[1], 'name', 'echo-cluster');
-                return Promise.resolve();
-
-            });
-            it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
-            it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','Echo')});
-        });
-        context('delete', ()=>{
-            it('delete-cluster', async ()=>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters/echo-cluster',
-                    method: 'DELETE'
-                };
-                let res = await httpRequest(options);
-                assert.nestedPropertyVal(res, 'status', 200)
-                return Promise.resolve();
-            });
-        });
-    });
-    context('add-check-delete-Discard-cluster-via-API', ()=>{
-        let res;
-        it('add-cluster', async ()=>{
-            const postData = JSON.stringify({
-                'cluster':{
-                    name: 'discard-cluster',
-                    spec: {protocol: 'Discard'}
-                }
-            });
-            let options = {
-                host: 'localhost', port: 1234,
-                path: '/api/v1/clusters', method: 'POST'
-                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
-            }
-            let res = await httpRequest(options, postData);
-
-            assert.nestedPropertyVal(res, 'status', 200)
-            return Promise.resolve()
-        });
-        context('check-properties',()=>{
-            it('cluster-name', async() =>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters',
-                    method: 'GET'
-                };
-                res = await httpRequest(options);
-                assert.nestedPropertyVal(res[1], 'name', 'discard-cluster');
-                return Promise.resolve();
-
-            });
-            it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
-            it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','Discard')});
-        });
-        context('delete', ()=>{
-            it('delete-cluster', async ()=>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters/discard-cluster',
-                    method: 'DELETE'
-                };
-                let res = await httpRequest(options);
-                assert.nestedPropertyVal(res, 'status', 200)
-                return Promise.resolve();
-            });
-        });
-    });
-    context('add-check-delete-Logger-cluster-via-API', ()=>{
-        let res;
-        it('add-cluster', async ()=>{
-            const postData = JSON.stringify({
-                'cluster':{
-                    name: 'logger-cluster',
-                    spec: {protocol: 'Logger'}
-                }
-            });
-            let options = {
-                host: 'localhost', port: 1234,
-                path: '/api/v1/clusters', method: 'POST'
-                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
-            }
-            let res = await httpRequest(options, postData);
-
-            assert.nestedPropertyVal(res, 'status', 200)
-            return Promise.resolve()
-        });
-        context('check-properties',()=>{
-            it('cluster-name', async() =>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters',
-                    method: 'GET'
-                };
-                res = await httpRequest(options);
-                assert.nestedPropertyVal(res[1], 'name', 'logger-cluster');
-                return Promise.resolve();
-
-            });
-            it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
-            it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','Logger')});
-        });
-        context('delete', ()=>{
-            it('delete-cluster', async ()=>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters/logger-cluster',
-                    method: 'DELETE'
-                };
-                let res = await httpRequest(options);
-                assert.nestedPropertyVal(res, 'status', 200)
-                return Promise.resolve();
-            });
-        });
-    });
-    context('add-check-delete-JSONEncap-cluster-via-API', ()=>{
-        it('add-cluster', async ()=>{
-            const postData = JSON.stringify({
-                'cluster':{
-                    name: 'jsonencap-cluster',
-                    spec: {protocol: 'JSONEncap'}
-                }
-            });
-            let options = {
-                host: 'localhost', port: 1234,
-                path: '/api/v1/clusters', method: 'POST'
-                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
-            }
-            let res = await httpRequest(options, postData);
-
-            assert.nestedPropertyVal(res, 'status', 200)
-            return Promise.resolve()
-        });
-        context('check-properties',()=>{
-            it('cluster-name', async() =>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters',
-                    method: 'GET'
-                };
-                res = await httpRequest(options);
-                assert.nestedPropertyVal(res[1], 'name', 'jsonencap-cluster');
-                return Promise.resolve();
-
-            });
-            it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
-            it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','JSONEncap')});
-        });
-        context('delete', ()=>{
-            it('delete-cluster', async ()=>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters/jsonencap-cluster',
-                    method: 'DELETE'
-                };
-                let res = await httpRequest(options);
-                assert.nestedPropertyVal(res, 'status', 200)
-                return Promise.resolve();
-            });
-        });
-    });
-    context('add-check-delete-JSONDecap-cluster-via-API', ()=>{
-        let res;
-        it('add-cluster', async ()=>{
-            const postData = JSON.stringify({
-                'cluster':{
-                    name: 'jsondecap-cluster',
-                    spec: {protocol: 'JSONDecap'}
-                }
-            });
-            let options = {
-                host: 'localhost', port: 1234,
-                path: '/api/v1/clusters', method: 'POST'
-                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
-            }
-            let res = await httpRequest(options, postData);
-
-            assert.nestedPropertyVal(res, 'status', 200)
-            return Promise.resolve()
-        });
-        context('check-properties',()=>{
-            it('cluster-name', async() =>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters',
-                    method: 'GET'
-                };
-                res = await httpRequest(options);
-                assert.nestedPropertyVal(res[1], 'name', 'jsondecap-cluster');
-                return Promise.resolve();
-
-            });
-            it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
-            it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','JSONDecap')});
-        });
-        context('delete',()=>{
-            it('delete-cluster', async ()=>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters/jsondecap-cluster',
-                    method: 'DELETE'
-                };
-                let res = await httpRequest(options);
-                assert.nestedPropertyVal(res, 'status', 200)
-                return Promise.resolve();
-            });
-        });
-    });
-    context('add-check-delete-Sync-cluster-via-API', ()=>{
-        let res;
-        it('add-cluster', async ()=>{
-            const postData = JSON.stringify({
-                'cluster':{
-                    name: 'sync-cluster',
-                    spec: {protocol: 'Sync', query: 'test/test/test'}
-                }
-            });
-            let options = {
-                host: 'localhost', port: 1234,
-                path: '/api/v1/clusters', method: 'POST'
-                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
-            }
-            let res = await httpRequest(options, postData);
-
-            assert.nestedPropertyVal(res, 'status', 200)
-            return Promise.resolve()
-        });
-        context('check-properties',()=>{
-            it('cluster-name', async() =>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters',
-                    method: 'GET'
-                };
-                res = await httpRequest(options);
-
-                assert.nestedPropertyVal(res[1], 'name', 'sync-cluster');
-                return Promise.resolve();
-
-            });
-            it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
-            it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','Sync')});
-            it('has-query', ()=>{assert.nestedProperty(res[1],'spec.query')});
-            it('query', ()=>{assert.nestedPropertyVal(res[1],'spec.query','test/test/test')});
-        });
-        context('delete', ()=>{
-            it('delete-cluster', async ()=>{
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/clusters/sync-cluster',
-                    method: 'DELETE'
-                };
-                let res = await httpRequest(options);
-                assert.nestedPropertyVal(res, 'status', 200)
-                return Promise.resolve();
-            });
-        });
-    });
+    // context('add-check-delete-WebSocket-cluster-via-API', ()=>{
+    //     let res;
+    //     it('add-cluster', async ()=>{
+    //         const postData = JSON.stringify({
+    //             'cluster':{
+    //                 name: 'websocket-cluster',
+    //                 spec: {protocol: 'WebSocket', port: 16000}
+    //             }
+    //         });
+    //         let options = {
+    //             host: 'localhost', port: 1234,
+    //             path: '/api/v1/clusters', method: 'POST'
+    //             , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+    //         }
+    //         res = await httpRequest(options, postData);
+    //         assert.nestedPropertyVal(res, 'status', 200)
+    //         return Promise.resolve()
+    //     });
+    //     context('check-properties',()=>{
+    //         it('cluster-name', async() =>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v' +
+    //                     '1/clusters',
+    //                 method: 'GET'
+    //             };
+    //             res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res[1], 'name', 'websocket-cluster');
+    //             return Promise.resolve();
+    //
+    //         });
+    //         it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
+    //         it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','WebSocket')});
+    //         it('has-port', () =>{assert.nestedProperty(res[1],'spec.port')});
+    //         it('port', () =>{assert.nestedPropertyVal(res[1],'spec.port',16000)});
+    //     });
+    //     context('delete', ()=>{
+    //         it('delete-cluster', async ()=>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters/websocket-cluster',
+    //                 method: 'DELETE'
+    //             };
+    //             res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res, 'status', 200)
+    //             return Promise.resolve();
+    //         });
+    //     });
+    // });
+    // context('add-check-delete-TCP-cluster-via-API', ()=>{
+    //     let res;
+    //     it('add-cluster', async ()=>{
+    //         const postData = JSON.stringify({
+    //             'cluster':{
+    //                 name: 'tcp-cluster',
+    //                 spec: {protocol: 'TCP', port: 16000}
+    //             }
+    //         });
+    //         let options = {
+    //             host: 'localhost', port: 1234,
+    //             path: '/api/v1/clusters', method: 'POST'
+    //             , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+    //         }
+    //         let res = await httpRequest(options, postData);
+    //
+    //         assert.nestedPropertyVal(res, 'status', 200)
+    //         return Promise.resolve()
+    //     })
+    //     context('check-properties',()=>{
+    //         it('cluster-name', async() =>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters',
+    //                 method: 'GET'
+    //             };
+    //             res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res[1], 'name', 'tcp-cluster');
+    //             return Promise.resolve();
+    //
+    //         });
+    //         it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
+    //         it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','TCP')});
+    //         it('has-port', () =>{assert.nestedProperty(res[1],'spec.port')});
+    //         it('port', () =>{assert.nestedPropertyVal(res[1],'spec.port',16000)});
+    //     });
+    //     context('delete', ()=>{
+    //         it('delete-cluster', async ()=>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters/tcp-cluster',
+    //                 method: 'DELETE'
+    //             };
+    //             let res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res, 'status', 200)
+    //             return Promise.resolve();
+    //         });
+    //     });
+    // });
+    // context('add-check-delete-UnixDomainSocket-cluster-via-API', ()=>{
+    //     let res;
+    //     it('add-cluster', async ()=> {
+    //         const postData = JSON.stringify({
+    //             'cluster': {
+    //                 name: 'uds-cluster',
+    //                 spec: {protocol: 'UnixDomainSocket'}
+    //             }
+    //         });
+    //         let options = {
+    //             host: 'localhost', port: 1234,
+    //             path: '/api/v1/clusters', method: 'POST'
+    //             , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+    //         }
+    //         let res = await httpRequest(options, postData);
+    //
+    //         assert.nestedPropertyVal(res, 'status', 200)
+    //         return Promise.resolve()
+    //     });
+    //     context('check-properties',()=>{
+    //         it('cluster-name', async() =>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters',
+    //                 method: 'GET'
+    //             };
+    //             res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res[1], 'name', 'uds-cluster');
+    //             return Promise.resolve();
+    //
+    //         });
+    //         it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
+    //         it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','UnixDomainSocket')});
+    //     });
+    //     context('delete', ()=>{
+    //         it('delete-cluster', async ()=>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters/uds-cluster',
+    //                 method: 'DELETE'
+    //             };
+    //             let res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res, 'status', 200)
+    //             return Promise.resolve();
+    //         });
+    //     });
+    // });
+    // context('add-check-delete-Stdio-cluster-via-API', ()=>{
+    //     let res;
+    //     it('add-cluster', async ()=>{
+    //         const postData = JSON.stringify({
+    //             'cluster':{
+    //                 name: 'stdio-cluster',
+    //                 spec: {protocol: 'Stdio'}
+    //             }
+    //         });
+    //         let options = {
+    //             host: 'localhost', port: 1234,
+    //             path: '/api/v1/clusters', method: 'POST'
+    //             , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+    //         }
+    //         let res = await httpRequest(options, postData);
+    //
+    //         assert.nestedPropertyVal(res, 'status', 200)
+    //         return Promise.resolve()
+    //     });
+    //     context('check-properties',()=>{
+    //         it('cluster-name', async() =>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters',
+    //                 method: 'GET'
+    //             };
+    //             res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res[1], 'name', 'stdio-cluster');
+    //             return Promise.resolve();
+    //
+    //         });
+    //         it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
+    //         it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','Stdio')});
+    //     });
+    //     context('delete', ()=>{
+    //         it('delete-cluster', async ()=>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters/stdio-cluster',
+    //                 method: 'DELETE'
+    //             };
+    //             let res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res, 'status', 200)
+    //             return Promise.resolve();
+    //         });
+    //     });
+    // });
+    // context('add-check-delete-Echo-cluster-via-API', ()=>{
+    //     let res;
+    //     it('add-cluster', async ()=>{
+    //         const postData = JSON.stringify({
+    //             'cluster':{
+    //                 name: 'echo-cluster',
+    //                 spec: {protocol: 'Echo'}
+    //             }
+    //         });
+    //         let options = {
+    //             host: 'localhost', port: 1234,
+    //             path: '/api/v1/clusters', method: 'POST'
+    //             , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+    //         }
+    //         let res = await httpRequest(options, postData);
+    //
+    //         assert.nestedPropertyVal(res, 'status', 200)
+    //         return Promise.resolve()
+    //     });
+    //     context('check-properties',()=>{
+    //         it('cluster-name', async() =>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters',
+    //                 method: 'GET'
+    //             };
+    //             res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res[1], 'name', 'echo-cluster');
+    //             return Promise.resolve();
+    //
+    //         });
+    //         it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
+    //         it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','Echo')});
+    //     });
+    //     context('delete', ()=>{
+    //         it('delete-cluster', async ()=>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters/echo-cluster',
+    //                 method: 'DELETE'
+    //             };
+    //             let res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res, 'status', 200)
+    //             return Promise.resolve();
+    //         });
+    //     });
+    // });
+    // context('add-check-delete-Discard-cluster-via-API', ()=>{
+    //     let res;
+    //     it('add-cluster', async ()=>{
+    //         const postData = JSON.stringify({
+    //             'cluster':{
+    //                 name: 'discard-cluster',
+    //                 spec: {protocol: 'Discard'}
+    //             }
+    //         });
+    //         let options = {
+    //             host: 'localhost', port: 1234,
+    //             path: '/api/v1/clusters', method: 'POST'
+    //             , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+    //         }
+    //         let res = await httpRequest(options, postData);
+    //
+    //         assert.nestedPropertyVal(res, 'status', 200)
+    //         return Promise.resolve()
+    //     });
+    //     context('check-properties',()=>{
+    //         it('cluster-name', async() =>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters',
+    //                 method: 'GET'
+    //             };
+    //             res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res[1], 'name', 'discard-cluster');
+    //             return Promise.resolve();
+    //
+    //         });
+    //         it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
+    //         it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','Discard')});
+    //     });
+    //     context('delete', ()=>{
+    //         it('delete-cluster', async ()=>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters/discard-cluster',
+    //                 method: 'DELETE'
+    //             };
+    //             let res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res, 'status', 200)
+    //             return Promise.resolve();
+    //         });
+    //     });
+    // });
+    // context('add-check-delete-Logger-cluster-via-API', ()=>{
+    //     let res;
+    //     it('add-cluster', async ()=>{
+    //         const postData = JSON.stringify({
+    //             'cluster':{
+    //                 name: 'logger-cluster',
+    //                 spec: {protocol: 'Logger'}
+    //             }
+    //         });
+    //         let options = {
+    //             host: 'localhost', port: 1234,
+    //             path: '/api/v1/clusters', method: 'POST'
+    //             , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+    //         }
+    //         let res = await httpRequest(options, postData);
+    //
+    //         assert.nestedPropertyVal(res, 'status', 200)
+    //         return Promise.resolve()
+    //     });
+    //     context('check-properties',()=>{
+    //         it('cluster-name', async() =>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters',
+    //                 method: 'GET'
+    //             };
+    //             res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res[1], 'name', 'logger-cluster');
+    //             return Promise.resolve();
+    //
+    //         });
+    //         it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
+    //         it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','Logger')});
+    //     });
+    //     context('delete', ()=>{
+    //         it('delete-cluster', async ()=>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters/logger-cluster',
+    //                 method: 'DELETE'
+    //             };
+    //             let res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res, 'status', 200)
+    //             return Promise.resolve();
+    //         });
+    //     });
+    // });
+    // context('add-check-delete-JSONEncap-cluster-via-API', ()=>{
+    //     it('add-cluster', async ()=>{
+    //         const postData = JSON.stringify({
+    //             'cluster':{
+    //                 name: 'jsonencap-cluster',
+    //                 spec: {protocol: 'JSONEncap'}
+    //             }
+    //         });
+    //         let options = {
+    //             host: 'localhost', port: 1234,
+    //             path: '/api/v1/clusters', method: 'POST'
+    //             , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+    //         }
+    //         let res = await httpRequest(options, postData);
+    //
+    //         assert.nestedPropertyVal(res, 'status', 200)
+    //         return Promise.resolve()
+    //     });
+    //     context('check-properties',()=>{
+    //         it('cluster-name', async() =>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters',
+    //                 method: 'GET'
+    //             };
+    //             res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res[1], 'name', 'jsonencap-cluster');
+    //             return Promise.resolve();
+    //
+    //         });
+    //         it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
+    //         it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','JSONEncap')});
+    //     });
+    //     context('delete', ()=>{
+    //         it('delete-cluster', async ()=>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters/jsonencap-cluster',
+    //                 method: 'DELETE'
+    //             };
+    //             let res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res, 'status', 200)
+    //             return Promise.resolve();
+    //         });
+    //     });
+    // });
+    // context('add-check-delete-JSONDecap-cluster-via-API', ()=>{
+    //     let res;
+    //     it('add-cluster', async ()=>{
+    //         const postData = JSON.stringify({
+    //             'cluster':{
+    //                 name: 'jsondecap-cluster',
+    //                 spec: {protocol: 'JSONDecap'}
+    //             }
+    //         });
+    //         let options = {
+    //             host: 'localhost', port: 1234,
+    //             path: '/api/v1/clusters', method: 'POST'
+    //             , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+    //         }
+    //         let res = await httpRequest(options, postData);
+    //
+    //         assert.nestedPropertyVal(res, 'status', 200)
+    //         return Promise.resolve()
+    //     });
+    //     context('check-properties',()=>{
+    //         it('cluster-name', async() =>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters',
+    //                 method: 'GET'
+    //             };
+    //             res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res[1], 'name', 'jsondecap-cluster');
+    //             return Promise.resolve();
+    //
+    //         });
+    //         it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
+    //         it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','JSONDecap')});
+    //     });
+    //     context('delete',()=>{
+    //         it('delete-cluster', async ()=>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters/jsondecap-cluster',
+    //                 method: 'DELETE'
+    //             };
+    //             let res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res, 'status', 200)
+    //             return Promise.resolve();
+    //         });
+    //     });
+    // });
+    // context('add-check-delete-Sync-cluster-via-API', ()=>{
+    //     let res;
+    //     it('add-cluster', async ()=>{
+    //         const postData = JSON.stringify({
+    //             'cluster':{
+    //                 name: 'sync-cluster',
+    //                 spec: {protocol: 'Sync', query: 'test/test/test'}
+    //             }
+    //         });
+    //         let options = {
+    //             host: 'localhost', port: 1234,
+    //             path: '/api/v1/clusters', method: 'POST'
+    //             , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+    //         }
+    //         let res = await httpRequest(options, postData);
+    //
+    //         assert.nestedPropertyVal(res, 'status', 200)
+    //         return Promise.resolve()
+    //     });
+    //     context('check-properties',()=>{
+    //         it('cluster-name', async() =>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters',
+    //                 method: 'GET'
+    //             };
+    //             res = await httpRequest(options);
+    //
+    //             assert.nestedPropertyVal(res[1], 'name', 'sync-cluster');
+    //             return Promise.resolve();
+    //
+    //         });
+    //         it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
+    //         it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','Sync')});
+    //         it('has-query', ()=>{assert.nestedProperty(res[1],'spec.query')});
+    //         it('query', ()=>{assert.nestedPropertyVal(res[1],'spec.query','test/test/test')});
+    //     });
+    //     context('delete', ()=>{
+    //         it('delete-cluster', async ()=>{
+    //             let options = {
+    //                 host: 'localhost', port: 1234,
+    //                 path: '/api/v1/clusters/sync-cluster',
+    //                 method: 'DELETE'
+    //             };
+    //             let res = await httpRequest(options);
+    //             assert.nestedPropertyVal(res, 'status', 200)
+    //             return Promise.resolve();
+    //         });
+    //     });
+    // });
 });
