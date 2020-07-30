@@ -436,8 +436,9 @@ class L7mp {
         return this.clusters.find( ({name}) => name === n );
     }
 
-    dumpCluster(n){
-        log.silly('L7mp.dumpCluster:', n);
+    dumpCluster(n, options){
+        options = {recursive: false, ...options};
+        log.silly('L7mp.dumpCluster:', n, 'options:', dumper(options, 4));
 
         let c = this.getCluster(n);
         if(!c){
@@ -445,12 +446,15 @@ class L7mp {
             log.warn('L7mp.dumpCluster:', error);
             throw new NotFoundError(`Cannot dump Cluster: ${error}`);
         }
+        let endpoints = c.endpoints.length;
+        if(options.recursive)
+            endpoints = c.virtual ? [c.virtualEndPoint()] :
+            c.endpoints.map(x => this.dumpEndPoint(x.name));
 
         return {
             name:         c.name,
             spec:         c.spec,
-            endpoints:    c.virtual ? [c.virtualEndPoint()] :
-                c.endpoints.map(x => this.dumpEndPoint(x.name)),
+            endpoints:    endpoints,
             loadbalancer: c.loadbalancer.toJSON(),
             options:      c.options,
         };

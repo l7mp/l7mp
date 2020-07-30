@@ -135,8 +135,11 @@ class L7mpOpenAPI {
 
         this.api.registerHandler('getCluster', (ctx, req, res) => {
             log.info("L7mp.api.getCluster");
+            let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
+                ctx.request.query.recursive : false;
             try {
-                let c = l7mp.dumpCluster(ctx.request.params.name);
+                let c = l7mp.dumpCluster(ctx.request.params.name,
+                                         {recursive: recursive});
                 res.status = new Response(c);
             } catch(err){
                 res.status = new BadRequestError(err.message);

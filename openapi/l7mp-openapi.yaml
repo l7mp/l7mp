@@ -357,10 +357,12 @@ components:
               JSONEncap: '#/components/schemas/io.l7mp.api.v1.JSONEncapClusterSpec'
               JSONDecap: '#/components/schemas/io.l7mp.api.v1.JSONDecapClusterSpec'
         endpoints:
-          description: A list of EndPoint objects.
-          type: array
-          items:
-            $ref: '#/components/schemas/io.l7mp.api.v1.EndPoint'
+          description: The number of endpoints or a list of EndPoints.
+          anyOf:
+            - type: integer
+            - type: array
+              items:
+                $ref: '#/components/schemas/io.l7mp.api.v1.EndPoint'
         loadbalancer:
             $ref: '#/components/schemas/io.l7mp.api.v1.LoadBalancer'
         options:
@@ -1051,7 +1053,9 @@ paths:
   # Cluster API
   /api/v1/clusters:
     get:
-      description: Get a list of Clusters.
+      description: >
+        Get a list of Clusters. If called with the recursive flag on, it will also list the
+        endpoints of each Cluster, otherwise, only the number of endpoints is returned.
       operationId: getClusters
       parameters:
         - name: recursive
@@ -1093,7 +1097,9 @@ paths:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   /api/v1/clusters/{name}:
     get:
-      description: Get a named Cluster. Note that this operation is always recursive, that is, it will recursively list all the endpoints of the Cluster by default.
+      description: >
+        Get a named Cluster. If called with the recursive flag on, it will also list the endpoints
+        of the Cluster, otherwise, only the number of endpoints is returned.
       operationId: getCluster
       parameters:
         - name: name
@@ -1102,6 +1108,11 @@ paths:
           schema:
             type: string
           description: Name of the Cluster.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively list all the endpoints of the Cluster.
       responses:
         '200':
           description: Status.
