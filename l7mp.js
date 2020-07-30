@@ -28,6 +28,7 @@ const util       = require('util');
 const log        = require('npmlog');
 const YAML       = require('yamljs');
 const getVersion = require('git-repo-version');
+const jsonFormat = require('format-json');
 
 const Listener   = require('./listener.js').Listener;
 const Cluster    = require('./cluster.js').Cluster;
@@ -52,6 +53,17 @@ global.dumper = function dumper(o, depth=1){
 
 global.dump = function dump(o, depth=5){
     console.log(dumper(o, depth));
+}
+
+global.toJSON = function toJSON(data, format='plain'){
+    switch(format){
+    case 'terse':  return jsonFormat.terse(data);
+    case 'space':  return jsonFormat.space(data);
+    case 'lines':  return jsonFormat.lines(data);
+    case 'diffy':  return jsonFormat.diffy(data);
+    case 'plain':
+    default:       return jsonFormat.plain(data);
+    }
 }
 
 // validate object schemas beyond OpenAPI validation

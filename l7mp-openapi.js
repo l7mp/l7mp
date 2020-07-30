@@ -493,6 +493,10 @@ class L7mpOpenAPI {
                     }
                 }
             }
+
+            // format result
+            if(res.status instanceof Ok || res.status instanceof Response)
+                res.response = toJSON(res.response, ctx.request.query.format);
         });
     }
 
@@ -579,7 +583,8 @@ class L7mpOpenAPI {
 
         if(res.status instanceof Ok || res.status instanceof Response){
             // normal path
-            stream.end(JSON.stringify(res.response, null, 4));
+            // stream.end(JSON.stringify(res.response, null, 4));
+            stream.end(res.response);
             setImmediate(() => s.end());
         } else {
             // error path, will set the status automatically
