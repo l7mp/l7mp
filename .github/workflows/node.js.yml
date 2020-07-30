@@ -32,7 +32,7 @@ jobs:
       with:
         personal_token: ${{ secrets.PERSONAL_TOKEN }}
         commit_message: Update l7mp-openapi.yaml
-        src_path: /openapi/l7mp-openapi.yaml
-        dst_path: /assets/
+        src_path: openapi/l7mp-openapi.yaml
+        dst_path: assets/
         dst_owner: l7mp
         dst_repo_name: l7mp.io
