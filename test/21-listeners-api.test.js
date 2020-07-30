@@ -132,17 +132,17 @@ describe('Listeners API', ()  => {
                     spec: { protocol: "UDP", port: 15000 },
                     rules: [ {
                         action: {
-                          route: {
-                            destination: "user-1-2-c",
-                            ingress: [
-                              { name: "Echo", spec: { protocol: "Echo" } }
-                            ],
-                            retry: { retry_on: "always", num_retries: 10, timeout: 2000 }
-                          }
+                            route: {
+                                destination: "user-1-2-c",
+                                ingress: [
+                                    { name: "Echo", spec: { protocol: "Echo" } }
+                                ],
+                                retry: { retry_on: "always", num_retries: 10, timeout: 2000 }
+                            }
                         }
-                      }
+                    }
                     ]
-                  }
+                }
             });
             let options = {
                 host: 'localhost', port: 1234,
@@ -184,6 +184,87 @@ describe('Listeners API', ()  => {
                 res = await httpRequest(options_get);
             });
             it('length-of-listeners', () => { assert.lengthOf(res, 1); });
+        });
+    });
+
+    context('recursive-get-delete', ()=>{
+        let res;
+        it('recursive-get', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/listeners?recursive=true',
+                method: 'GET',
+            };
+            res = await httpRequest(options);
+            assert.instanceOf(res[0].rules[0],Object);
+            assert.nestedProperty(res[0].rules[0],'action');
+            assert.nestedProperty(res[0].rules[0].action,'route');
+            assert.nestedProperty(res[0].rules[0].action.route,'destination');
+            assert.nestedProperty(res[0].rules[0].action.route.destination,'endpoints');
+            return Promise.resolve();
+        });
+        it('recursive-get-by-name', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/listeners/controller-listener?recursive=true',
+                method: 'GET',
+            };
+            res = await httpRequest(options);
+            console.log(res)
+            assert.instanceOf(res.rules[0],Object);
+            assert.nestedProperty(res.rules[0],'action');
+            assert.nestedProperty(res.rules[0].action,'route');
+            assert.nestedProperty(res.rules[0].action.route,'destination');
+            assert.nestedProperty(res.rules[0].action.route.destination,'endpoints');
+            return Promise.resolve();
+        });
+        it('non-recursive-get', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/listeners?recursive=false',
+                method: 'GET'
+            };
+            res = await httpRequest(options);
+            assert.notInstanceOf(res[0].rules,Object);
+            return Promise.resolve();
+        });
+
+        it('recursive-delete', async ()=>{
+            const postData = JSON.stringify({
+                "listener": {
+                    name: "recursive-delete-listener",
+                    spec: { protocol: "UDP", port: 15000 },
+                    rules: [ {
+                        name: "recursive-rulelist",
+                        action: {
+                            route: {
+                                destination: {
+                                    name: "recursive-delete",
+                                    spec: {
+                                        protocol: "Echo"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    ]
+                }
+            });
+            let options_post = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/listeners', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options_post, postData);
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/listeners/recursive-delete-listener?recursive=true',
+                method: 'DELETE',
+            };
+            res = await httpRequest(options);
+            assert.isNotOk(l7mp.getRule('recursive-rulelist'));
+            assert.isNotOk(l7mp.getCluster('recursive-delete'));
+            return Promise.resolve();
         });
     });
 
