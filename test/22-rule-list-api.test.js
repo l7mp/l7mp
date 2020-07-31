@@ -97,9 +97,11 @@ function httpRequest(params, postData) {
 describe('RuleList API', ()  => {
     let controller_rulelist_name;
     before( async function () {
-        this.timeout(5000);
+        this.timeout(8000);
         l7mp = new L7mp();
         l7mp.static_config = static_config;
+        // validate the static config
+        l7mp.admin.strict = true;
         await l7mp.run();
     });
 
@@ -202,11 +204,11 @@ describe('RuleList API', ()  => {
             assert.lengthOf(res, 6);
             return Promise.resolve();
         });
-        it('check-rulelist-1', ()=>{ assert.nestedPropertyVal(res[1], 'name', 'test-rulelist-1');});
-        it('check-rulelist-2', ()=>{ assert.nestedPropertyVal(res[2], 'name', 'test-rulelist-2');});
-        it('check-rulelist-3', ()=>{ assert.nestedPropertyVal(res[3], 'name', 'test-rulelist-3');});
-        it('check-rulelist-4', ()=>{ assert.nestedPropertyVal(res[4], 'name', 'test-rulelist-4');});
-        it('check-rulelist-5', ()=>{ assert.nestedPropertyVal(res[5], 'name', 'test-rulelist-5');});
+        it('check-rulelist-1', ()=>{ assert.isOk( res.find( ({name}) => name ===  'test-rulelist-1'));});
+        it('check-rulelist-2', ()=>{ assert.isOk( res.find( ({name}) => name ===  'test-rulelist-2'));});
+        it('check-rulelist-3', ()=>{ assert.isOk( res.find( ({name}) => name ===  'test-rulelist-3'));});
+        it('check-rulelist-4', ()=>{ assert.isOk( res.find( ({name}) => name ===  'test-rulelist-4'));});
+        it('check-rulelist-5', ()=>{ assert.isOk( res.find( ({name}) => name ===  'test-rulelist-5'));});
         it('delete-multiple-rulelists', async ()=>{
             let reqs = [];
             for(let i = 1; i < 6; i++){

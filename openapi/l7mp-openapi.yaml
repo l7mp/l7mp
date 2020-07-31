@@ -129,9 +129,6 @@ components:
           description: Optional features.
           type: object
           properties:
-            removeOrphanSessions:
-              description: On removing the listener also remove all sessions emitted by this listener.
-              type: boolean
             track:
               description: Sessions created by this listener will be tracked and will be available after ending for a specified amount of time, to help post-mortem analysis. If specified, then value must be an integer, providing the number of seconds during which the session will be available before deletion.
               type: integer
@@ -360,19 +357,17 @@ components:
               JSONEncap: '#/components/schemas/io.l7mp.api.v1.JSONEncapClusterSpec'
               JSONDecap: '#/components/schemas/io.l7mp.api.v1.JSONDecapClusterSpec'
         endpoints:
-          description: A list of EndPoint objects.
-          type: array
-          items:
-            $ref: '#/components/schemas/io.l7mp.api.v1.EndPoint'
+          description: The number of endpoints or a list of EndPoints.
+          anyOf:
+            - type: integer
+            - type: array
+              items:
+                $ref: '#/components/schemas/io.l7mp.api.v1.EndPoint'
         loadbalancer:
             $ref: '#/components/schemas/io.l7mp.api.v1.LoadBalancer'
         options:
           description: Optional features.
           type: object
-          properties:
-            removeOrphanSessions:
-              description: On removing the cluster also remove all sessions router through the cluster.
-              type: boolean
 
     io.l7mp.api.v1.WebSocketClusterSpec:
       description: A WebSocket cluster specification that forwards HTTP/WebSocket connections to an upstream cluster.
@@ -773,13 +768,11 @@ components:
           type: string
         rules:
           description: A list of Rule objects.
-          anyOf:
-            - type: string  # reference to a named RuleList
-            - type: array
-              items:
-                anyOf:
-                  - type: string  # reference to a named Rule
-                  - $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+          type: array
+          items:
+            anyOf:
+              - type: string  # reference to a named Rule
+              - $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
 
     io.l7mp.api.v1.Metadata:
       description: "Metadata that describes a session's all known parameters, like ports and IP addresses, status, HTTP headers (if relevant), etc. In general, metadata are created by the listener and they can be modified/queried/matched in rules/actions."
@@ -888,12 +881,23 @@ components:
         port:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
 
+    io.l7mp.api.v1.JSONFormat:
+      description: Format JSON output, see "https://www.npmjs.com/package/format-json" for the accepted options.
+      type: string
+      enum: [ plain, terse, space, lines, diffy ]
+
+
 paths:
   # Full config API
   /api/v1/config:
     get:
       description: Get the full configuration.
       operationId: getConf
+      parameters:
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Full configuration
@@ -928,6 +932,11 @@ paths:
     get:
       description: Get the static configuration.
       operationId: getAdmin
+      parameters:
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Static configuration
@@ -962,6 +971,16 @@ paths:
     get:
       description: Get a list of Listeners.
       operationId: getListeners
+      parameters:
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively list all sub-objects (rulelists, rules, routes, clusters, etc.) of the Listener (regardless of whether the sub-objects were implicitly defined in the Listener).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: OK
@@ -973,7 +992,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
     post:
-      description: Create a Listener.
+      description: Create a Listener. Note that a Listener specification may either contain a set of implicitly defined sub-objects (rulelists, rules, routes, clusters, etc.) or it may refer to other named objects. In the former case the corresponding objects are automatically generated (and possibly automatically named too), while in the latter case the named sub-objects referred to the Listener are assumed to be explicitly defined using the corresponding APIs (the RuleList API, the Route API, the Cluster API, etc.).
       operationId: addListener
       requestBody:
         required: true
@@ -1004,6 +1023,16 @@ paths:
           required: true
           schema:
             type: string
+          description: Name of the Listener.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively list all sub-objects (rulelists, rules, routes, clusters, etc.) of the Listener (regardless of whether the sub-objects were implicitly defined in the Listener).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Status.
@@ -1026,6 +1055,12 @@ paths:
           required: true
           schema:
             type: string
+          description: Name of the Listener.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively delete all sub-objects (rulelists, rules, routes, clusters, etc.) that were implicitly defined (auto-generated) in the Listener, as well as all the Sessions emitted by the Listener.
       responses:
         '200':
           description: Status.
@@ -1042,8 +1077,20 @@ paths:
   # Cluster API
   /api/v1/clusters:
     get:
-      description: Get a list of Clusters.
+      description: >
+        Get a list of Clusters. If called with the recursive flag on, it will also list the
+        endpoints of each Cluster, otherwise, only the number of endpoints is returned.
       operationId: getClusters
+      parameters:
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively list all the endpoints of the Cluster.
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: OK
@@ -1055,7 +1102,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
     post:
-      description: Create a Cluster.
+      description: Create a Cluster. Note that a Cluster specification may either contain a set of implicitly defined endpoints, in which case endpoints are automatically generated, named, and added to the cluster, or endpoints may later be added/deleted explicitly using the EndPoint API.
       operationId: addCluster
       requestBody:
         required: true
@@ -1078,7 +1125,9 @@ paths:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   /api/v1/clusters/{name}:
     get:
-      description: Get a named Cluster.
+      description: >
+        Get a named Cluster. If called with the recursive flag on, it will also list the endpoints
+        of the Cluster, otherwise, only the number of endpoints is returned.
       operationId: getCluster
       parameters:
         - name: name
@@ -1086,6 +1135,16 @@ paths:
           required: true
           schema:
             type: string
+          description: Name of the Cluster.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively list all the endpoints of the Cluster.
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Status.
@@ -1100,7 +1159,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     delete:
-      description: Delete a named Cluster.
+      description: |
+        Delete the named Cluster. Note that deleting a cluster will delete the corresponding endpoints as well, and it may also delete the Sessions as well whose Route traverse the cluster depending on the "recursive" query flag.
       operationId: deleteCluster
       parameters:
         - name: name
@@ -1108,6 +1168,12 @@ paths:
           required: true
           schema:
             type: string
+          description: Name of the Cluster.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Delete the Sessions whose Route traverses the Cluster, either as a destination or along the ingress or the egress chain.
       responses:
         '200':
           description: Status.
@@ -1122,16 +1188,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   # EndPoint API
-  /api/v1/clusters/{cluster_name}/endpoints:
+  /api/v1/clusters/{name}/endpoints:
     get:
       description: Get a list of EndPoints associated with a Cluster.
       operationId: getEndPoints
       parameters:
-        - name: cluster_name
+        - name: name
           in: path
           required: true
           schema:
             type: string
+          description: Name of the Cluster.
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Status.
@@ -1149,14 +1220,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     post:
-      description: Create an EndPoint for a Cluster.
+      description: Create an EndPoint in a Cluster.
       operationId: addEndPoint
       parameters:
-        - name: cluster_name
+        - name: name
           in: path
           required: true
           schema:
             type: string
+          description: Name of the Cluster.
       requestBody:
         required: true
         content:
@@ -1176,21 +1248,21 @@ paths:
             'application/json':
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
-  /api/v1/clusters/{cluster_name}/endpoints/{endpoint_name}:
+  /api/v1/endpoints/{name}:
     get:
-      description: Get a named EdnPoint for a Cluster.
+      description: Get a named EndPoint.
       operationId: getEndPoint
       parameters:
-        - name: cluster_name
+        - name: name
           in: path
           required: true
           schema:
             type: string
-        - name: endpoint_name
-          in: path
-          required: true
+          description: Name of the EndPoint.
+        - name: format
+          in: query
           schema:
-            type: string
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Status.
@@ -1205,19 +1277,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     delete:
-      description: Delete a named EndPoint from a Cluster.
+      description: Delete a named EndPoint. Note that the operation will also remove the EndPoint from the corresponding Cluster.
       operationId: deleteEndPoint
       parameters:
-        - name: cluster_name
+        - name: name
           in: path
           required: true
           schema:
             type: string
-        - name: endpoint_name
-          in: path
-          required: true
-          schema:
-            type: string
+          description: The name of the EndPoint to delete.
       responses:
         '200':
           description: Status
@@ -1226,98 +1294,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
         '400':
-          description: Invalid Cluster or EndPoint name.
-          content:
-            'application/json':
-              schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
-  # Rule API
-  /api/v1/rules:
-    get:
-      description: Get a list of Rules.
-      operationId: getRules
-      responses:
-        '200':
-          description: OK
-          content:
-            'application/json':
-              schema:
-                description: A list of Rules.
-                type: array
-                items:
-                  $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
-    post:
-      description: Create a Rule.
-      operationId: addRule
-      requestBody:
-        required: true
-        content:
-          'application/json':
-            schema:
-              $ref: '#/components/schemas/io.l7mp.api.v1.RuleRequest'
-      responses:
-        '200':
-          description: Status.
-          content:
-            'application/json':
-              schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
-        '400':
-          description: Invalid configuration.
-          content:
-            'application/json':
-              schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
-  /api/v1/rules/{name}:
-    get:
-      description: Get a named Rule.
-      operationId: getRule
-      parameters:
-        - name: name
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Status.
-          content:
-            'application/json':
-              schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
-        '400':
-          description: Invalid rule name.
-          content:
-            'application/json':
-              schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
-    delete:
-      description: Delete a named Rule.
-      operationId: deleteRule
-      parameters:
-        - name: name
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Status.
-          content:
-            'application/json':
-              schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
-        '400':
-          description: Invalid configuration.
+          description: Invalid EndPoint name.
           content:
             'application/json':
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   # RuleList API
-  # Add/delete a rule from a rulelist
   /api/v1/rulelists/{name}/rules/{position}:
     get:
-      description: Get a named Rule from a RuleList at a particular position (the Rule itself is returned).
+      description: Get the Rule from a RuleList at a particular position (the Rule itself is returned).
       operationId: getRuleFromRuleList
       parameters:
         - name: name
@@ -1325,11 +1310,22 @@ paths:
           required: true
           schema:
             type: string
+          description: The name of the RuleList.
         - name: position
           in: path
           required: true
           schema:
             type: integer
+          description: Position.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively list all sub-objects (routes, clusters, etc.) of the Rule (regardless of whether the sub-objects were implicitly defined in the Rule).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Status.
@@ -1344,7 +1340,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     post:
-      description: Add a Rule to a RuleList.
+      description: Add a Rule to a RuleList. Note that a Rule specification may either contain a set of implicitly defined sub-objects (routes, clusters, etc.) or it may refer to other named objects. In the former case the corresponding objects are automatically generated (and possibly automatically named too), while in the latter case the named sub-objects referred to the Rule are assumed to be explicitly defined using the corresponding APIs (the Route API, the Cluster API, etc.).
       operationId: addRuleToRuleList
       parameters:
         - name: name
@@ -1352,11 +1348,13 @@ paths:
           required: true
           schema:
             type: string
+          description: Name of the RuleList.
         - name: position
           in: path
           required: true
           schema:
             type: integer
+          description: Position.
       requestBody:
         required: true
         content:
@@ -1377,7 +1375,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     delete:
-      description: Remove a Rule from a RuleList (note that the Rule itself will not be deleted, just removed from this rulelist).
+      description: >
+        Remove a Rule from a RuleList either by position (if the "position" parameter is an
+        integer) or by name (if the "position" parameter is a string and it refers to the name of a
+        rule existing in the rulelist). Note that the Rule itself will not be deleted, just removed
+        from this rulelist; to actually delete the Rule, use the delete operation of the Rule API
+        (deleteRule).
       operationId: deleteRuleFromRuleList
       parameters:
         - name: name
@@ -1385,11 +1388,15 @@ paths:
           required: true
           schema:
             type: string
+          description: Name of the RuleList.
         - name: position
           in: path
           required: true
           schema:
-            type: integer
+            anyOf:
+              - type: integer
+              - type: string
+          description: Position or name of the Rule to delete.
       responses:
         '200':
           description: Status.
@@ -1407,6 +1414,16 @@ paths:
     get:
       description: Get a list of RuleLists (aka match-action tables).
       operationId: getRuleLists
+      parameters:
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively list all sub-objects (rules, routes, clusters, etc.) of the Rule (regardless of whether the sub-objects were implicitly defined in the RuleList).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: OK
@@ -1418,7 +1435,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/io.l7mp.api.v1.RuleList'
     post:
-      description: Create a RuleList.
+      description: Create a RuleList. Note that a RuleList specification may either contain a set of implicitly defined sub-objects (rules, routes, clusters, etc.) or it may refer to other named objects. In the former case the corresponding objects are automatically generated (and possibly automatically named too), while in the latter case the named sub-objects referred to the RuleList are assumed to be explicitly defined using the corresponding APIs (the Rule API, Route API, the Cluster API, etc.).
       operationId: addRuleList
       requestBody:
         required: true
@@ -1449,6 +1466,16 @@ paths:
           required: true
           schema:
             type: string
+          description: Name of the RuleList.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively list all sub-objects (routes, clusters, etc.) of the RuleList (regardless of whether the sub-objects were implicitly defined in the RuleList).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Status.
@@ -1471,6 +1498,120 @@ paths:
           required: true
           schema:
             type: string
+          description: Name of the RuleList.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively delete all sub-objects (rules, routes, clusters, etc.) that were implicitly defined (auto-generated) in the RuleList.
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+  # Rule API
+  /api/v1/rules:
+    get:
+      description: Get a list of Rules.
+      operationId: getRules
+      parameters:
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively list all sub-objects (routes, clusters, etc.) of each Rule (regardless of whether the sub-objects were implicitly defined in the Rule).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+                description: A list of Rules.
+                type: array
+                items:
+                  $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+    post:
+      description: Create a Rule. Note that a Rule specification may either contain a set of implicitly defined sub-objects (routes, clusters, etc.) or it may refer to other named objects. In the former case the corresponding objects are automatically generated (and possibly automatically named too), while in the latter case the named sub-objects referred to the Rule are assumed to be explicitly defined using the corresponding APIs (the Route API, the Cluster API, etc.).
+      operationId: addRule
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/io.l7mp.api.v1.RuleRequest'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+  /api/v1/rules/{name}:
+    get:
+      description: Get a named Rule.
+      operationId: getRule
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the Rule.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively list all sub-objects (routes, clusters, etc.) of the Rule (regardless of whether the sub-objects were implicitly defined in the Rule).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+        '400':
+          description: Invalid rule name.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+    delete:
+      description: Delete a named Rule.
+      operationId: deleteRule
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the Rule.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively delete all sub-objects (routes, clusters, etc.) that were implicitly defined (auto-generated) in the Rule.
       responses:
         '200':
           description: Status.
@@ -1489,6 +1630,16 @@ paths:
     get:
       description: Get a list of Routes.
       operationId: getRoutes
+      parameters:
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively list all sub-objects (i.e., the destination cluster or clusters on the ingress and the egress chain) of each Route (regardless of whether the sub-objects were implicitly defined in the Route).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: OK
@@ -1500,7 +1651,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/io.l7mp.api.v1.Route'
     post:
-      description: Create a Route.
+      description: Create a Route. Note that a Route specification may either contain a set of implicitly defined sub-objects (i.e., the destination cluster or clusters on the ingress and the egress chain) or it may refer to other named objects. In the former case the corresponding objects are automatically generated (and possibly automatically named too), while in the latter case the named sub-objects referred to the Route are assumed to be explicitly defined using the Cluster API.
       operationId: addRoute
       requestBody:
         required: true
@@ -1531,6 +1682,16 @@ paths:
           required: true
           schema:
             type: string
+          description: Name of the Route.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively list all sub-objects (i.e., the destination cluster or clusters on the ingress and the egress chain) of the Route (regardless of whether the sub-objects were implicitly defined in the Route).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Status.
@@ -1553,6 +1714,11 @@ paths:
           required: true
           schema:
             type: string
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively delete all sub-objects (i.e., clusters) that were implicitly defined (auto-generated) in the Route.
       responses:
         '200':
           description: Status.
@@ -1571,6 +1737,11 @@ paths:
     get:
       description: Get a list of Sessions.
       operationId: getSessions
+      parameters:
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: OK
@@ -1591,6 +1762,10 @@ paths:
           required: true
           schema:
             type: string
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Status.
@@ -1605,7 +1780,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     delete:
-      description: Delete a named Session.
+      description: Delete a named Session. Note that recursively deleting a Listener that emitted the session or a Cluster that the Route of the Session traverses will delete the Session.
       operationId: deleteSession
       parameters:
         - name: name

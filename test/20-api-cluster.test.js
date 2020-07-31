@@ -20,19 +20,19 @@
 // ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-const log        = require('npmlog');
-const Stream   = require('stream');
-const assert   = require('chai').assert;
-const L7mp     = require('../l7mp.js').L7mp;
-const EndPoint = require('../cluster.js').EndPoint;
-const Listener     = require('../listener.js').Listener;
-const Session      = require('../session.js').Session;
-const Cluster      = require('../cluster.js').Cluster;
-const Rule         = require('../rule.js').Rule;
-const RuleList     = require('../rule.js').RuleList;
-const Route        = require('../route.js').Route;
-const net      = require('net');
-const http      = require('http');
+const log         = require('npmlog');
+const Stream      = require('stream');
+const assert      = require('chai').assert;
+const L7mp        = require('../l7mp.js').L7mp;
+const EndPoint    = require('../cluster.js').EndPoint;
+const Listener    = require('../listener.js').Listener;
+const Session     = require('../session.js').Session;
+const Cluster     = require('../cluster.js').Cluster;
+const Rule        = require('../rule.js').Rule;
+const RuleList    = require('../rule.js').RuleList;
+const Route       = require('../route.js').Route;
+const net         = require('net');
+const http        = require('http');
 const querystring = require('querystring');
 
 Object.defineProperty(log, 'heading',
@@ -112,6 +112,8 @@ describe('Cluster-API', ()  => {
         this.timeout(5000);
         l7mp = new L7mp();
         l7mp.static_config = static_config;
+        // validate the static config
+        l7mp.admin.strict = true;
         await l7mp.run(); // should return
     });
 

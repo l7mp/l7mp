@@ -41,7 +41,8 @@ class L7mpError extends Error {
                      status: this.status,
                      message: this.message,
                    };
-        if(this.content) json.content = this.content.toJSON();
+        if(this.content && this.content.toJSON)
+            json.content = this.content.toJSON();
         if(log.level === 'silly')
             json.stacktrace = this.stack
         return json;
@@ -75,7 +76,7 @@ class BadRequestError extends L7mpError {
 // Input validation errors from the API
 class ValidationError extends L7mpError {
     constructor(content) {
-        super(422, 'Unprocessable Entity: Input validation failed', content);
+        super(422, 'Unprocessable Entity: Input JSON schema validation failed', content);
         this.name = this.constructor.name;
     }
 }

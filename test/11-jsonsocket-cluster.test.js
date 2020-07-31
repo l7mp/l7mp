@@ -362,45 +362,46 @@ describe('JSONSocketCluster', ()  => {
 
     });
 
-    context('create - UDP - inline endpoints', () => {
-        it('created',         () => {
-            c = Cluster.create({
-                name: 'JSONSocket',
-                spec: {protocol: 'JSONSocket',
-                       transport: { protocol: 'UDP', port: 54321 }
-                      },
-                endpoints: [ { name: 'EP1', spec: { address:'127.0.0.1' } }, { name: 'EP2', spec: { address:'127.0.0.2' } } ]
-            });
-            assert.exists(c);
-        });
-        it('runs',            async    () => { await c.run(); assert.isOk(true); });
-        it('object',                   () => { assert.isObject(c); });
-        it('instanceOf',               () => { assert.instanceOf(c, Cluster); });
-        it('has-name',                 () => { assert.property(c, 'name'); });
-        it('name',                     () => { assert.propertyVal(c, 'name', 'JSONSocket'); });
-        it('has-spec',                 () => { assert.property(c, 'spec'); });
-        it('has-protocol',             () => { assert.propertyVal(c, 'protocol', 'JSONSocket'); });
-        it('load-balancer',            () => { assert.property(c, 'loadbalancer'); });
-        it('load-balancer-instanceof', () => { assert.instanceOf(c.loadbalancer, LoadBalancer); });
-        it('exists',                   () => { assert.lengthOf(c.endpoints, 2); });
-        it('defined',                  () => { assert.isOk(c.endpoints[0] && c.endpoints[1]); });
-        it('instanceOf',               () => { assert.instanceOf(c.endpoints[0], EndPoint); });
-        it('instanceOf',               () => { assert.instanceOf(c.endpoints[1], EndPoint); });
-        it('equal - 1',                () => { assert.equal(c.endpoints[0].name, 'EP1'); });
-        it('equal - 1',                () => { assert.equal(c.endpoints[1].name, 'EP2'); });
-        it('endpoint-instanceOf - 1',  () => { assert.instanceOf(c.endpoints[0], EndPoint); });
-        it('endpoint-instanceOf - 1',  () => { assert.instanceOf(c.endpoints[1], EndPoint); });
-        it('endpoint-protocol - 1',    () => { assert.propertyVal(c.endpoints[0], 'protocol', 'JSONSocket'); });
-        it('endpoint-protocol - 2',    () => { assert.propertyVal(c.endpoints[1], 'protocol', 'JSONSocket'); });
-        it('get - 1',                  () => { let n = c.getEndPoint('EP1'); assert.isOk(n); });
-        it('get - 2',                  () => { let n = c.getEndPoint('EP2'); assert.isOk(n); });
-        it('get-instanceOf - 1',       () => { let n = c.getEndPoint('EP1'); assert.instanceOf(n, EndPoint); });
-        it('get-instanceOf - 2',       () => { let n = c.getEndPoint('EP2'); assert.instanceOf(n, EndPoint); });
-        it('get-name - 1',             () => { let n = c.getEndPoint('EP1'); assert.equal(n.name, 'EP1'); });
-        it('get-name - 2',             () => { let n = c.getEndPoint('EP2'); assert.equal(n.name, 'EP2'); });
-        it('get-fail',                 () => { let n = c.getEndPoint('Never'); assert.isUndefined(n); });
-        it('delete',                   () => { c.deleteEndPoint('EP1'); assert.lengthOf(c.endpoints, 1); });
-        it('get-fail',                 () => { let n = c.getEndPoint('EP1'); assert.isUndefined(n); });
-    });
+    // we no longer support inline clusters
+    // context('create - UDP - inline endpoints', () => {
+    //     it('created',         () => {
+    //         c = Cluster.create({
+    //             name: 'JSONSocket',
+    //             spec: {protocol: 'JSONSocket',
+    //                    transport: { protocol: 'UDP', port: 54321 }
+    //                   },
+    //             endpoints: [ { name: 'EP1', spec: { address:'127.0.0.1' } }, { name: 'EP2', spec: { address:'127.0.0.2' } } ]
+    //         });
+    //         assert.exists(c);
+    //     });
+    //     it('runs',            async    () => { await c.run(); assert.isOk(true); });
+    //     it('object',                   () => { assert.isObject(c); });
+    //     it('instanceOf',               () => { assert.instanceOf(c, Cluster); });
+    //     it('has-name',                 () => { assert.property(c, 'name'); });
+    //     it('name',                     () => { assert.propertyVal(c, 'name', 'JSONSocket'); });
+    //     it('has-spec',                 () => { assert.property(c, 'spec'); });
+    //     it('has-protocol',             () => { assert.propertyVal(c, 'protocol', 'JSONSocket'); });
+    //     it('load-balancer',            () => { assert.property(c, 'loadbalancer'); });
+    //     it('load-balancer-instanceof', () => { assert.instanceOf(c.loadbalancer, LoadBalancer); });
+    //     it('exists',                   () => { assert.lengthOf(c.endpoints, 2); });
+    //     it('defined',                  () => { assert.isOk(c.endpoints[0] && c.endpoints[1]); });
+    //     it('instanceOf',               () => { assert.instanceOf(c.endpoints[0], EndPoint); });
+    //     it('instanceOf',               () => { assert.instanceOf(c.endpoints[1], EndPoint); });
+    //     it('equal - 1',                () => { assert.equal(c.endpoints[0].name, 'EP1'); });
+    //     it('equal - 1',                () => { assert.equal(c.endpoints[1].name, 'EP2'); });
+    //     it('endpoint-instanceOf - 1',  () => { assert.instanceOf(c.endpoints[0], EndPoint); });
+    //     it('endpoint-instanceOf - 1',  () => { assert.instanceOf(c.endpoints[1], EndPoint); });
+    //     it('endpoint-protocol - 1',    () => { assert.propertyVal(c.endpoints[0], 'protocol', 'JSONSocket'); });
+    //     it('endpoint-protocol - 2',    () => { assert.propertyVal(c.endpoints[1], 'protocol', 'JSONSocket'); });
+    //     it('get - 1',                  () => { let n = c.getEndPoint('EP1'); assert.isOk(n); });
+    //     it('get - 2',                  () => { let n = c.getEndPoint('EP2'); assert.isOk(n); });
+    //     it('get-instanceOf - 1',       () => { let n = c.getEndPoint('EP1'); assert.instanceOf(n, EndPoint); });
+    //     it('get-instanceOf - 2',       () => { let n = c.getEndPoint('EP2'); assert.instanceOf(n, EndPoint); });
+    //     it('get-name - 1',             () => { let n = c.getEndPoint('EP1'); assert.equal(n.name, 'EP1'); });
+    //     it('get-name - 2',             () => { let n = c.getEndPoint('EP2'); assert.equal(n.name, 'EP2'); });
+    //     it('get-fail',                 () => { let n = c.getEndPoint('Never'); assert.isUndefined(n); });
+    //     it('delete',                   () => { c.deleteEndPoint('EP1'); assert.lengthOf(c.endpoints, 1); });
+    //     it('get-fail',                 () => { let n = c.getEndPoint('EP1'); assert.isUndefined(n); });
+    // });
 
 });

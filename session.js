@@ -294,7 +294,7 @@ class Session {
         this.type                    = this.source.origin.type;  // init
         this.retry_on_disconnect_num = 0;
         this.active_streams          = 0;   // except listener
-        this.track                   = false
+        this.track                   = 0;
         this.events                  = [];  // an event log for tracked sessions
 
         this.init();
@@ -736,7 +736,7 @@ class Session {
 
     // immediately closes the stream, possibly sends response headers
     error(err){
-        log.silly('Session.error', `Session ${this.name}:`);
+        log.silly('Session.error', `Session ${this.name}:`, err.message);
         this.events.push({ event: 'ERROR',
                            timestamp: new Date().toISOString(),
                            message: err.message,
@@ -751,11 +751,12 @@ class Session {
     }
 
     end(err){
-        log.silly('Session.end', `Session ${this.name}:`);
+        log.silly('Session.end', `Session ${this.name}`,
+                  (err && err.message) ? err.message : '');
         this.events.push({ event: 'END',
                            timestamp: new Date().toISOString(),
-                           message: err ? err.message : 'Normal end',
-                           content: err});
+                           message: err ? err.message : 'Normal end'
+                         });
 
         this.status = 'FINALIZING';
         this.emit('end', err);
@@ -822,10 +823,9 @@ class Session {
                            message: "Session destroyed",
                            content: ''});
 
-        if(this.track)
+        if(this.track){
             log.silly('Session.destroy:', `${this.name}:`,
                       `Tracking session for ${this.track} seconds`);
-        if(this.track){
             setTimeout(() => this.emit('destroy'), this.track * 1000);
         } else {
             this.emit('destroy');

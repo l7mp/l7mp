@@ -1,9 +1,8 @@
 * Importance: superhigh
 
+** TODO UDP inactivity timeout should be settable and exceeding the timeout should kill session
 ** TODO Listener should be reconnected after a connection refused on a send() call
 ** TODO Fix error when JSONSocket client timeout does not initiate a reconnect
-** TODO deleteCluster() should be automatically recursive (should delete endpoints)
-** TODO Recursive delete
 ** TODO checkRoute
 
 * Importance: high
@@ -34,6 +33,8 @@
 
 * Importance: DONE
 
+** DONE deleteCluster() should be automatically recursive (should delete endpoints)
+** DONE Recursive delete
 ** DONE Bring toJSON() before response validation
 ** DONE Convert README.org to markdown
 ** DONE Handle named RuleList references in Listener and Route objects

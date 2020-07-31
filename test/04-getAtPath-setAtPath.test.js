@@ -55,7 +55,6 @@ var d, l, listener = {
             }
         ],
         "options": {
-            "removeOrphanSessions": true,
             "track": 60
         }
     }

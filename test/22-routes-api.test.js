@@ -98,6 +98,8 @@ describe('Routes API', ()  => {
         this.timeout(5000);
         l7mp = new L7mp();
         l7mp.static_config = static_config;
+        // validate the static config
+        l7mp.admin.strict = true;
         await l7mp.run();
         return Promise.resolve();
     });
@@ -474,7 +476,7 @@ describe('Routes API', ()  => {
                         },
                         endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
-                  }
+                }
             });
             let options = {
                 host: 'localhost', port: 1234,
@@ -541,7 +543,6 @@ describe('Routes API', ()  => {
                             port: 16000,
                             bind: {port: 16001, address: '127.0.0.1'}
                         },
-                        endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
             });
@@ -611,7 +612,6 @@ describe('Routes API', ()  => {
                             bind: {port: 16001, address: '127.0.0.1'},
                             query: 'test/test/test'
                         },
-                        endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
             });
@@ -679,7 +679,6 @@ describe('Routes API', ()  => {
                             protocol: 'JSONEncap',
                             port: 16000
                         },
-                        endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
             });
@@ -747,7 +746,6 @@ describe('Routes API', ()  => {
                             protocol: 'JSONDecap',
                             port: 16000
                         },
-                        endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
             });
@@ -816,7 +814,6 @@ describe('Routes API', ()  => {
                             port: 16000,
                             bind: {port: 16001, address: '127.0.0.1'}
                         },
-                        endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
             });
@@ -885,7 +882,6 @@ describe('Routes API', ()  => {
                             port: 16000,
                             bind: {port: 16001, address: '127.0.0.1'}
                         },
-                        endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
             });
@@ -954,7 +950,6 @@ describe('Routes API', ()  => {
                             port: 16000,
                             bind: {port: 16001, address: '127.0.0.1'}
                         },
-                        endpoints: [{spec: {address: '127.0.0.1'}}]
                     }
                   }
             });
