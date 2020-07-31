@@ -395,8 +395,8 @@ EndPoint.create = (c, e) => {
     case 'Test':             return new TestEndPoint(c, e);
     case 'JSONSocket':       return new JSONSocketEndPoint(c, e);
     default:
-        let err = 'EndPoint.create: '+`TODO: Protocol "${c.protocol}" unimplemented`;
-        log.warn(err);
+        let err = `Adding an endpoint to a cluster of type "${c.protocol}" is not supported`;
+        log.warn('EndPoint.create:', err);
         throw new Error(err);
     }
 }

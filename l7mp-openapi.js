@@ -82,7 +82,7 @@ class L7mpOpenAPI {
         // Listener API
         this.api.registerHandler('getListeners', (ctx, req, res) => {
             log.info("L7mp.api.getListeners");
-            let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
+            let recursive = ctx.request.query.recursive === 'true' ?
                 ctx.request.query.recursive : false;
             let ls = l7mp.listeners.map(
                 l => l7mp.dumpListener(l.name, {recursive: recursive}));
@@ -91,7 +91,7 @@ class L7mpOpenAPI {
 
         this.api.registerHandler('getListener', (ctx, req, res) => {
             log.info("L7mp.api.getListener");
-            let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
+            let recursive = ctx.request.query.recursive === 'true' ?
                 ctx.request.query.recursive : false;
             try {
                 let l = l7mp.dumpListener(ctx.request.params.name, {recursive: recursive});
@@ -113,7 +113,7 @@ class L7mpOpenAPI {
 
         this.api.registerHandler('deleteListener', (ctx, req, res) => {
             log.info("L7mp.api.deleteListener");
-            let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
+            let recursive = ctx.request.query.recursive === 'true' ?
                 ctx.request.query.recursive : false;
             try {
                 l7mp.deleteListener(ctx.request.params.name, {recursive: recursive});
@@ -126,7 +126,7 @@ class L7mpOpenAPI {
         // Cluster API
         this.api.registerHandler('getClusters', (ctx, req, res) => {
             log.info("L7mp.api.getClusters");
-            let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
+            let recursive = ctx.request.query.recursive === 'true' ?
                 ctx.request.query.recursive : false;
             let cs = l7mp.clusters.map(
                 c => l7mp.dumpCluster(c.name, {recursive: recursive}));
@@ -135,8 +135,11 @@ class L7mpOpenAPI {
 
         this.api.registerHandler('getCluster', (ctx, req, res) => {
             log.info("L7mp.api.getCluster");
+            let recursive = ctx.request.query.recursive === 'true' ?
+                ctx.request.query.recursive : false;
             try {
-                let c = l7mp.dumpCluster(ctx.request.params.name);
+                let c = l7mp.dumpCluster(ctx.request.params.name,
+                                         {recursive: recursive});
                 res.status = new Response(c);
             } catch(err){
                 res.status = new BadRequestError(err.message);
@@ -155,7 +158,7 @@ class L7mpOpenAPI {
 
         this.api.registerHandler('deleteCluster', (ctx, req, res) => {
             log.info("L7mp.api.deleteCluster");
-            let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
+            let recursive = ctx.request.query.recursive === 'true' ?
                 ctx.request.query.recursive : false;
             try {
                 l7mp.deleteCluster(ctx.request.params.name, {recursive: recursive});
@@ -214,8 +217,7 @@ class L7mpOpenAPI {
         // RuleList API
         this.api.registerHandler('getRuleLists', (ctx, req, res) => {
             log.info("L7mp.api.getRuleLists");
-
-            let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
+            let recursive = ctx.request.query.recursive === 'true' ?
                 ctx.request.query.recursive : false;
             let rs = l7mp.rulelists.map(
                 r => l7mp.dumpRuleList(r.name, {recursive: recursive}));
@@ -224,9 +226,8 @@ class L7mpOpenAPI {
 
         this.api.registerHandler('getRuleList', (ctx, req, res) => {
             log.info("L7mp.api.getRuleList");
-            let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
+            let recursive = ctx.request.query.recursive === 'true' ?
                 ctx.request.query.recursive : false;
-
             try {
                 let r = l7mp.dumpRuleList(ctx.request.params.name, {recursive: recursive});
                 res.status = new Response(r);
@@ -247,7 +248,7 @@ class L7mpOpenAPI {
 
         this.api.registerHandler('deleteRuleList', (ctx, req, res) => {
             log.info("L7mp.api.deleteRuleList");
-            let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
+            let recursive = ctx.request.query.recursive === 'true' ?
                 ctx.request.query.recursive : false;
             try {
                 l7mp.deleteRuleList(ctx.request.params.name, {recursive: recursive});
@@ -270,7 +271,7 @@ class L7mpOpenAPI {
                 return;
             }
             let name = rulelist.rules[position];
-            let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
+            let recursive = ctx.request.query.recursive === 'true' ?
                 ctx.request.query.recursive : false;
             try {
                 let r = l7mp.dumpRule(name, {recursive: recursive});
@@ -324,7 +325,7 @@ class L7mpOpenAPI {
         // Rule API
         this.api.registerHandler('getRules', (ctx, req, res) => {
             log.info("L7mp.api.getRules");
-            let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
+            let recursive = ctx.request.query.recursive === 'true' ?
                 ctx.request.query.recursive : false;
             let rs = l7mp.rules.map(
                 r => l7mp.dumpRule(r.name, {recursive: recursive}));
@@ -333,7 +334,7 @@ class L7mpOpenAPI {
 
         this.api.registerHandler('getRule', (ctx, req, res) => {
             log.info("L7mp.api.getRule");
-            let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
+            let recursive = ctx.request.query.recursive === 'true' ?
                 ctx.request.query.recursive : false;
             try {
                 let r = l7mp.dumpRule(ctx.request.params.name, {recursive: recursive});
@@ -355,9 +356,8 @@ class L7mpOpenAPI {
 
         this.api.registerHandler('deleteRule', (ctx, req, res) => {
             log.info("L7mp.api.deleteRule");
-            let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
+            let recursive = ctx.request.query.recursive === 'true' ?
                 ctx.request.query.recursive : false;
-
             try {
                 l7mp.deleteRule(ctx.request.params.name, {recursive: recursive});
                 res.status = new Ok();
@@ -369,7 +369,7 @@ class L7mpOpenAPI {
         // Route API
         this.api.registerHandler('getRoutes', (ctx, req, res) => {
             log.info("L7mp.api.getRoutes");
-            let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
+            let recursive = ctx.request.query.recursive === 'true' ?
                 ctx.request.query.recursive : false;
             let rs = l7mp.routes.map(
                 r => l7mp.dumpRoute(r.name, {recursive: recursive}));
@@ -378,7 +378,7 @@ class L7mpOpenAPI {
 
         this.api.registerHandler('getRoute', (ctx, req, res) => {
             log.info("L7mp.api.getRoute");
-            let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
+            let recursive = ctx.request.query.recursive === 'true' ?
                 ctx.request.query.recursive : false;
             try {
                 let r = l7mp.dumpRoute(ctx.request.params.name, {recursive: recursive});
@@ -400,7 +400,7 @@ class L7mpOpenAPI {
 
         this.api.registerHandler('deleteRoute', (ctx, req, res) => {
             log.info("L7mp.api.deleteRoute");
-            let recursive = typeof ctx.request.query.recursive !== 'undefined' ?
+            let recursive = ctx.request.query.recursive === 'true' ?
                 ctx.request.query.recursive : false;
             try {
                 l7mp.deleteRoute(ctx.request.params.name, {recursive: recursive});
@@ -490,6 +490,10 @@ class L7mpOpenAPI {
                     }
                 }
             }
+
+            // format result
+            if(res.status instanceof Ok || res.status instanceof Response)
+                res.response = toJSON(res.response, ctx.request.query.format);
         });
     }
 
@@ -576,7 +580,8 @@ class L7mpOpenAPI {
 
         if(res.status instanceof Ok || res.status instanceof Response){
             // normal path
-            stream.end(JSON.stringify(res.response, null, 4));
+            // stream.end(JSON.stringify(res.response, null, 4));
+            stream.end(res.response);
             setImmediate(() => s.end());
         } else {
             // error path, will set the status automatically

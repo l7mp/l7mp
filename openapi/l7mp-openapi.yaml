@@ -357,10 +357,12 @@ components:
               JSONEncap: '#/components/schemas/io.l7mp.api.v1.JSONEncapClusterSpec'
               JSONDecap: '#/components/schemas/io.l7mp.api.v1.JSONDecapClusterSpec'
         endpoints:
-          description: A list of EndPoint objects.
-          type: array
-          items:
-            $ref: '#/components/schemas/io.l7mp.api.v1.EndPoint'
+          description: The number of endpoints or a list of EndPoints.
+          anyOf:
+            - type: integer
+            - type: array
+              items:
+                $ref: '#/components/schemas/io.l7mp.api.v1.EndPoint'
         loadbalancer:
             $ref: '#/components/schemas/io.l7mp.api.v1.LoadBalancer'
         options:
@@ -879,12 +881,23 @@ components:
         port:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
 
+    io.l7mp.api.v1.JSONFormat:
+      description: Format JSON output, see "https://www.npmjs.com/package/format-json" for the accepted options.
+      type: string
+      enum: [ plain, terse, space, lines, diffy ]
+
+
 paths:
   # Full config API
   /api/v1/config:
     get:
       description: Get the full configuration.
       operationId: getConf
+      parameters:
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Full configuration
@@ -919,6 +932,11 @@ paths:
     get:
       description: Get the static configuration.
       operationId: getAdmin
+      parameters:
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Static configuration
@@ -959,6 +977,10 @@ paths:
           schema:
             type: boolean
           description: Recursively list all sub-objects (rulelists, rules, routes, clusters, etc.) of the Listener (regardless of whether the sub-objects were implicitly defined in the Listener).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: OK
@@ -1007,6 +1029,10 @@ paths:
           schema:
             type: boolean
           description: Recursively list all sub-objects (rulelists, rules, routes, clusters, etc.) of the Listener (regardless of whether the sub-objects were implicitly defined in the Listener).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Status.
@@ -1051,7 +1077,9 @@ paths:
   # Cluster API
   /api/v1/clusters:
     get:
-      description: Get a list of Clusters.
+      description: >
+        Get a list of Clusters. If called with the recursive flag on, it will also list the
+        endpoints of each Cluster, otherwise, only the number of endpoints is returned.
       operationId: getClusters
       parameters:
         - name: recursive
@@ -1059,6 +1087,10 @@ paths:
           schema:
             type: boolean
           description: Recursively list all the endpoints of the Cluster.
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: OK
@@ -1093,7 +1125,9 @@ paths:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   /api/v1/clusters/{name}:
     get:
-      description: Get a named Cluster. Note that this operation is always recursive, that is, it will recursively list all the endpoints of the Cluster by default.
+      description: >
+        Get a named Cluster. If called with the recursive flag on, it will also list the endpoints
+        of the Cluster, otherwise, only the number of endpoints is returned.
       operationId: getCluster
       parameters:
         - name: name
@@ -1102,6 +1136,15 @@ paths:
           schema:
             type: string
           description: Name of the Cluster.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively list all the endpoints of the Cluster.
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Status.
@@ -1156,6 +1199,10 @@ paths:
           schema:
             type: string
           description: Name of the Cluster.
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Status.
@@ -1212,6 +1259,10 @@ paths:
           schema:
             type: string
           description: Name of the EndPoint.
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Status.
@@ -1271,6 +1322,10 @@ paths:
           schema:
             type: boolean
           description: Recursively list all sub-objects (routes, clusters, etc.) of the Rule (regardless of whether the sub-objects were implicitly defined in the Rule).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Status.
@@ -1365,6 +1420,10 @@ paths:
           schema:
             type: boolean
           description: Recursively list all sub-objects (rules, routes, clusters, etc.) of the Rule (regardless of whether the sub-objects were implicitly defined in the RuleList).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: OK
@@ -1413,6 +1472,10 @@ paths:
           schema:
             type: boolean
           description: Recursively list all sub-objects (routes, clusters, etc.) of the RuleList (regardless of whether the sub-objects were implicitly defined in the RuleList).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Status.
@@ -1465,6 +1528,10 @@ paths:
           schema:
             type: boolean
           description: Recursively list all sub-objects (routes, clusters, etc.) of each Rule (regardless of whether the sub-objects were implicitly defined in the Rule).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: OK
@@ -1513,6 +1580,10 @@ paths:
           schema:
             type: boolean
           description: Recursively list all sub-objects (routes, clusters, etc.) of the Rule (regardless of whether the sub-objects were implicitly defined in the Rule).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Status.
@@ -1565,6 +1636,10 @@ paths:
           schema:
             type: boolean
           description: Recursively list all sub-objects (i.e., the destination cluster or clusters on the ingress and the egress chain) of each Route (regardless of whether the sub-objects were implicitly defined in the Route).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: OK
@@ -1613,6 +1688,10 @@ paths:
           schema:
             type: boolean
           description: Recursively list all sub-objects (i.e., the destination cluster or clusters on the ingress and the egress chain) of the Route (regardless of whether the sub-objects were implicitly defined in the Route).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Status.
@@ -1658,6 +1737,11 @@ paths:
     get:
       description: Get a list of Sessions.
       operationId: getSessions
+      parameters:
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: OK
@@ -1678,6 +1762,10 @@ paths:
           required: true
           schema:
             type: string
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
       responses:
         '200':
           description: Status.
