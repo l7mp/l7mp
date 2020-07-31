@@ -260,21 +260,23 @@ class L7mpOpenAPI {
 
         this.api.registerHandler('getRuleFromRuleList', (ctx, req, res) => {
             log.info("L7mp.api.getRuleFromRuleList");
-            let rulelist = l7mp.getRuleList(ctx.request.params.name);
+            let name = ctx.request.params.name;
+            let rulelist = l7mp.getRuleList(name);
             if(!rulelist){
-                res.status = new BadRequestError('No such rule list');
+                res.status = new BadRequestError('No such rule list: '+name);
                 return;
             }
             let position = ctx.request.params.position;
             if(position < 0 || position >= rulelist.rules.length){
-                res.status = new BadRequestError(`No rule at position ${position} in RuleList`);
+                res.status = new BadRequestError(`No rule at position ${position} `+
+                                                 `in RuleList "${name}"`);
                 return;
             }
-            let name = rulelist.rules[position];
+            let rule_name = rulelist.rules[position];
             let recursive = ctx.request.query.recursive === 'true' ?
                 ctx.request.query.recursive : false;
             try {
-                let r = l7mp.dumpRule(name, {recursive: recursive});
+                let r = l7mp.dumpRule(rule_name, {recursive: recursive});
                 res.status = new Response(r);
             } catch(err){
                 res.status = new BadRequestError(err.message);
@@ -283,12 +285,11 @@ class L7mpOpenAPI {
 
         this.api.registerHandler('addRuleToRuleList', async (ctx, req, res) => {
             log.info("L7mp.api.addRuleToRuleList");
-            let rulelist = l7mp.getRuleList(ctx.request.params.name);
-            if(!rulelist){
-                res.status = new BadRequestError('No such rule list');
-                return;
-            }
             try {
+                let name = ctx.request.params.name;
+                let rulelist = l7mp.getRuleList(name);
+                if(!rulelist)
+                    throw new BadRequestError('No such rule list: '+name);
                 await l7mp.addRuleToRuleList(rulelist, req.body.rule, ctx.request.params.position);
                 res.status = new Ok();
             } catch(err){
