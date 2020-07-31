@@ -62,14 +62,14 @@ class Listener {
 
     getNewSessionId() { return this.sessionId++; }
 
-    json(res){
-        let json = {
-            status: res.status,
-            message: res.message
-        };
-        if(res.content) json.content = res.content;
-        return JSON.stringify(json);
-    }
+    // json(res){
+    //     let json = {
+    //         status: res.status,
+    //         message: res.message
+    //     };
+    //     if(res.content) json.content = res.content;
+    //     return JSON.stringify(json);
+    // }
 
     emitSession(m, s, p){
         let sess = { metadata: m,
