@@ -125,7 +125,7 @@ describe('RuleList API', ()  => {
         it('length',        () => { assert.lengthOf(res, 1); });
         it('has-name',      () => { assert.property(res[0], 'name'); });
         it('has-rules',     () => { assert.property(res[0], 'rules'); });
-        it('lengtOf-rules', () => { assert.lengthOf(res, 1); });
+        it('lengthOf-rules', () => { assert.lengthOf(res, 1); });
         it('rule-type',     () => { assert.isString(res[0].rules[0]); });
     });
     context('add-check-delete-rulelist-via-api', () =>{
@@ -282,6 +282,105 @@ describe('RuleList API', ()  => {
         });
     });
 
+    context('recursive-get-delete',()=>{
+        let res, name;
+        it('recursive-get', async()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rulelists?recursive=true',
+                method: 'GET'
+            };
+            res = await httpRequest(options);
+            name = res[0].name;
+            //check response if it is fully recursive or not
+            assert.nestedProperty(res[0],'rules');
+            assert.nestedProperty(res[0].rules[0],'name');
+            assert.nestedProperty(res[0].rules[0],'match');
+            assert.nestedProperty(res[0].rules[0],'action');
+            assert.nestedProperty(res[0].rules[0].action.route,'destination');
+            assert.nestedProperty(res[0].rules[0].action.route.destination,'name');
+            return Promise.resolve();
+        });
+        it('recursive-get-by-name', async()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/rulelists/${name}?recursive=true`,
+                method: 'GET'
+            };
+            res = await httpRequest(options);
+            //check response if it is fully recursive or not
+            assert.nestedProperty(res,'rules');
+            assert.nestedProperty(res.rules[0],'name');
+            assert.nestedProperty(res.rules[0],'match');
+            assert.nestedProperty(res.rules[0],'action');
+            assert.nestedProperty(res.rules[0].action.route,'destination');
+            assert.nestedProperty(res.rules[0].action.route.destination,'name');
+            return Promise.resolve();
+        });
+        it('add-rulelist-to-delete-recursively', async () =>{
+            const postData = JSON.stringify({
+                'rulelist': {
+                    name: 'recursive-rulelist',
+                    rules:
+                        [
+                            {
+                                name: 'recursive-test',
+                                action:
+                                    {
+                                        route:
+                                            {
+                                                destination:
+                                                    {
+                                                        name: "recursive-test",
+                                                        spec:
+                                                            {
+                                                                protocol: "Echo"
+                                                            }
+                                                    }
+                                            }
+                                    }
+                            }
+                        ]
+                }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rulelists', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            res = await httpRequest(options, postData);
+            assert.nestedPropertyVal(res, 'status', 200);
+            return Promise.resolve();
+        });
+
+        it('recursive-get-rule-from-rulelist', async()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rulelists/recursive-rulelist/rules/0?recursive=true',
+                method: 'GET'
+            };
+            res = await httpRequest(options);
+            //check response if it is fully recursive or not
+            assert.nestedProperty(res,'name');
+            assert.nestedPropertyVal(res,'name','recursive-test');
+            assert.nestedProperty(res.action.route,'name');
+            assert.nestedProperty(res.action.route,'destination',);
+            assert.nestedPropertyVal(res.action.route.destination,'name','recursive-test');
+            return Promise.resolve();
+        });
+
+        it('recursive-delete-rulelist', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rulelists/recursive-rulelist?recursive=true',
+                method: 'DELETE'
+            };
+            res = await httpRequest(options);
+            assert.isNotOk(l7mp.getRuleList('recursive-rulelist'))
+            return Promise.resolve()
+        });
+    })
+
     context('invalid-requests', ()=>{
         it('validation-fail', async ()=>{
             let postData = JSON.stringify({
@@ -348,8 +447,6 @@ describe('RuleList API', ()  => {
                 )
         });
     });
-    //TODO: remove last rule from a rulelist should remove the entire rulelist
-    //TODO: deleting the rulelist from a listener should remove the listener
 
     // The functionality is NOT implemented yet, should check before uncomment
     // context('remove', ()=>{
