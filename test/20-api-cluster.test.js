@@ -275,22 +275,31 @@ describe('Cluster-API', ()  => {
                 method: 'GET',
             };
             res = await httpRequest(options);
-            assert.instanceOf(res[0].endpoints[0],Object);
+            assert.nestedProperty(res[0].endpoints[0],'name');
             return Promise.resolve();
         });
-        //TODO assert.instanceOf... endpoints[0], return value type
-        //
-        // it('non-recursive-get', async ()=>{
-        //     let options = {
-        //         host: 'localhost', port: 1234,
-        //         path: '/api/v1/clusters?recursive=false',
-        //         method: 'GET',
-        //     };
-        //     res = await httpRequest(options);
-        //     console.log(res);
-        //     assert.instanceOf(res[0].endpoints[0],String); //<--
-        //     return Promise.resolve();
-        // });
+
+        it('recursive-get-by-name', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters/L7mpControllerCluster?recursive=true',
+                method: 'GET',
+            };
+            res = await httpRequest(options);
+            assert.nestedProperty(res.endpoints[0],'name');
+            return Promise.resolve();
+        });
+
+        it('non-recursive-get', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters?recursive=false',
+                method: 'GET',
+            };
+            res = await httpRequest(options);
+            assert.notNestedProperty(res[0].endpoints, 'name');
+            return Promise.resolve();
+        });
 
         it('recursive-delete', async ()=>{
             const postData = JSON.stringify({
