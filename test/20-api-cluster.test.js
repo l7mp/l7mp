@@ -61,7 +61,7 @@ let static_config = {
                                 name: "L7mpControllerCluster",
                                 spec: {
                                     protocol: "L7mpController"
-                                }
+                                },
                             }
                         }
                     }
@@ -265,10 +265,71 @@ describe('Cluster-API', ()  => {
                 return Promise.resolve();
             });
         });
+    });
+    context('recursive-get-delete', ()=>{
+        let res;
+        it('recursive-get', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters?recursive=true',
+                method: 'GET',
+            };
+            res = await httpRequest(options);
+            assert.nestedProperty(res[0].endpoints[0],'name');
+            return Promise.resolve();
+        });
 
-        context('invalid-request',()=>{
+        it('recursive-get-by-name', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters/L7mpControllerCluster?recursive=true',
+                method: 'GET',
+            };
+            res = await httpRequest(options);
+            assert.nestedProperty(res.endpoints[0],'name');
+            return Promise.resolve();
+        });
+
+        it('non-recursive-get', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters?recursive=false',
+                method: 'GET',
+            };
+            res = await httpRequest(options);
+            assert.notNestedProperty(res[0].endpoints, 'name');
+            return Promise.resolve();
+        });
+
+        it('recursive-delete', async ()=>{
+            const postData = JSON.stringify({
+                'cluster':{
+                    name: 'recursive-delete-cluster',
+                    spec: {protocol: 'UDP', port: 16000, bind: {port: 16001, address: '127.0.0.1'}},
+                    endpoints: [{name: 'rec-endpoint-0', spec: {address: '127.0.0.1'}},{name: 'rec-endpoint-1', spec: {address: '127.0.0.2'}}]
+                }
+            });
+            let options_post = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters', method: 'POST'
+                , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            await httpRequest(options_post,postData)
+
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters/recursive-delete-cluster',
+                method: 'DELETE',
+            };
+            res = await httpRequest(options);
+            assert.isNotOk(l7mp.getEndPoint('rec-endpoint-0'));
+            assert.isNotOk(l7mp.getEndPoint('rec-endpoint-1'));
+            return Promise.resolve();
+        });
+    });
+
+    context('invalid-request',()=>{
             it('add-existing-cluster', async ()=>{
-
                 const postData = JSON.stringify({
                     'cluster':{
                         name: 'L7mpControllerCluster',
@@ -301,7 +362,7 @@ describe('Cluster-API', ()  => {
                     );
             });
         });
-    });
+
 
     // TODO: http cluster is not implemented yet
     // context('HTTP-cluster', ()=>{
