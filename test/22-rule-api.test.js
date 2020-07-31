@@ -209,7 +209,6 @@ describe('Rule API', ()  => {
                     method: 'GET'
                 };
                 res = await httpRequest(options)
-                console.log(res);
             });
             it('name',              () => { assert.propertyVal(res[1], 'name', 'test-rule'); });
             it('has-match',         () => { assert.property(res[1], 'match'); });
@@ -242,6 +241,90 @@ describe('Rule API', ()  => {
             });
             it('length-of-rules', () => { assert.lengthOf(res, 1); });
         });
+    });
+
+    context('recursive-get-delete', ()=>{
+        let res;
+        it('recursive-get', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rules?recursive=true',
+                method: 'GET',
+            };
+            res = await httpRequest(options);
+            return Promise.resolve();
+        });
+        it('object-route', () => { assert.instanceOf(res[0].action.route, Object); }); 
+        it('has-ingress',  () => { assert.nestedProperty(res[0], 'action.route', 'ingress'); });
+        it('has-egress',  () => { assert.nestedProperty(res[0], 'action.route', 'egress'); }); 
+        it('has-retry',  () => { assert.nestedProperty(res[0], 'action.route', 'retry'); }); 
+        it('has-retry_on', () => { assert.nestedProperty(res[0], 'action.route.retry', 'retry_on'); });
+        it('has-num_retries', () => { assert.nestedProperty(res[0], 'action.route.retry', 'num_retries'); });
+        it('has-timeout', () => { assert.nestedProperty(res[0], 'action.route.retry', 'timeout'); });
+        it('has-destination', () => { assert.nestedProperty(res[0], 'action.route', 'destination'); });
+        it('has-dest-name', () => { assert.nestedProperty(res[0], 'action.route.destination', 'name'); });
+        it('has-dest-spec', () => { assert.nestedProperty(res[0], 'action.route.destination', 'spec'); });
+        it('has-dest-spec-protocol', () => { assert.nestedProperty(res[0], 'action.route.destination.spec', 'protocol'); });
+        it('has-dest-endpoints', () => { assert.nestedProperty(res[0], 'action.route.destination', 'endpoints'); });
+        it('has-dest-loadbalancer', () => { assert.nestedProperty(res[0], 'action.route.destination', 'loadbalancer'); });
+        it('add-rule', async () =>{
+            const postData = JSON.stringify({
+                "rule": {
+                    name: "test-rule",
+                    match: {op: 'contains', path: '/a/b/c', value: 'test'}, 
+                    action: {
+                      rewrite: [{
+                        path: 'a/b/c',
+                        value: 'test'
+                      }], 
+                      route: {name: 'route1', destination: 'Test-rc'},
+                      apply: 'Test-rc'
+                    }
+                  }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rules', method: 'POST', 
+                headers: {'Content-Type' : 'text/x-json'}
+            }
+            await httpRequest(options, postData);
+        });
+        it('recursive-get-by-name', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rules/test-rule?recursive=true',
+                method: 'GET',
+            };
+            res = await httpRequest(options);
+            console.log(res);
+            return Promise.resolve();
+        });
+        it('object-route', () => { assert.instanceOf(res.action.route, Object); }); 
+        it('name', () => { assert.propertyVal(res, 'name', 'test-rule'); });
+        it('has-match', () => { assert.property(res, 'match'); });
+        it('has-ingress',  () => { assert.nestedProperty(res, 'action.route', 'ingress'); });
+        it('has-egress',  () => { assert.nestedProperty(res, 'action.route', 'egress'); }); 
+        it('has-retry',  () => { assert.nestedProperty(res, 'action.route', 'retry'); }); 
+        it('has-retry_on', () => { assert.nestedProperty(res, 'action.route.retry', 'retry_on'); });
+        it('has-num_retries', () => { assert.nestedProperty(res, 'action.route.retry', 'num_retries'); });
+        it('has-timeout', () => { assert.nestedProperty(res, 'action.route.retry', 'timeout'); });
+        it('has-destination', () => { assert.nestedProperty(res, 'action.route', 'destination'); });
+        it('recursive-delete', async () => {
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rules/test-rule?recursive=true',
+                method: 'DELETE',
+            };
+            let options_get = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rules',
+                method: 'GET'
+            };
+            await httpRequest(options);
+            res = await httpRequest(options_get);
+            return Promise.resolve();
+        });
+        it('length-of-rules', () => { assert.lengthOf(res, 1); });
     });
 
     context('add-check-delete-multiple-rules', () => {
