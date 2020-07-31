@@ -50,7 +50,8 @@ components:
         - admin
 
     io.l7mp.api.v1.AdminRequest:
-      description: 'Wrapper for addAdmin calls: contains only a single Admin object.'
+      description: >
+        Wrapper for addAdmin calls: contains only a single Admin object.
       type: object
       required:
         - admin
@@ -64,7 +65,10 @@ components:
       properties:
         log_level:
           type: string
-          description: Log verbosity, one of, from the most talkative, "silly", "verbose", "info", "notice", "warn", "error", and "silent" (not recommended). Default is "info".
+          description: >
+            Log verbosity, one of, from the most talkative, "silly",
+            "verbose", "info", "notice", "warn", "error", and "silent" (not
+            recommended). Default is "info".
         log_file:
           type: string
           description: File to write log messages to. Default is "stderr".
@@ -73,13 +77,16 @@ components:
           description: Access log (currently unimplemented).
         strict:
           type: boolean
-          description: 'Enable strict mode: validates all REST API calls against OpenAPI schema (default: false).'
+          description: >
+            Enable strict mode: validates all REST API calls against OpenAPI
+            schema (default: false).
         version:
           type: string
           description: Version info.
 
     io.l7mp.api.v1.ListenerRequest:
-      description: 'Wrapper for addListener calls: contains only a single Listener object'
+      description: >
+        Wrapper for addListener calls: contains only a single Listener object
       type: object
       required:
         - listener
@@ -88,7 +95,9 @@ components:
           $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
 
     io.l7mp.api.v1.Listener:
-      description: A socket that listens for incoming connection requests, an abstraction for an "ingress port".
+      description: >
+        A socket that listens for incoming connection requests, an abstraction
+        for an "ingress port".
       type: object
       required:
         - name
@@ -118,7 +127,9 @@ components:
               UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
               JSONSocket: '#/components/schemas/io.l7mp.api.v1.JSONSocketListenerSpec'
         rules:
-          description: The name of a match-action table or an inline list of match-action rules (required).
+          description: >
+            The name of a match-action table or an inline list of match-action
+            rules (required).
           anyOf:
             - type: string  # reference to a named RuleList
             - type: array
@@ -130,12 +141,18 @@ components:
           type: object
           properties:
             track:
-              description: Sessions created by this listener will be tracked and will be available after ending for a specified amount of time, to help post-mortem analysis. If specified, then value must be an integer, providing the number of seconds during which the session will be available before deletion.
+              description: >
+                Sessions created by this listener will be tracked and will be
+                available after ending for a specified amount of time, to help
+                post-mortem analysis. If specified, then value must be an
+                integer, providing the number of seconds during which the
+                session will be available before deletion.
               type: integer
 
     io.l7mp.api.v1.HTTPListenerSpec:
       description: |
-        A HTTP server specification that accepts HTTP requests at a specified port.
+        A HTTP server specification that accepts HTTP requests at a specified
+        port.
         - protocol: HTTP
         - session ID: IP 5-tuple
         - type: session
@@ -158,7 +175,8 @@ components:
 
     io.l7mp.api.v1.WebSocketListenerSpec:
       description: |
-        A WebSocket server specification that accepts HTTP/WebSocket requests at a specified port.
+        A WebSocket server specification that accepts HTTP/WebSocket requests
+        at a specified port.
         - protocol: WebSocket
         - session ID: IP 5-tuple
         - type: datagram-stream
@@ -181,7 +199,17 @@ components:
 
     io.l7mp.api.v1.UDPListenerSpec:
       description: |
-        "A UDP listener that accepts UDP connections in the specified port. The listener may work in one of 2 possible modes. In Singleton mode, the listener also expects a fully qualified remote address-port pair (both connect.address or connect.port specified), connects back to the remote and stops accepting further connection requests. In Server mode, the listener emits a new session for each UDP packet that belongs to a yet unseen connection (unknown IP 4-tuple). If a remote address or port is specified (one of connect.address or connect.port is specified), accept connections only from that remote address or port. Default is Singleton if both connect.address and connect.port are specified, otherwise Server (override with options.mode)."
+        A UDP listener that accepts UDP connections in the specified
+        port. The listener may work in one of 2 possible modes. In Singleton
+        mode, the listener also expects a fully qualified remote address-port
+        pair (both connect.address or connect.port specified), connects back
+        to the remote and stops accepting further connection requests. In
+        Server mode, the listener emits a new session for each UDP packet that
+        belongs to a yet unseen connection (unknown IP 4-tuple). If a remote
+        address or port is specified (one of connect.address or connect.port
+        is specified), accept connections only from that remote address or
+        port. Default is Singleton if both connect.address and connect.port
+        are specified, otherwise Server (override with options.mode).
         - protocol: UDP
         - session ID: IP 5-tuple
         - type: datagram-stream
@@ -204,7 +232,10 @@ components:
           type: object
           properties:
             mode:
-              description: Work in singleton mode (only a single session is handled by the listener to a known remote) or server mode (a new session is emitted for each new peer address/port pair).
+              description: >
+                Work in singleton mode (only a single session is handled by
+                the listener to a known remote) or server mode (a new session
+                is emitted for each new peer address/port pair).
               type: string
               enum:
               - server
@@ -212,7 +243,8 @@ components:
 
     io.l7mp.api.v1.TCPListenerSpec:
       description: |
-        A TCP server specification that accepts TCP requests at a specified port.
+        A TCP server specification that accepts TCP requests at a specified
+        port.
         - protocol: TCP
         - session ID: IP 5-tuple
         - type: datagram-stream
@@ -232,7 +264,8 @@ components:
 
     io.l7mp.api.v1.UnixDomainSocketListenerSpec:
       description: |
-        A Unix Domain Socket (UDS) server specification that accepts IPC connection requests at a specified filename.
+        A Unix Domain Socket (UDS) server specification that accepts IPC
+        connection requests at a specified filename.
         - protocol: UnixDomainSocket
         - session ID: Listener name + ID
         - type: byte-stream
@@ -253,7 +286,15 @@ components:
 
     io.l7mp.api.v1.JSONSocketListenerSpec:
       description: |
-        This listener implements the server side of the the JSONSocket datagram streaming protocol. JSONSocket implements the "HTTP header" semantics, but on top of a dumb unreliable datagram transport like UDP or pure IP. Can be established over any datagram transport, the listener expects the first packet of the stream to be a fully specified JSON object, which will then be copied into the session metadata, and can return an arbitrary response header to the client. Both the JSON request and response headers are transmitted reliably, subject to user specified timeout.
+        This listener implements the server side of the the JSONSocket
+        datagram streaming protocol. JSONSocket implements the "HTTP header"
+        semantics, but on top of a dumb unreliable datagram transport like UDP
+        or pure IP. Can be established over any datagram transport, the
+        listener expects the first packet of the stream to be a fully
+        specified JSON object, which will then be copied into the session
+        metadata, and can return an arbitrary response header to the
+        client. Both the JSON request and response headers are transmitted
+        reliably, subject to user specified timeout.
         - protocol: JSONSocket
         - session ID: Listener name + ID
         - type: datagram-stream
@@ -269,7 +310,9 @@ components:
             - JSONSocket
           description: The protocol, must be "JSONSocket".
         transport:
-          description: The specification of the listener that provides the transport service to JSONSocket.
+          description: >
+            The specification of the listener that provides the transport
+            service to JSONSocket.
           type: object
           oneOf:
             - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
@@ -286,18 +329,22 @@ components:
         parse:
           type: array
           items:
-            description: A JSON field to parse out from the JSONSocket header and write into the session metadata.
+            description: >
+              A JSON field to parse out from the JSONSocket header and write
+              into the session metadata.
             type: object
             properties:
               path:
                 type: string
-                description: Field to be copied from the JSON header to the session metadata header specified as a JSON Pointer.
+                description: >
+                  Field to be copied from the JSON header to the session
+                  metadata header specified as a JSON Pointer.
               target:
                 type: string
                 description: Target path to write parsed field.
 
     io.l7mp.api.v1.EndPointRequest:
-      description: |
+      description: >
         Wrapper for addEndPoint calls. Contains only a single EndPoint object.
       type: object
       required:
@@ -307,7 +354,7 @@ components:
           $ref: '#/components/schemas/io.l7mp.api.v1.EndPoint'
 
     io.l7mp.api.v1.ClusterRequest:
-      description: |
+      description: >
         Wrapper for addCluster calls. Contains only a single Cluster object.
       type: object
       required:
@@ -317,7 +364,9 @@ components:
           $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
 
     io.l7mp.api.v1.Cluster:
-      description: A socket that originates connections to external services, an abstraction for an "egress port".
+      description: >
+        A socket that originates connections to external services, an
+        abstraction for an "egress port".
       type: object
       required:
         - spec
@@ -370,7 +419,9 @@ components:
           type: object
 
     io.l7mp.api.v1.WebSocketClusterSpec:
-      description: A WebSocket cluster specification that forwards HTTP/WebSocket connections to an upstream cluster.
+      description: >
+        A WebSocket cluster specification that forwards HTTP/WebSocket
+        connections to an upstream cluster.
       type: object
       required:
         - protocol
@@ -385,7 +436,9 @@ components:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
 
     io.l7mp.api.v1.UDPClusterSpec:
-      description: A UDP sender socket that forwards UDP connections to an upstream cluster, connecting to a well-defined remote address-port pair.
+      description: >
+        A UDP sender socket that forwards UDP connections to an upstream
+        cluster, connecting to a well-defined remote address-port pair.
       type: object
       required:
         - protocol
@@ -402,7 +455,9 @@ components:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.AddressPortPair'
 
     io.l7mp.api.v1.TCPClusterSpec:
-      description: A TCP cluster specification that forwards TCP connections to an upstream cluster.
+      description: >
+        A TCP cluster specification that forwards TCP connections to an
+        upstream cluster.
       type: object
       required:
         - protocol
@@ -419,7 +474,9 @@ components:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.AddressPortPair'
 
     io.l7mp.api.v1.UnixDomainSocketClusterSpec:
-      description: A Unix Domain Socket (UDS) cluster specification that forwards IPC connections to an upstream cluster.
+      description: >
+        A Unix Domain Socket (UDS) cluster specification that forwards IPC
+        connections to an upstream cluster.
       type: object
       required:
         - protocol
@@ -431,7 +488,9 @@ components:
           description: The protocol, must be "UnixDomainSocket".
 
     io.l7mp.api.v1.JSONSocketClusterSpec:
-      description: A JSONSocket cluster specification that forwards JSONSocket connections to an upstream cluster over a specified transport.
+      description: >
+        A JSONSocket cluster specification that forwards JSONSocket
+        connections to an upstream cluster over a specified transport.
       type: object
       required:
         - protocol
@@ -443,7 +502,9 @@ components:
             - JSONSocket
           description: The protocol, must be "JSONSocket".
         transport:
-          description: The specification of the cluster that provides the transport service to JSONSocket.
+          description: >
+            The specification of the cluster that provides the transport
+            service to JSONSocket.
           type: object
           oneOf:
             - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
@@ -463,7 +524,8 @@ components:
               Discard: '#/components/schemas/io.l7mp.api.v1.DiscardClusterSpec'
 
     io.l7mp.api.v1.L7mpControllerSpec:
-      description: A virtual cluster that accepts L7mp controller REST API calls.
+      description: >
+        A virtual cluster that accepts L7mp controller REST API calls.
       type: object
       required:
         - protocol
@@ -475,7 +537,10 @@ components:
             - L7mpController
 
     io.l7mp.api.v1.StdioClusterSpec:
-      description: A virtual cluster that writes the stream routed to it to the proxy standard output and pipes back standard input into the stream. Useful for debugging.
+      description: >
+        A virtual cluster that writes the stream routed to it to the proxy
+        standard output and pipes back standard input into the stream. Useful
+        for debugging.
       type: object
       required:
         - protocol
@@ -511,7 +576,9 @@ components:
             - Discard
 
     io.l7mp.api.v1.LoggerClusterSpec:
-      description: A virtual cluster that logs everything that passes through it to a log file.
+      description: >
+        A virtual cluster that logs everything that passes through it to a log
+        file.
       type: object
       required:
         - protocol
@@ -522,15 +589,23 @@ components:
           enum:  # fixed value
             - Logger
         log_file:
-          description: The file to log to. Opened it mode "w" (create or truncate if exists). Default is '-' (stdout).
+          description: >
+            The file to log to. Opened it mode "w" (create or truncate if
+            exists). Default is '-' (stdout).
           type: string
         log_prefix:
           description: Prefix log messages. Default is no prefix.
           type: string
 
     io.l7mp.api.v1.SyncClusterSpec:
-      description: |
-        A virtual cluster that allows multiple streams to synchronize and exchange data. The Sync cluster acts as a rendezvous point for streams whose metadata query evaluates to the same value (like e.g., multiple WebSocket streams with the same HTTP cookie); these streams will be connected into a single broadcast domain, whereby any data sent by any of the streams will be boradcast to all the other streams. Useful for connecting two ingress streams into a single end-to-end stream.
+      description: >
+        A virtual cluster that allows multiple streams to synchronize and
+        exchange data. The Sync cluster acts as a rendezvous point for streams
+        whose metadata query evaluates to the same value (like e.g., multiple
+        WebSocket streams with the same HTTP cookie); these streams will be
+        connected into a single broadcast domain, whereby any data sent by any
+        of the streams will be boradcast to all the other streams. Useful for
+        connecting two ingress streams into a single end-to-end stream.
       type: object
       required:
         - protocol
@@ -542,11 +617,17 @@ components:
           enum:  # fixed value
             - Sync
         query:
-          description: A JSONPredicate query to the stream metadata. All streams for which the query evaluates to the same value will be connected into a single broadcast domain.
+          description: >
+            A JSONPredicate query to the stream metadata. All streams for
+            which the query evaluates to the same value will be connected into
+            a single broadcast domain.
           type: string
 
     io.l7mp.api.v1.JSONEncapClusterSpec:
-      description: A virtual cluster to encapsulate data in JSON. Session metadata is copied under the "/metadata" JSON path and content is copied under "/payload".
+      description: >
+        A virtual cluster to encapsulate data in JSON. Session metadata is
+        copied under the "/metadata" JSON path and content is copied under
+        "/payload".
       type: object
       required:
         - protocol
@@ -558,7 +639,10 @@ components:
             - JSONEncap
 
     io.l7mp.api.v1.JSONDecapClusterSpec:
-      description: A virtual cluster to decapsulates data from JSON. In particular, content from under "/payload" JSON path is decapsulated and returned and everything else is dropped.
+      description: >
+        A virtual cluster to decapsulates data from JSON. In particular,
+        content from under "/payload" JSON path is decapsulated and returned
+        and everything else is dropped.
       type: object
       required:
         - protocol
@@ -570,13 +654,16 @@ components:
             - JSONDecap
 
     io.l7mp.api.v1.EndPoint:
-      description: A particular upstream backend that accepts connects through a Cluster.
+      description: >
+        A particular upstream backend that accepts connects through a Cluster.
       type: object
       required:
         - spec
       properties:
         name:
-          description: Name (optional, a unique endpoint name will be assigned automatically if not specified.)
+          description: >
+            Name (optional, a unique endpoint name will be assigned
+            automatically if not specified.)
           type: string
         spec:
           $ref: '#/components/schemas/io.l7mp.api.v1.EndPointSpec'
@@ -604,14 +691,22 @@ components:
       properties:
         policy:
           type: string
-          description: |
-            Load-balancing policy. The "Trivial" load-balancer always chooses the first endpoint. The "ConsistentHash" (alias for "HashRing") chooses an endpoint based on hashing the "LoadBalancer.key" field (or randomly if no key is specified). It provides soft session affinity (map sessions to the same endpoint with high probability even when adding/removing endpoints) and takes endpoint weights into account (so "HashRing" with no key specified will implement a somewhat expensive form of weighted random load-balancing).
+          description: >
+            Load-balancing policy. The "Trivial" load-balancer always chooses
+            the first endpoint. The "ConsistentHash" (alias for "HashRing")
+            chooses an endpoint based on hashing the "LoadBalancer.key" field
+            (or randomly if no key is specified). It provides soft session
+            affinity (map sessions to the same endpoint with high probability
+            even when adding/removing endpoints) and takes endpoint weights
+            into account (so "HashRing" with no key specified will implement a
+            somewhat expensive form of weighted random load-balancing).
         key:
-          description: The JSON path to the metadata field to hash on (optional).
+          description: >
+            The JSON path to the metadata field to hash on (optional).
           type: string
 
     io.l7mp.api.v1.RouteRequest:
-      description: |
+      description: >
         Wrapper for addRoute calls. Contains only a single Routet object.
       type: object
       required:
@@ -627,26 +722,44 @@ components:
         - destination
       properties:
         name:
-          description: Name (optional, a unique name name will be assigned automatically if not specified.)
+          description: >
+            Name (optional, a unique name name will be assigned automatically
+            if not specified.)
           type: string
         destination:
-          description: The target cluster of the route (required). Can be a string in which case it is the name of an existing cluster with the name given, or it can be an inline cluster definition in which case a new cluster will be added.
+          description: >
+            The target cluster of the route (required). Can be a string in
+            which case it is the name of an existing cluster with the name
+            given, or it can be an inline cluster definition in which case a
+            new cluster will be added.
           anyOf:
             - type: string
             - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
         ingress:
-          description: The set of transforms to be applied in the "ingress" (upstream, from the listener to the cluster) direction (optional).
+          description: >
+            The set of transforms to be applied in the "ingress" (upstream,
+            from the listener to the cluster) direction (optional).
           type: array
           items:
-            description: An uplink transformer cluster. Can be a string in which case it is the name of an existing cluster with the name given, or it can be an inline cluster definition in which case a new cluster will be added.
+            description: >
+              An uplink transformer cluster. Can be a string in which case it
+              is the name of an existing cluster with the name given, or it
+              can be an inline cluster definition in which case a new cluster
+              will be added.
             anyOf:
               - type: string
               - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
         egress:
-          description: The set of transforms to be applied in the "eress" (downstream, from the cluster to the listener) direction (optional).
+          description: >
+            The set of transforms to be applied in the "eress" (downstream,
+            from the cluster to the listener) direction (optional).
           type: array
           items:
-            description: A downlink transformer cluster. Can be a string in which case it is the name of an existing cluster with the name given, or it can be an inline cluster definition in which case a new cluster will be added.
+            description: >
+              A downlink transformer cluster. Can be a string in which case it
+              is the name of an existing cluster with the name given, or it
+              can be an inline cluster definition in which case a new cluster
+              will be added.
             anyOf:
               - type: string
               - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
@@ -657,16 +770,27 @@ components:
             - retry_on
           properties:
             retry_on:
-              description: |
-                One of "never" (never retry, default), "connect-failure" (retry only on a failure in the connection setup phase), "disconnect" (retry only when an already connected stream disconnects), or "always" ("connect-failure" & "disconnect").
+              description: >
+                One of "never" (never retry, default), "connect-failure"
+                (retry only on a failure in the connection setup phase),
+                "disconnect" (retry only when an already connected stream
+                disconnects), or "always" ("connect-failure" & "disconnect").
               type: string
             num_retries:
-              description: |
-                If "retry_on" is "never" then this is meaningless.  If "retry_on" is "connect-failure" or "disconnect" then "num_retries" means the number of times to attempt a reconnect each cluster separately, so if there are two clusters in the route and "num_retries" is 3, then retry connecting both clusters 3 times. If a stream is reconnected after a disconnect event, try again this many times from zero.
+              description: >
+                If "retry_on" is "never" then this is meaningless.  If
+                "retry_on" is "connect-failure" or "disconnect" then
+                "num_retries" means the number of times to attempt a reconnect
+                each cluster separately, so if there are two clusters in the
+                route and "num_retries" is 3, then retry connecting both
+                clusters 3 times. If a stream is reconnected after a
+                disconnect event, try again this many times from zero.
               type: integer
             timeout:
-              description: |
-                On "connect-failure", wait "timeout" msecs and then reconnect, otherwise wait "timeout" msecs between each re-connect attempts.
+              description: >
+                On "connect-failure", wait "timeout" msecs and then reconnect,
+                otherwise wait "timeout" msecs between each re-connect
+                attempts.
               type: integer
 
     # io.l7mp.api.v1.Match:
@@ -681,24 +805,34 @@ components:
     #   type: string
 
     io.l7mp.api.v1.JSONPredicate:
-      description: A complex filter specified as a JSON predicate, see https://tools.ietf.org/html/draft-snell-json-test-07
+      description: >
+        A complex filter specified as a JSON predicate, see
+        https://tools.ietf.org/html/draft-snell-json-test-07
       type: object
 
     io.l7mp.api.v1.Rewrite:
-      description: Metadata rewrite rule. Find or create metadata at the specified path and set it to the specified value.
+      description: >
+        Metadata rewrite rule. Find or create metadata at the specified path
+        and set it to the specified value.
       type: object
       required:
         - path
         - value
       properties:
         path:
-          description: The JSON path (as a JSON Pointer) to the metadata field to rewrite. Will be created if path does not exist.
+          description: >
+            The JSON path (as a JSON Pointer) to the metadata field to
+            rewrite. Will be created if path does not exist.
           type: string
         value:
-          description: The value to rewrite the metadata field at the specified path. Can be a simple string or a JSON/YAML snippet.
+          description: >
+            The value to rewrite the metadata field at the specified path. Can
+            be a simple string or a JSON/YAML snippet.
 
     io.l7mp.api.v1.Action:
-      description: The "action" part of a math-action rule that assigns a route to the matched sessions.
+      description: >
+        The "action" part of a math-action rule that assigns a route to the
+        matched sessions.
       type: object
       properties:
         rewrite:
@@ -716,7 +850,7 @@ components:
           type: string  # reference to a named Route
 
     io.l7mp.api.v1.RuleRequest:
-      description: |
+      description: >
         Wrapper for addRule calls. Contains only a single Rule object.
       type: object
       required:
@@ -726,14 +860,18 @@ components:
           $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
 
     io.l7mp.api.v1.RuleRequestUnchecked:
-      description: |
-        Wrapper for addRule calls. Contains only a single Rule object or a name of a Rule.
+      description: >
+        Wrapper for addRule calls. Contains only a single Rule object or a
+        name of a Rule.
       type: object
       required:
         - rule
 
     io.l7mp.api.v1.Rule:
-      description: A math-action rule that defines the route of a connection through the L7mp pipeline. May contain a match and an action. If no match is specified, a wildcard match is automatically installed.
+      description: >
+        A math-action rule that defines the route of a connection through the
+        L7mp pipeline. May contain a match and an action. If no match is
+        specified, a wildcard match is automatically installed.
       type: object
       required:
         - action
@@ -748,7 +886,7 @@ components:
           $ref: '#/components/schemas/io.l7mp.api.v1.Action'
 
     io.l7mp.api.v1.RuleListRequest:
-      description: |
+      description: >
         Wrapper for addRuleList calls. Contains only a single RuleList object.
       type: object
       required:
@@ -758,7 +896,12 @@ components:
           $ref: '#/components/schemas/io.l7mp.api.v1.RuleList'
 
     io.l7mp.api.v1.RuleList:
-      description: An abstraction for a math-action table, i.e., an ordered list of match-action rules with each rule specifying a matching condition on metadata and an action to execute if the corresponding rule matches. Rules are searched sequentially until a matching one is found; if no match is found the request is dropped.
+      description: >
+        An abstraction for a math-action table, i.e., an ordered list of
+        match-action rules with each rule specifying a matching condition on
+        metadata and an action to execute if the corresponding rule
+        matches. Rules are searched sequentially until a matching one is
+        found; if no match is found the request is dropped.
       type: object
       required:
         - rules
@@ -775,7 +918,11 @@ components:
               - $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
 
     io.l7mp.api.v1.Metadata:
-      description: "Metadata that describes a session's all known parameters, like ports and IP addresses, status, HTTP headers (if relevant), etc. In general, metadata are created by the listener and they can be modified/queried/matched in rules/actions."
+      description: >
+        Metadata that describes a session's all known parameters, like ports
+        and IP addresses, status, HTTP headers (if relevant), etc. In general,
+        metadata are created by the listener and they can be
+        modified/queried/matched in rules/actions.
       type: object
 
     io.l7mp.api.v1.Stage:
@@ -797,7 +944,11 @@ components:
           type: string
 
     io.l7mp.api.v1.Session:
-      description: "An ongoing connection that is known by the proxy. A session is created by a listener receiving a new connection request and it is processed according to the match-action rules associated by the creating listener."
+      description: >
+        An ongoing connection that is known by the proxy. A session is created
+        by a listener receiving a new connection request and it is processed
+        according to the match-action rules associated by the creating
+        listener.
       type: object
       required:
         - name
@@ -819,12 +970,16 @@ components:
           # description: "The spec of the destination Cluster of the session."
           $ref: '#/components/schemas/io.l7mp.api.v1.Metadata'
         ingress:
-          description: The stages of the ingress pipeline, from the source to the destination.
+          description: >
+            The stages of the ingress pipeline, from the source to the
+            destination.
           type: array
           items:
             $ref: '#/components/schemas/io.l7mp.api.v1.Stage'
         egress:
-          description: The stages of the egress pipeline, from the destination to the source.
+          description: >
+            The stages of the egress pipeline, from the destination to the
+            source.
           type: array
           items:
             $ref: '#/components/schemas/io.l7mp.api.v1.Stage'
@@ -873,7 +1028,9 @@ components:
       maximum: 65535
 
     io.l7mp.api.v1.Parameter.AddressPortPair:
-      description: A network layer (IP/IPv6) address/domain name and/or a transport layer port.
+      description: >
+        A network layer (IP/IPv6) address/domain name and/or a transport layer
+        port.
       type: object
       properties:
         address:
@@ -976,7 +1133,10 @@ paths:
           in: query
           schema:
             type: boolean
-          description: Recursively list all sub-objects (rulelists, rules, routes, clusters, etc.) of the Listener (regardless of whether the sub-objects were implicitly defined in the Listener).
+          description: >
+            Recursively list all sub-objects (rulelists, rules, routes,
+            clusters, etc.) of the Listener (regardless of whether the
+            sub-objects were implicitly defined in the Listener).
         - name: format
           in: query
           schema:
@@ -992,7 +1152,15 @@ paths:
                 items:
                   $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
     post:
-      description: Create a Listener. Note that a Listener specification may either contain a set of implicitly defined sub-objects (rulelists, rules, routes, clusters, etc.) or it may refer to other named objects. In the former case the corresponding objects are automatically generated (and possibly automatically named too), while in the latter case the named sub-objects referred to the Listener are assumed to be explicitly defined using the corresponding APIs (the RuleList API, the Route API, the Cluster API, etc.).
+      description: >
+        Create a Listener. Note that a Listener specification may either
+        contain a set of implicitly defined sub-objects (rulelists, rules,
+        routes, clusters, etc.) or it may refer to other named objects. In the
+        former case the corresponding objects are automatically generated (and
+        possibly automatically named too), while in the latter case the named
+        sub-objects referred to the Listener are assumed to be explicitly
+        defined using the corresponding APIs (the RuleList API, the Route API,
+        the Cluster API, etc.).
       operationId: addListener
       requestBody:
         required: true
@@ -1028,7 +1196,10 @@ paths:
           in: query
           schema:
             type: boolean
-          description: Recursively list all sub-objects (rulelists, rules, routes, clusters, etc.) of the Listener (regardless of whether the sub-objects were implicitly defined in the Listener).
+          description: >
+            Recursively list all sub-objects (rulelists, rules, routes,
+            clusters, etc.) of the Listener (regardless of whether the
+            sub-objects were implicitly defined in the Listener).
         - name: format
           in: query
           schema:
@@ -1060,7 +1231,10 @@ paths:
           in: query
           schema:
             type: boolean
-          description: Recursively delete all sub-objects (rulelists, rules, routes, clusters, etc.) that were implicitly defined (auto-generated) in the Listener, as well as all the Sessions emitted by the Listener.
+          description: >
+            Recursively delete all sub-objects (rulelists, rules, routes,
+            clusters, etc.) that were implicitly defined (auto-generated) in
+            the Listener, as well as all the Sessions emitted by the Listener.
       responses:
         '200':
           description: Status.
@@ -1102,7 +1276,11 @@ paths:
                 items:
                   $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
     post:
-      description: Create a Cluster. Note that a Cluster specification may either contain a set of implicitly defined endpoints, in which case endpoints are automatically generated, named, and added to the cluster, or endpoints may later be added/deleted explicitly using the EndPoint API.
+      description: >
+        Create a Cluster. Note that a Cluster specification may either contain
+        a set of implicitly defined endpoints, in which case endpoints are
+        automatically generated, named, and added to the cluster, or endpoints
+        may later be added/deleted explicitly using the EndPoint API.
       operationId: addCluster
       requestBody:
         required: true
@@ -1126,8 +1304,9 @@ paths:
   /api/v1/clusters/{name}:
     get:
       description: >
-        Get a named Cluster. If called with the recursive flag on, it will also list the endpoints
-        of the Cluster, otherwise, only the number of endpoints is returned.
+        Get a named Cluster. If called with the recursive flag on, it will also
+        list the endpoints of the Cluster, otherwise, only the number of 
+        endpoints is returned.
       operationId: getCluster
       parameters:
         - name: name
@@ -1159,8 +1338,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     delete:
-      description: |
-        Delete the named Cluster. Note that deleting a cluster will delete the corresponding endpoints as well, and it may also delete the Sessions as well whose Route traverse the cluster depending on the "recursive" query flag.
+      description: >
+        Delete the named Cluster. Note that deleting a cluster will delete the
+        corresponding endpoints as well, and it may also delete the Sessions
+        as well whose Route traverse the cluster depending on the "recursive"
+        query flag.
       operationId: deleteCluster
       parameters:
         - name: name
@@ -1173,7 +1355,9 @@ paths:
           in: query
           schema:
             type: boolean
-          description: Delete the Sessions whose Route traverses the Cluster, either as a destination or along the ingress or the egress chain.
+          description: >
+            Delete the Sessions whose Route traverses the Cluster, either as a
+            destination or along the ingress or the egress chain.
       responses:
         '200':
           description: Status.
@@ -1277,7 +1461,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     delete:
-      description: Delete a named EndPoint. Note that the operation will also remove the EndPoint from the corresponding Cluster.
+      description: >
+        Delete a named EndPoint. Note that the operation will also remove the
+        EndPoint from the corresponding Cluster.
       operationId: deleteEndPoint
       parameters:
         - name: name
@@ -1302,7 +1488,9 @@ paths:
   # RuleList API
   /api/v1/rulelists/{name}/rules/{position}:
     get:
-      description: Get the Rule from a RuleList at a particular position (the Rule itself is returned).
+      description: >
+        Get the Rule from a RuleList at a particular position (the Rule itself
+        is returned).
       operationId: getRuleFromRuleList
       parameters:
         - name: name
@@ -1321,7 +1509,10 @@ paths:
           in: query
           schema:
             type: boolean
-          description: Recursively list all sub-objects (routes, clusters, etc.) of the Rule (regardless of whether the sub-objects were implicitly defined in the Rule).
+          description: >
+            Recursively list all sub-objects (routes, clusters, etc.) of the
+            Rule (regardless of whether the sub-objects were implicitly
+            defined in the Rule).
         - name: format
           in: query
           schema:
@@ -1340,7 +1531,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     post:
-      description: Add a Rule to a RuleList. Note that a Rule specification may either contain a set of implicitly defined sub-objects (routes, clusters, etc.) or it may refer to other named objects. In the former case the corresponding objects are automatically generated (and possibly automatically named too), while in the latter case the named sub-objects referred to the Rule are assumed to be explicitly defined using the corresponding APIs (the Route API, the Cluster API, etc.).
+      description: >
+        Add a Rule to a RuleList. Note that a Rule specification may either
+        contain a set of implicitly defined sub-objects (routes, clusters,
+        etc.) or it may refer to other named objects. In the former case the
+        corresponding objects are automatically generated (and possibly
+        automatically named too), while in the latter case the named
+        sub-objects referred to the Rule are assumed to be explicitly defined
+        using the corresponding APIs (the Route API, the Cluster API, etc.).
       operationId: addRuleToRuleList
       parameters:
         - name: name
@@ -1376,11 +1574,12 @@ paths:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     delete:
       description: >
-        Remove a Rule from a RuleList either by position (if the "position" parameter is an
-        integer) or by name (if the "position" parameter is a string and it refers to the name of a
-        rule existing in the rulelist). Note that the Rule itself will not be deleted, just removed
-        from this rulelist; to actually delete the Rule, use the delete operation of the Rule API
-        (deleteRule).
+        Remove a Rule from a RuleList either by position (if the "position"
+        parameter is an integer) or by name (if the "position" parameter is a
+        string and it refers to the name of a rule existing in the
+        rulelist). Note that the Rule itself will not be deleted, just removed
+        from this rulelist; to actually delete the Rule, use the delete
+        operation of the Rule API (deleteRule).
       operationId: deleteRuleFromRuleList
       parameters:
         - name: name
@@ -1419,7 +1618,10 @@ paths:
           in: query
           schema:
             type: boolean
-          description: Recursively list all sub-objects (rules, routes, clusters, etc.) of the Rule (regardless of whether the sub-objects were implicitly defined in the RuleList).
+          description: >
+            Recursively list all sub-objects (rules, routes, clusters, etc.)
+            of the Rule (regardless of whether the sub-objects were implicitly
+            defined in the RuleList).
         - name: format
           in: query
           schema:
@@ -1435,7 +1637,15 @@ paths:
                 items:
                   $ref: '#/components/schemas/io.l7mp.api.v1.RuleList'
     post:
-      description: Create a RuleList. Note that a RuleList specification may either contain a set of implicitly defined sub-objects (rules, routes, clusters, etc.) or it may refer to other named objects. In the former case the corresponding objects are automatically generated (and possibly automatically named too), while in the latter case the named sub-objects referred to the RuleList are assumed to be explicitly defined using the corresponding APIs (the Rule API, Route API, the Cluster API, etc.).
+      description: >
+        Create a RuleList. Note that a RuleList specification may either
+        contain a set of implicitly defined sub-objects (rules, routes,
+        clusters, etc.) or it may refer to other named objects. In the former
+        case the corresponding objects are automatically generated (and
+        possibly automatically named too), while in the latter case the named
+        sub-objects referred to the RuleList are assumed to be explicitly
+        defined using the corresponding APIs (the Rule API, Route API, the
+        Cluster API, etc.).
       operationId: addRuleList
       requestBody:
         required: true
@@ -1471,7 +1681,10 @@ paths:
           in: query
           schema:
             type: boolean
-          description: Recursively list all sub-objects (routes, clusters, etc.) of the RuleList (regardless of whether the sub-objects were implicitly defined in the RuleList).
+          description: >
+            Recursively list all sub-objects (routes, clusters, etc.) of the
+            RuleList (regardless of whether the sub-objects were implicitly
+            defined in the RuleList).
         - name: format
           in: query
           schema:
@@ -1503,7 +1716,9 @@ paths:
           in: query
           schema:
             type: boolean
-          description: Recursively delete all sub-objects (rules, routes, clusters, etc.) that were implicitly defined (auto-generated) in the RuleList.
+          description: >
+            Recursively delete all sub-objects (rules, routes, clusters, etc.)
+            that were implicitly defined (auto-generated) in the RuleList.
       responses:
         '200':
           description: Status.
@@ -1527,7 +1742,10 @@ paths:
           in: query
           schema:
             type: boolean
-          description: Recursively list all sub-objects (routes, clusters, etc.) of each Rule (regardless of whether the sub-objects were implicitly defined in the Rule).
+          description: >
+            Recursively list all sub-objects (routes, clusters, etc.) of each
+            Rule (regardless of whether the sub-objects were implicitly
+            defined in the Rule).
         - name: format
           in: query
           schema:
@@ -1543,7 +1761,14 @@ paths:
                 items:
                   $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
     post:
-      description: Create a Rule. Note that a Rule specification may either contain a set of implicitly defined sub-objects (routes, clusters, etc.) or it may refer to other named objects. In the former case the corresponding objects are automatically generated (and possibly automatically named too), while in the latter case the named sub-objects referred to the Rule are assumed to be explicitly defined using the corresponding APIs (the Route API, the Cluster API, etc.).
+      description: >
+        Create a Rule. Note that a Rule specification may either contain a set
+        of implicitly defined sub-objects (routes, clusters, etc.) or it may
+        refer to other named objects. In the former case the corresponding
+        objects are automatically generated (and possibly automatically named
+        too), while in the latter case the named sub-objects referred to the
+        Rule are assumed to be explicitly defined using the corresponding APIs
+        (the Route API, the Cluster API, etc.).
       operationId: addRule
       requestBody:
         required: true
@@ -1579,7 +1804,10 @@ paths:
           in: query
           schema:
             type: boolean
-          description: Recursively list all sub-objects (routes, clusters, etc.) of the Rule (regardless of whether the sub-objects were implicitly defined in the Rule).
+          description: >
+            Recursively list all sub-objects (routes, clusters, etc.) of the
+            Rule (regardless of whether the sub-objects were implicitly
+            defined in the Rule).
         - name: format
           in: query
           schema:
@@ -1611,7 +1839,9 @@ paths:
           in: query
           schema:
             type: boolean
-          description: Recursively delete all sub-objects (routes, clusters, etc.) that were implicitly defined (auto-generated) in the Rule.
+          description: >
+            Recursively delete all sub-objects (routes, clusters, etc.) that
+            were implicitly defined (auto-generated) in the Rule.
       responses:
         '200':
           description: Status.
@@ -1635,7 +1865,11 @@ paths:
           in: query
           schema:
             type: boolean
-          description: Recursively list all sub-objects (i.e., the destination cluster or clusters on the ingress and the egress chain) of each Route (regardless of whether the sub-objects were implicitly defined in the Route).
+          description: >
+            Recursively list all sub-objects (i.e., the destination cluster or
+            clusters on the ingress and the egress chain) of each Route
+            (regardless of whether the sub-objects were implicitly defined in
+            the Route).
         - name: format
           in: query
           schema:
@@ -1651,7 +1885,14 @@ paths:
                 items:
                   $ref: '#/components/schemas/io.l7mp.api.v1.Route'
     post:
-      description: Create a Route. Note that a Route specification may either contain a set of implicitly defined sub-objects (i.e., the destination cluster or clusters on the ingress and the egress chain) or it may refer to other named objects. In the former case the corresponding objects are automatically generated (and possibly automatically named too), while in the latter case the named sub-objects referred to the Route are assumed to be explicitly defined using the Cluster API.
+      description: >
+        Create a Route. Note that a Route specification may either contain a
+        set of implicitly defined sub-objects (i.e., the destination cluster
+        or clusters on the ingress and the egress chain) or it may refer to
+        other named objects. In the former case the corresponding objects are
+        automatically generated (and possibly automatically named too), while
+        in the latter case the named sub-objects referred to the Route are
+        assumed to be explicitly defined using the Cluster API.
       operationId: addRoute
       requestBody:
         required: true
@@ -1687,7 +1928,11 @@ paths:
           in: query
           schema:
             type: boolean
-          description: Recursively list all sub-objects (i.e., the destination cluster or clusters on the ingress and the egress chain) of the Route (regardless of whether the sub-objects were implicitly defined in the Route).
+          description: >
+            Recursively list all sub-objects (i.e., the destination cluster or
+            clusters on the ingress and the egress chain) of the Route
+            (regardless of whether the sub-objects were implicitly defined in
+            the Route).
         - name: format
           in: query
           schema:
@@ -1718,7 +1963,9 @@ paths:
           in: query
           schema:
             type: boolean
-          description: Recursively delete all sub-objects (i.e., clusters) that were implicitly defined (auto-generated) in the Route.
+          description: >
+            Recursively delete all sub-objects (i.e., clusters) that were
+            implicitly defined (auto-generated) in the Route.
       responses:
         '200':
           description: Status.
@@ -1780,7 +2027,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     delete:
-      description: Delete a named Session. Note that recursively deleting a Listener that emitted the session or a Cluster that the Route of the Session traverses will delete the Session.
+      description: >
+        Delete a named Session. Note that recursively deleting a Listener that
+        emitted the session or a Cluster that the Route of the Session
+        traverses will delete the Session.
       operationId: deleteSession
       parameters:
         - name: name
@@ -1801,3 +2051,8 @@ paths:
             'application/json':
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+
+
+# Local Variables:
+# fill-column: 78
+# End:
