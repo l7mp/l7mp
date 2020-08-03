@@ -366,12 +366,12 @@ describe('Rule API', ()  => {
         });
         
         context('check-properties',()=>{
-            it('check-rule-1', () => { assert.propertyVal(res[1], 'name', 'test-rule-1'); });
-            it('check-rule-2', () => { assert.propertyVal(res[2], 'name', 'test-rule-2'); });
-            it('check-rule-3', () => { assert.propertyVal(res[3], 'name', 'test-rule-3'); });
-            it('check-rule-4', () => { assert.propertyVal(res[4], 'name', 'test-rule-4'); });
-            it('check-rule-5', () => { assert.propertyVal(res[5], 'name', 'test-rule-5'); });
-      });
+            it('check-rule-1', () => { assert.isOk(res.find( ({name}) => name === 'test-rule-1')); });
+            it('check-rule-2', () => { assert.isOk(res.find( ({name}) => name === 'test-rule-2')); });
+            it('check-rule-3', () => { assert.isOk(res.find( ({name}) => name === 'test-rule-3')); });
+            it('check-rule-4', () => { assert.isOk(res.find( ({name}) => name === 'test-rule-4')); });
+            it('check-rule-5', () => { assert.isOk(res.find( ({name}) => name === 'test-rule-5')); });
+        });
         
         context('delete', ()=>{
             let res, reqs = [];
