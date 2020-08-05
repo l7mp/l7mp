@@ -128,7 +128,7 @@ function httpRequest(params, postData) {
 describe('EndPoint API', ()  => {
     var e, s;
     before( async function () {
-        this.timeout(5000);
+        this.timeout(8000);
         l7mp = new L7mp();
         l7mp.static_config = static_config;
         // validate the static config
@@ -271,11 +271,11 @@ describe('EndPoint API', ()  => {
             assert.lengthOf(res, 5);
             return Promise.resolve();
         });
-        it('check-endpoint-1', ()=>{ assert.nestedPropertyVal(res[0], 'name', 'test-cluster-EndPoint-1');});
-        it('check-endpoint-2', ()=>{ assert.nestedPropertyVal(res[1], 'name', 'test-cluster-EndPoint-2');});
-        it('check-endpoint-3', ()=>{ assert.nestedPropertyVal(res[2], 'name', 'test-cluster-EndPoint-3');});
-        it('check-endpoint-4', ()=>{ assert.nestedPropertyVal(res[3], 'name', 'test-cluster-EndPoint-4');});
-        it('check-endpoint-5', ()=>{ assert.nestedPropertyVal(res[4], 'name', 'test-cluster-EndPoint-5');});
+        it('check-endpoint-1', ()=>{ assert.isOk(res.find( ({name}) => name ===  'test-cluster-EndPoint-1'));});
+        it('check-endpoint-2', ()=>{ assert.isOk(res.find( ({name}) => name ===  'test-cluster-EndPoint-2'));});
+        it('check-endpoint-3', ()=>{ assert.isOk(res.find( ({name}) => name ===  'test-cluster-EndPoint-3'));});
+        it('check-endpoint-4', ()=>{ assert.isOk(res.find( ({name}) => name ===  'test-cluster-EndPoint-4'));});
+        it('check-endpoint-5', ()=>{ assert.isOk(res.find( ({name}) => name ===  'test-cluster-EndPoint-5'));});
         it('delete-multiple-clusters', async ()=>{
             let reqs = [];
             for(let i = 1; i < 6; i++){
