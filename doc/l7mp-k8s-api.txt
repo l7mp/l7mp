@@ -244,7 +244,7 @@
     namespace: default
   spec:
     selector:
-      serviceName: gateway-svc
+      matchService: gateway-svc
     listener:
       protocol: UDP
       port: 9001
@@ -303,7 +303,7 @@ The below setup implements a fully-fledged IMS media plane.
     namespace: default
   spec:
     selector:
-      serviceName: gateway-vsvc
+      matchService: gateway-vsvc
     cluster:
       spec:
         protocol: UDP
@@ -365,7 +365,7 @@ The below setup implements a fully-fledged IMS media plane.
     namespace: default
   spec:
     selector:
-      serviceName: worker-svc
+      matchService: worker-svc
     cluster:
       spec:
         protocol: Sync
@@ -390,7 +390,7 @@ The below setup implements a fully-fledged IMS media plane.
     namespace: default
   spec:
     selector:
-      serviceName: worker-svc
+      matchService: worker-svc
     cluster:
       spec:
         protocol: JSONSocket
@@ -415,7 +415,7 @@ The below setup implements a fully-fledged IMS media plane.
     namespace: default
   spec:
     selector:
-      serviceName: worker-svc
+      matchService: worker-svc
     listener:
       protocol: JSONSocket
       transport:
@@ -450,7 +450,7 @@ The below setup implements a fully-fledged IMS media plane.
     namespace: default
   spec:
     selector:
-      serviceName: gateway-svc
+      matchService: gateway-svc
     listener:
       protocol: UDP
       port: 8001,
@@ -479,7 +479,7 @@ The below setup implements a fully-fledged IMS media plane.
     namespace: default
   spec:
     selector:
-      serviceName: gateway-svc
+      matchService: gateway-svc
     listener:
       protocol: UDP
       port: 8002,
@@ -501,9 +501,12 @@ The below setup implements a fully-fledged IMS media plane.
   on.  Second, selectors may be used to dynamically define the
   endpoints of a target.
 
-- Currently, the standard matchLabels selector type is implemented,
-  but the more advanced matchExpressions is planned as well.
-  Additionally, the operator supports a simple matchNamespace type:
+- The standard matchLabels, matchExpressions, and matchFields selector
+  types are implemented.  Additionally, the operator supports two
+  non-standard selector types: matchService and matchNamespace.
+
+- The matchNamespace is just a shorthand for a longer matchFields
+  expression, so the following two definitions are equivalent.
 
   #+BEGIN_SRC yaml
   apiVersion: l7mp.io/v1
@@ -514,7 +517,29 @@ The below setup implements a fully-fledged IMS media plane.
     selector:
       matchNamespace: default
       matchLabels:
-       app: my-source-app
+        app: my-source-app
+    listener:
+      protocol: UDP
+      port: 8000
+    rules:
+      - action:
+          route: my-route
+  #+END_SRC
+
+  #+BEGIN_SRC yaml
+  apiVersion: l7mp.io/v1
+  kind: VirtualService
+  metadata:
+    name: my-source-vsvc
+  spec:
+    selector:
+      matchFields:
+        - key: metadata.namespace
+          operator: In
+          values:
+          - default
+      matchLabels:
+        app: my-source-app
     listener:
       protocol: UDP
       port: 8000
@@ -559,7 +584,7 @@ The below setup implements a fully-fledged IMS media plane.
     name: my-source-vsvc
   spec:
     selector:
-      serviceName: my-source-svc
+      matchService: my-source-svc
     listener:
       protocol: UDP
       port: 8000
@@ -589,11 +614,13 @@ The below setup implements a fully-fledged IMS media plane.
           route: my-route
   #+END_SRC
 
-- Second, taking note that the Listener refers to a route for which there is no corresponding Route
-  in the =l7mp= config, the below =addRoute= call is made by simply copying everything from the
-  Route object to the route spec. Note that the route will be added to all the =l7mp= sidecars to
-  which a VirtualService were added that refers to the Route (for now this is all pods with
-  =serviceName:my-source-svc=).
+- Second, taking note that the Listener refers to a route for which
+  there is no corresponding Route in the =l7mp= config, the below
+  =addRoute= call is made by simply copying everything from the Route
+  object to the route spec. Note that the route will be added to all
+  the =l7mp= sidecars to which a VirtualService were added that refers
+  to the Route (for now this is all pods with
+  =matchService:my-source-svc=).
 
   #+BEGIN_SRC yaml
   route:
@@ -626,7 +653,7 @@ The below setup implements a fully-fledged IMS media plane.
     name: my-destination-svc
   spec:
     selector:
-      serviceName: my-destination-svc
+      matchService: my-destination-svc
     listener:
       protocol: UDP
       port: 2000
@@ -636,7 +663,7 @@ The below setup implements a fully-fledged IMS media plane.
 
 - Now the operator can eventually auto-generate a(n identically named) Target for the above
   VirtualService. Note that the target defines client-side behavior so it is bound to the caller
-  (i.e., with the selector =serviceName:my-source-svc=).
+  (i.e., with the selector =matchService:my-source-svc=).
 
   #+BEGIN_SRC yaml
   apiVersion: l7mp.io/v1
@@ -646,7 +673,7 @@ The below setup implements a fully-fledged IMS media plane.
     namespace: default
   spec:
     selector:
-      serviceName: my-source-svc
+      matchService: my-source-svc
     linkedVirtualService: my-destination-svc
   #+END_SRC
 
@@ -660,14 +687,14 @@ The below setup implements a fully-fledged IMS media plane.
     namespace: default
   spec:
     selector:
-      serviceName: my-source-svc
+      matchService: my-source-svc
     cluster:
       spec:
         protocol: UDP
         port: 2000
       endpoints:
         - selector:
-            serviceName: my-destination-svc
+            matchService: my-destination-svc
   #+END_SRC
 
 ** Maintaining a list of endpoint/pod IPs
@@ -688,16 +715,17 @@ The below setup implements a fully-fledged IMS media plane.
     spec: { protocol: UDP, port: 2000 }
   #+END_SRC
 
-- Then, the endpoints are added to the cluster. Suppose that there are two pods/endpoints
-  corresponding to the service =my-destination-svc= with IP addresses =10.0.0.1= and
-  =10.0.0.2=. Then, the Kubernetes control plane operator will substitute the key-value
-  ={serviceName:worker-vsvc}= in the Target =spec= with the endpoint list ={endpoints:...}= in the
-  generated =addCluster= call.
+- Then, the endpoints are added to the cluster. Suppose that there are
+  two pods/endpoints corresponding to the service =my-destination-svc=
+  with IP addresses =10.0.0.1= and =10.0.0.2=. Then, the Kubernetes
+  control plane operator will substitute the key-value
+  ={matchService:worker-vsvc}= in the Target =spec= with the endpoint
+  list ={endpoints:...}= in the generated =addCluster= call.
 - Finally, the operator will simply copy the remaining keys from the Target verbatim to the cluster
   (nothing in this case, but in other cases there could be further properties, like
   =loadbalancer=).
-- Then, the following =addCluster= call is issued to the sidecars that run the service
-  =my-source-svc= (=serviceName:my-source-svc=).
+- Then, the following =addCluster= call is issued to the sidecars that
+  run the service =my-source-svc= (=matchService:my-source-svc=).
 
   #+BEGIN_SRC yaml
   cluster:
@@ -746,9 +774,9 @@ The below setup implements a fully-fledged IMS media plane.
   Route, deleting a Route deletes the rules whose action refers to the Route (=deleteRule=, TODO),
   and deleting the last match-action rule of a Listener deletes the Listener. This, of course,
   generates an =l7mp= call only for non-naked services.
-- When a new pod appears for a VirtualService, then the endpoint list for all Targets that refer to
-  the VirtualService (the same =serviceName=) must be updated, using the =l7mp= EndPoint API
-  (TODO).
+- When a new pod appears for a VirtualService, then the endpoint list
+  for all Targets that refer to the VirtualService (for example, via a
+  =matchService=) is updated, using the =l7mp= EndPoint API.
 
 ** Caveats
 
