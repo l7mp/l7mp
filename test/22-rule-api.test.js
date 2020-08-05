@@ -296,7 +296,6 @@ describe('Rule API', ()  => {
                 method: 'GET',
             };
             res = await httpRequest(options);
-            console.log(res);
             return Promise.resolve();
         });
         it('object-route', () => { assert.instanceOf(res.action.route, Object); }); 
