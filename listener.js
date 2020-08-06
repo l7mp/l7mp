@@ -381,7 +381,7 @@ class UDPListener extends Listener {
             if(l.spec.options.mode === 'singleton'){
                 if(!l.spec.connect || !l.spec.connect.address || !l.spec.connect.port){
                     let err = 'Singleton mode requested but either '+
-                        'connect.address or connect.port is not defined or both: '+
+                        'connect.address or connect.port is not defined (or neither): '+
                         'no remote to connect to';
                     log.warn('UDPListener: Error:', err);
                     throw new Error(err);
@@ -395,17 +395,13 @@ class UDPListener extends Listener {
         this.local_address  = this.spec.address || '0.0.0.0';
         this.local_port     = this.spec.port || -1;
 
+    }
+
+    async run(){
         this.socket = udp.createSocket({type: 'udp4',
                                         reuseAddr: this.reuseaddr});
         // eventDebug(this.socket);
 
-        log.info('UDPListener:', `${this.mode} mode: accepting connections from`,
-                 `${this.spec.connect && this.spec.connect.address ?
-                   this.spec.connect.address : '*'}:${this.spec.connect &&
-                   this.spec.connect.port ? this.spec.connect.port : '*'}`);
-    }
-
-    async run(){
         try {
             // emits socket.error if fails
             this.socket.bind({ port: this.local_port,
@@ -418,8 +414,8 @@ class UDPListener extends Listener {
                             `${this.local_address}:${this.local_port}`);
         }
 
-        log.verbose('UDPListener:run:', `"${this.name}:"`,
-                    `bound to ${this.local_address}:${this.local_port}`);
+        log.info('UDPListener:run:', `"${this.name}:"`,
+                 `bound to ${this.local_address}:${this.local_port}`);
 
         if(this.mode === 'singleton')
             return this.runSingleton();
@@ -451,6 +447,15 @@ class UDPListener extends Listener {
                                             `${connection.remote_port}`));
         }
 
+        // in singleton mode, closing the socket or the session will open a new one until
+        // deleteListener is called
+        this.onClose = async () => {
+            log.info('UDPListener.runSingleton:', `${this.name}, singleton mode:`,
+                    `Listener stream closed, reopening stream and emitting a new session`);
+            await this.run.bind(this)();
+        };
+        this.socket.on('close', this.onClose);
+        
         log.verbose(`UDPListener.runSingleton: "${this.name}"/${this.mode}`,
                     `connected to remote`,
                     `${connection.remote_address}:`+
@@ -623,6 +628,11 @@ class UDPListener extends Listener {
     // do not close session, ie, this.socket for singleton
     close(){
         if(this.mode === 'server'){
+            this.socket.close();
+            this.socket.unref();
+        } else {
+            if(this.onClose)
+                this.socket.removeListener('close', this.onClose);
             this.socket.close();
             this.socket.unref();
         }

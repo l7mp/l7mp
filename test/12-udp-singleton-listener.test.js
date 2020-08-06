@@ -159,26 +159,26 @@ describe('UDPListener', ()  => {
             })
         });
 
-        //After destroying the session's stream can't make it work again
+        //After destroying the session's stream we get a new session
         context('reconnect-after-end', ()=>{
             it('client', () => {
-                l.emitter=(x) =>{ s = x }
                 c = new udp.createSocket({type: "udp4", reuseAddr: true});
                 c.once('listening', () =>{ c.connect(16000,'127.0.0.1');})
                 c.bind(16001, '127.0.0.1')
                 c.once('connect', () => { assert.isOk(true)})
             });
-            // it('read',  (done) => {
-            //     s.source.stream.once('readable', () => {
-            //         let data = ''; let chunk;
-            //         while (null !== (chunk = s.source.stream.read())) {
-            //             data += chunk;
-            //         }
-            //         assert.equal(data, 'test');
-            //         done();
-            //     });
-            //     c.send('test');
-            // });
+            it('emits', () => { assert.isOk(s); });
+            it('read-after-close',  (done) => {
+                s.source.stream.once('readable', () => {
+                    let data = ''; let chunk;
+                    while (null !== (chunk = s.source.stream.read())) {
+                        data += chunk;
+                    }
+                    assert.equal(data, 'test');
+                    done();
+                });
+                c.send('test');
+            });
 
         });
 

@@ -120,7 +120,7 @@ class DatagramStream extends Duplex {
             // this.socket.emit('end');
             try{this.socket.close()}catch(e){
                 // log.silly(dumper(e, 6));
-                log.warn('DatagramStream.end: Probably harmless: Cannot end stream:', e.message);
+                log.silly('DatagramStream.end: Probably harmless: Cannot end stream:', e.message);
             };
         });
     }

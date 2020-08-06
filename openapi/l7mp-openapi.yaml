@@ -150,13 +150,13 @@ components:
               type: integer
 
     io.l7mp.api.v1.HTTPListenerSpec:
-      description: |
+        # - protocol: HTTP
+        # - session ID: IP 5-tuple
+        # - type: session
+        # - mode: server
+      description: 
         A HTTP server specification that accepts HTTP requests at a specified
         port.
-        - protocol: HTTP
-        - session ID: IP 5-tuple
-        - type: session
-        - mode: server
       type: object
       required:
         - protocol
@@ -174,13 +174,13 @@ components:
           description: HTTP URL to serve.
 
     io.l7mp.api.v1.WebSocketListenerSpec:
-      description: |
+        # - protocol: WebSocket
+        # - session ID: IP 5-tuple
+        # - type: datagram-stream
+        # - mode: server
+      description: >
         A WebSocket server specification that accepts HTTP/WebSocket requests
         at a specified port.
-        - protocol: WebSocket
-        - session ID: IP 5-tuple
-        - type: datagram-stream
-        - mode: server
       type: object
       required:
         - protocol
@@ -198,7 +198,11 @@ components:
           description: HTTP URL to serve.
 
     io.l7mp.api.v1.UDPListenerSpec:
-      description: |
+        # - protocol: UDP
+        # - session ID: IP 5-tuple
+        # - type: datagram-stream
+        # - mode: "singleton/server"
+      description: >
         A UDP listener that accepts UDP connections in the specified
         port. The listener may work in one of 2 possible modes. In Singleton
         mode, the listener also expects a fully qualified remote address-port
@@ -210,10 +214,16 @@ components:
         is specified), accept connections only from that remote address or
         port. Default is Singleton if both connect.address and connect.port
         are specified, otherwise Server (override with options.mode).
-        - protocol: UDP
-        - session ID: IP 5-tuple
-        - type: datagram-stream
-        - mode: "singleton/server"
+
+        Note that a Singleton mode UDP Listener is special because it directly
+        connects back to a source. This results that a Singleton mode UDP
+        Listener will (1) immediately emit a new session on creation and (2)
+        it will keep on emitting a new session even when the old one is
+        destroyed (e.g., on a deleteListener API request or an error). To
+        preclude this behavior, set mode to Server and specify connect.address
+        and connect.port; in this case the listener emits a new session only
+        on the reception of the first packet of a new connection but it will
+        still connect back to the source.
       type: object
       required:
         - protocol
@@ -242,13 +252,13 @@ components:
               - singleton
 
     io.l7mp.api.v1.TCPListenerSpec:
+        # - protocol: TCP
+        # - session ID: IP 5-tuple
+        # - type: datagram-stream
+        # - mode: server
       description: |
         A TCP server specification that accepts TCP requests at a specified
         port.
-        - protocol: TCP
-        - session ID: IP 5-tuple
-        - type: datagram-stream
-        - mode: server
       type: object
       required:
         - protocol
@@ -263,13 +273,13 @@ components:
           $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
 
     io.l7mp.api.v1.UnixDomainSocketListenerSpec:
-      description: |
+        # - protocol: UnixDomainSocket
+        # - session ID: Listener name + ID
+        # - type: byte-stream
+        # - mode: server
+      description: >
         A Unix Domain Socket (UDS) server specification that accepts IPC
         connection requests at a specified filename.
-        - protocol: UnixDomainSocket
-        - session ID: Listener name + ID
-        - type: byte-stream
-        - mode: server
       type: object
       required:
         - protocol
@@ -285,7 +295,11 @@ components:
           description: File system path to bind to.
 
     io.l7mp.api.v1.JSONSocketListenerSpec:
-      description: |
+        # - protocol: JSONSocket
+        # - session ID: Listener name + ID
+        # - type: datagram-stream
+        # - mode: "singleton/server"
+      description: >
         This listener implements the server side of the the JSONSocket
         datagram streaming protocol. JSONSocket implements the "HTTP header"
         semantics, but on top of a dumb unreliable datagram transport like UDP
@@ -295,10 +309,6 @@ components:
         metadata, and can return an arbitrary response header to the
         client. Both the JSON request and response headers are transmitted
         reliably, subject to user specified timeout.
-        - protocol: JSONSocket
-        - session ID: Listener name + ID
-        - type: datagram-stream
-        - mode: "singleton/server"
       type: object
       required:
         - protocol
@@ -919,7 +929,7 @@ components:
 
     io.l7mp.api.v1.Metadata:
       description: >
-        Metadata that describes a session's all known parameters, like ports
+        Metadata that describes all known parameters of a session, like ports
         and IP addresses, status, HTTP headers (if relevant), etc. In general,
         metadata are created by the listener and they can be
         modified/queried/matched in rules/actions.
