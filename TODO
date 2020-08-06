@@ -1,12 +1,12 @@
-* Importance: superhigh
+* Importance: critical
 
-** TODO UDP inactivity timeout should be settable and exceeding the timeout should kill session
-** TODO Listener should be reconnected after a connection refused on a send() call
+** TODO UDP/singleton: reemit stream if retry policy requires so, otherwise remove listener all together
+** TODO UDP/server: Implement TIME_WAIT semantics: after close, keep on replying with 'ICMP Port Unreachable' within a timeout to packets coming from the same IP/port
 ** TODO Fix error when JSONSocket client timeout does not initiate a reconnect
-** TODO checkRoute
 
 * Importance: high
 
+** TODO UDP inactivity timeout should be settable and exceeding the timeout should kill session
 ** TODO sanitize debug output (currently L7mp is too chatty even at info level)
 ** TODO Timeout module
 ** TODO stream statistics
@@ -14,14 +14,12 @@
 ** TODO expose statistics to rule-matching (this would allow simple qos/rate-limiting)
 ** TODO health-check: kubelet should be able to detect if L7mp is running
 
-* Wishlist
+* Importance: wishlist
 
+** TODO checkRoute
 ** TODO Loadbalancer: Weighted/RoundRobin
 ** TODO Generic parser/deparser support in Listeners/Clusters
 ** TODO access_log
-
-* Importance: minor
-
 ** TODO JSON schema validation for JSONPredicate rules
 ** TODO expose the L7mp REST API doc from L7mp itself on a dedicated HTTP listener
 
