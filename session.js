@@ -216,7 +216,7 @@ class Stage {
 
     async reconnect(retry){
         log.silly('Stage.reconnect:', `Session ${this.session.name}:`,
-                  `reconnecting on cluster "${this.origin}"`);
+                  `reconnecting on stage "${this.origin}"`);
 
         // // dampen retries: never attempt to reconnect a cluster within
         // // timeout msecs of the last successfull connection (handle
@@ -232,14 +232,32 @@ class Stage {
 
         let num_retries = retry.retry_on === 'disconnect' ||
             retry.retry_on === 'always' ? retry.num_retries : 0;
-        let new_stage = await this.connect(num_retries > 0 ? num_retries-1 : 0, retry.timeout);
 
-        // store new stream
-        this.stream = new_stage.stream;
-        this.endpoint = new_stage.endpoint;
-        this.set_event_handlers();
+        if(this.source){
+            // if stage is listener and it supports reconnect (UDP/singleton), try that
+            // theretically, this should always succeed
+            let source = l7mp.getListener(this.origin);
+            if(!source)
+                return Promise.reject(
+                    new NotFoundError(`Cannot find listener ${this.origin}`));
+            if(!source.reconnect)
+                return Promise.reject(
+                    new GeneralError(`Source/listener "${this.origin}/ID:${this.id}" ` +
+                                     `does not support reconnecting, giving up retries`));
+
+            this.stream = await source.reconnect();
+            this.set_event_handlers();            
+        } else {
+            // cluster: connect as usual
+            let new_stage = await this.connect(num_retries > 0 ? num_retries-1 : 0, retry.timeout);
+
+            // store new stream
+            this.stream = new_stage.stream;
+            this.endpoint = new_stage.endpoint;
+            this.set_event_handlers();
+        }
+        
         this.status = 'READY';
-
         return;
     }
 }
@@ -347,6 +365,7 @@ class Session {
         let source = l7mp.getListener(this.source.origin);
         this.assert(source, new NotFoundError(`Cannot find listener ${this.source.origin}`));
         this.track = source.options.track;
+        this.source.retriable = typeof source.reconnect !== 'undefined';
 
         let action = this.lookup(source.rules);
         this.assert(action, new NotFoundError(`No route for session "${this.name}"`));
@@ -619,11 +638,6 @@ class Session {
         case 'always':
         case 'disconnect':
             try {
-                this.assert(stage.id !== this.source.id,
-                            new GeneralError(`Session ${this.name}: `+
-                                              `Source/listener "${stage.origin}/ID:${stage.id}" ` +
-                                              `is not retriable`));
-
                 this.assert(stage.retriable,
                             new GeneralError(`Session ${this.name}: `+
                                              `Stage "${stage.origin}/ID:${stage.id}" `+
@@ -664,12 +678,22 @@ class Session {
     // stage.stream contains the new stream
     repipe(stage){
         log.silly('Session.repipe:', `Session ${this.name}:`,
-                  `stream: ${stage.origin}`);
+                  `origin: ${stage.origin}`);
 
         // was error on source?
         if(stage.id === this.source.id){
-            log.warn('Session.disconnect: Internal error: repipe called on listener');
-            return false;
+            let to = this.chain.ingress.length > 0 ?
+                this.chain.ingress[0] : this.destination;
+            stage.pipe(to);
+            let from = this.chain.egress.length > 0 ?
+                this.chain.egress[this.chain.egress.length - 1] :
+                this.destination;
+            from.pipe(stage);
+            stage.status = 'READY';
+
+            log.silly('Session.repipe:', `Session ${this.name}:`,
+                      `source stage "${stage.origin}" repiped`);
+            return true;
         }
 
         // was error on destination?

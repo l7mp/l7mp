@@ -27,6 +27,10 @@ const udp          = require('dgram');
 const L7mp         = require('../l7mp.js').L7mp;
 const Listener     = require('../listener.js').Listener;
 const Session      = require('../session.js').Session;
+const Cluster      = require('../cluster.js').Cluster;
+const Rule         = require('../rule.js').Rule;
+const RuleList     = require('../rule.js').RuleList;
+const Route        = require('../route.js').Route;
 
 describe('UDPListener', ()  => {
     var l, s, c;
@@ -144,14 +148,89 @@ describe('UDPListener', ()  => {
                 })
                 s.source.stream.write('test');
             });
+            it('client-stream-end', (done) => {
+                c.on('close', () => {
+                    assert.isOk(true);
+                    done();
+                })
+                c.close()
+            });
             it('server-stream-end',  () => {
                 s.source.stream.removeAllListeners();
                 c.removeAllListeners();
                 s.source.stream.destroy();
                 assert.isOk(true);
             });
+        });
+        
+        //After destroying the session's stream we get a new session
+        context('reconnect-after-end', ()=>{
+            it('init',  async () => {
+                // need to mock the entire internal machinery to support disconnect/reconnect
+                l = Listener.create(
+                    {
+                        name: 'Test-l',
+                        spec:
+                        {
+                            protocol: 'UDP',
+                            port: 16000 ,
+                            address: '127.0.0.1',
+                            connect:
+                            {
+                                address: '127.0.0.1',
+                                port: 16001
+                            },
+                        }
+                    });
+                l7mp.listeners.push(l);
+                let c = Cluster.create({name: 'Test-c', spec: {protocol: 'Echo'}});
+                await c.run();
+                l7mp.clusters.push(c);
+                let ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
+                l7mp.rules.push(ru);
+                let rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
+                l7mp.rulelists.push(rl);
+                l.rules='Test-rs';
+                let r = Route.create({
+                    name: 'Test-r',
+                    destination: 'Test-c',
+                    retry: {
+                        retry_on: 'always',
+                        num_retries: 1,
+                        timeout: 2000,
+                    }
+                });
+                l7mp.routes.push(r);
+                l.emitter = l7mp.addSession.bind(l7mp);
+                await l.run();
+                sess = l7mp.sessions[0];
+                assert.isOk(sess);
+            });
+            it('server-stream-end',  (done) => {
+                sess.once('connect', done);
+                sess.source.stream.destroy();
+            });       
+            it('client', () => {
+                c = new udp.createSocket({type: "udp4", reuseAddr: true});
+                c.once('listening', () =>{ c.connect(16000,'127.0.0.1');})
+                c.bind(16001, '127.0.0.1')
+                c.once('connect', () => { assert.isOk(true)})
+            });
+            it('io',  (done) => {
+                c.on('message', (data) => {
+                    assert.equal(data, 'test');
+                    done();
+                });
+                c.send('test');
+            });
+            it('server-stream-end',  () => {
+                // to preclude the listener from reconnecting
+                l7mp.routes[0].retry_on = 'never';
+                l7mp.sessions[0].destroy();
+                assert.isOk(true);
+            });
             it('client-stream-end', (done) => {
-                c.on('close', () => {
+                c.once('close', () => {
                     assert.isOk(true);
                     done();
                 })
@@ -159,36 +238,5 @@ describe('UDPListener', ()  => {
             })
         });
 
-        // //After destroying the session's stream we get a new session
-        // context('reconnect-after-end', ()=>{
-        //     it('client', () => {
-        //         c = new udp.createSocket({type: "udp4", reuseAddr: true});
-        //         c.once('listening', () =>{ c.connect(16000,'127.0.0.1');})
-        //         c.bind(16001, '127.0.0.1')
-        //         c.once('connect', () => { assert.isOk(true)})
-        //     });
-        //     it('emits', () => { assert.isOk(s); });
-        //     it('read-after-close',  (done) => {
-        //         s.source.stream.once('readable', () => {
-        //             let data = ''; let chunk;
-        //             while (null !== (chunk = s.source.stream.read())) {
-        //                 data += chunk;
-        //             }
-        //             assert.equal(data, 'test');
-        //             done();
-        //         });
-        //         c.send('test');
-        //     });
-
-        // });
-
-        context('stop', () => {
-            it('stop-server',  () => {
-                l.close();
-                c.close();
-                assert.isOk(true);
-            });
-
-        });
     });
 });

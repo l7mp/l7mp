@@ -447,14 +447,7 @@ class UDPListener extends Listener {
                                             `${connection.remote_port}`));
         }
 
-        // // in singleton mode, closing the socket or the session will open a new one until
-        // // deleteListener is called
-        // this.onClose = async () => {
-        //     log.info('UDPListener.runSingleton:', `${this.name}, singleton mode:`,
-        //             `Listener stream closed, reopening stream and emitting a new session`);
-        //     await this.run.bind(this)();
-        // };
-        // this.socket.on('close', this.onClose);
+        this.reconnect = this.reconnectSingleton.bind(this);
         
         log.verbose(`UDPListener.runSingleton: "${this.name}"/${this.mode}`,
                     `connected to remote`,
@@ -466,6 +459,22 @@ class UDPListener extends Listener {
         this.onRequest(connection);
     }
 
+    async reconnectSingleton(){
+        log.silly('UDPListener.reconnectSingleton:', `${this.name}:`,
+                  `reconnecting listener stream`);
+
+        let onconn = this.onRequest;
+        this.onRequest = () => {}; //empty
+
+        await this.run();
+
+        let stream = new utils.DatagramStream(this.socket);
+
+        // restore
+        this.onRequest = onconn;
+        return stream;
+    }
+    
     // SERVER
     async runServer(){
         log.silly('UDPListener:runServer', `"${this.name}"`);
@@ -627,15 +636,8 @@ class UDPListener extends Listener {
 
     // do not close session, ie, this.socket for singleton
     close(){
-        if(this.mode === 'server'){
-            this.socket.close();
-            this.socket.unref();
-        } else {
-            if(this.onClose)
-                this.socket.removeListener('close', this.onClose);
-            this.socket.close();
-            this.socket.unref();
-        }
+        this.socket.close();
+        this.socket.unref();
     }
 };
 

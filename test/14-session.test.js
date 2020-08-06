@@ -228,7 +228,9 @@ describe('Session', () => {
         it('pipe-passthrough',        () => { assert.instanceOf(to, PassThrough); });
         it('reconnect', async () => {
             s.source.status = 'INIT';
-            await s.source.reconnect({retry_on: 'always', num_retries: 2, timeout: 2000}).then(assert.isOk(true));
+            await s.source.reconnect({retry_on: 'always', num_retries: 2, timeout: 2000})
+                .then( ()  => {return Promise.reject()},
+                       (e) => {return Promise.resolve()});
         });
     });
 
@@ -811,29 +813,23 @@ describe('Session', () => {
         after( () => {
             remove();
         });
-        it('not-ready', () => {
+        it('not-ready', async () => {
             stage = new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true});
-            try {
-                sess.disconnect(stage, Error('Test'));
-            } catch (error) {
-                assert.fail(error);
-            }
+            await sess.disconnect(stage, Error('Test')).catch( (error) => { return Promise.resolve(); });
         });
         it('events-length',      () => { assert.lengthOf(sess.events, 3); });
-        it('event-meassage',     () => { assert.equal(sess.events[2].message, 'Session.disconnect: Stage: Test-l: Error: Test'); });
+        it('event-message',      () => { assert.equal(sess.events[2].message, 'Session.disconnect: Stage: Test-l: Error: Test'); });
         it('event-content_type', () => { assert.instanceOf(sess.events[2].content, Error); });
         it('stage-status',       () => { assert.equal(stage.status, 'INIT'); });
-        it('ready-connected',    () => {
+        it('ready-connected', async () => {
             sess.active_streams = 1;
             sess.status = 'CONNECTED';
             stage.set_event_handlers();
             stage.status = 'READY';
             stage.origin.status = 'INIT';
-            try {
-                sess.disconnect(stage, Error('Test'));
-            } catch (error) {
-                assert.fail(error);
-            }
+            stage.origin = c.name;
+            await sess.disconnect(stage, Error('Test'));
+            return Promise.resolve();
         });
         it('stage-status',     () => { assert.equal(stage.status, 'DISCONNECTED'); });
         it('active-strems',    () => { assert.equal(sess.active_streams, 0); });
@@ -853,12 +849,10 @@ describe('Session', () => {
             stage.status = 'READY';
             stage.retriable = true;
             stage.origin = 'Test-c';
+            stage.source = false;
             sess.destination = stage;
-            try {
-                await sess.disconnect(stage, Error('Test'));
-            } catch (error) {
-                assert.fail(error);
-            }
+            await sess.disconnect(stage, Error('Test'));
+            return Promise.resolve();
         });
         it('stage-status', () => { assert.equal(sess.source.status, 'READY'); });
         it('active-streams', () => { assert.equal(sess.active_streams, 1); });
@@ -901,18 +895,13 @@ describe('Session', () => {
         afterEach( () => {
             remove();
         });
-        it('Error-on-source', () => {
-            stage = new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: true});
-            sess.route.ingress = ['Test-c'];
-            sess.route.egress = ['Test-c'];
-            sess.pipeline_init();
-            sess.chain.egress[0].id = sess.source.id;
-            sess.chain.egress.push(stage);
-            sess.destination = stage;
-            sess.destination.id = 1;
-            sess.stream = new PassThrough();
-            // listener socket cannot be repiped
-            assert.isNotOk(sess.repipe(sess.source));
+        it('Error-on-source', (done) => {
+            sess.chain.egress.push(new Stage({session: sess, origin: c.name, stream: new PassThrough(), source: false}));
+            sess.destination = new Stage({session: sess, origin: c.name, stream: new PassThrough(), source: false});
+            stage = new Stage({session: sess, origin: sess.source.origin, stream: new PassThrough(), source: true});
+            stage.id = sess.source.id;
+            stage.stream.on('pipe', (src) => {assert.isOk(true); done()});
+            sess.repipe(stage);
         });
         it('Error-on-destination', (done) => {
             stage = new Stage({session: sess, origin: sess.source.origin, stream: sess.source.stream, source: false});
