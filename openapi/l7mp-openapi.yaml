@@ -214,16 +214,6 @@ components:
         is specified), accept connections only from that remote address or
         port. Default is Singleton if both connect.address and connect.port
         are specified, otherwise Server (override with options.mode).
-
-        Note that a Singleton mode UDP Listener is special because it directly
-        connects back to a source. This results that a Singleton mode UDP
-        Listener will (1) immediately emit a new session on creation and (2)
-        it will keep on emitting a new session even when the old one is
-        destroyed (e.g., on a deleteListener API request or an error). To
-        preclude this behavior, set mode to Server and specify connect.address
-        and connect.port; in this case the listener emits a new session only
-        on the reception of the first packet of a new connection but it will
-        still connect back to the source.
       type: object
       required:
         - protocol

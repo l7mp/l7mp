@@ -447,14 +447,14 @@ class UDPListener extends Listener {
                                             `${connection.remote_port}`));
         }
 
-        // in singleton mode, closing the socket or the session will open a new one until
-        // deleteListener is called
-        this.onClose = async () => {
-            log.info('UDPListener.runSingleton:', `${this.name}, singleton mode:`,
-                    `Listener stream closed, reopening stream and emitting a new session`);
-            await this.run.bind(this)();
-        };
-        this.socket.on('close', this.onClose);
+        // // in singleton mode, closing the socket or the session will open a new one until
+        // // deleteListener is called
+        // this.onClose = async () => {
+        //     log.info('UDPListener.runSingleton:', `${this.name}, singleton mode:`,
+        //             `Listener stream closed, reopening stream and emitting a new session`);
+        //     await this.run.bind(this)();
+        // };
+        // this.socket.on('close', this.onClose);
         
         log.verbose(`UDPListener.runSingleton: "${this.name}"/${this.mode}`,
                     `connected to remote`,
