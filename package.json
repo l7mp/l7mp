@@ -44,7 +44,7 @@
         "git-repo-version": "^1.0.2",
         "hashring": "^3.2.0",
         "json-predicate": "^0.9.5",
-        "lodash": "^4.17.15",
+        "lodash": "^4.17.19",
         "minimist": "^1.2.5",
         "mississippi": "^4.0.0",
         "npmlog": "^4.1.2",
