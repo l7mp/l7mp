@@ -1,3 +1,4 @@
+<img src="./logo.svg" width="50%"></img>
 # l7mp: A L7 Multiprotocol Proxy and Service Mesh
 
 *[L7mp is currently under construction, with many advertised features untested, not working as promised, or completely missing.]*
