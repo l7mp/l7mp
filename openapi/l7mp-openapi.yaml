@@ -1048,7 +1048,7 @@ paths:
   # Full config API
   /api/v1/config:
     get:
-      description: Get the full configuration.
+      description: Get the full configuration
       operationId: getConf
       parameters:
         - name: format
@@ -1063,7 +1063,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Config'
     post:
-      description: Reload configuration.
+      description: Reload configuration
       operationId: setConf
       requestBody:
         required: true
@@ -1087,7 +1087,7 @@ paths:
   # Static config API
   /api/v1/admin:
     get:
-      description: Get the static configuration.
+      description: Get the static configuration
       operationId: getAdmin
       parameters:
         - name: format
@@ -1126,7 +1126,7 @@ paths:
   # Listener API
   /api/v1/listeners:
     get:
-      description: Get a list of Listeners.
+      description: Get a list of Listeners
       operationId: getListeners
       parameters:
         - name: recursive
@@ -1183,7 +1183,7 @@ paths:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   /api/v1/listeners/{name}:
     get:
-      description: Get a named Listener.
+      description: Get a named Listener
       operationId: getListener
       parameters:
         - name: name
@@ -1218,7 +1218,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     delete:
-      description: Delete a named Listener.
+      description: Delete a named Listener
       operationId: deleteListener
       parameters:
         - name: name
@@ -1405,7 +1405,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     post:
-      description: Create an EndPoint in a Cluster.
+      description: Create an EndPoint in a Cluster
       operationId: addEndPoint
       parameters:
         - name: name
@@ -1435,7 +1435,7 @@ paths:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   /api/v1/endpoints/{name}:
     get:
-      description: Get a named EndPoint.
+      description: Get a named EndPoint
       operationId: getEndPoint
       parameters:
         - name: name
@@ -1672,7 +1672,7 @@ paths:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   /api/v1/rulelists/{name}:
     get:
-      description: Get a named RuleList.
+      description: Get a named RuleList
       operationId: getRuleList
       parameters:
         - name: name
@@ -1707,7 +1707,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     delete:
-      description: Delete a named RuleList.
+      description: Delete a named RuleList
       operationId: deleteRuleList
       parameters:
         - name: name
@@ -1739,7 +1739,7 @@ paths:
   # Rule API
   /api/v1/rules:
     get:
-      description: Get a list of Rules.
+      description: Get a list of Rules
       operationId: getRules
       parameters:
         - name: recursive
@@ -1795,7 +1795,7 @@ paths:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   /api/v1/rules/{name}:
     get:
-      description: Get a named Rule.
+      description: Get a named Rule
       operationId: getRule
       parameters:
         - name: name
@@ -1830,7 +1830,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     delete:
-      description: Delete a named Rule.
+      description: Delete a named Rule
       operationId: deleteRule
       parameters:
         - name: name
@@ -1862,7 +1862,7 @@ paths:
   # Route API
   /api/v1/routes:
     get:
-      description: Get a list of Routes.
+      description: Get a list of Routes
       operationId: getRoutes
       parameters:
         - name: recursive
@@ -1919,7 +1919,7 @@ paths:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   /api/v1/routes/{name}:
     get:
-      description: Get a named Route.
+      description: Get a named Route
       operationId: getRoute
       parameters:
         - name: name
@@ -1955,7 +1955,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     delete:
-      description: Delete a named Route.
+      description: Delete a named Route
       operationId: deleteRoute
       parameters:
         - name: name
@@ -1986,7 +1986,7 @@ paths:
   # Session API
   /api/v1/sessions:
     get:
-      description: Get a list of Sessions.
+      description: Get a list of Sessions
       operationId: getSessions
       parameters:
         - name: format
@@ -2005,7 +2005,7 @@ paths:
                   $ref: '#/components/schemas/io.l7mp.api.v1.Session'
   /api/v1/sessions/{name}:
     get:
-      description: Get a named Session.
+      description: Get a named Session
       operationId: getSession
       parameters:
         - name: name
