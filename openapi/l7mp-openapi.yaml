@@ -1374,6 +1374,7 @@ paths:
   # EndPoint API
   /api/v1/clusters/{name}/endpoints:
     get:
+      summary: Get the EndPoints of a Cluster
       description: Get a list of EndPoints associated with a Cluster.
       operationId: getEndPoints
       parameters:
@@ -1488,6 +1489,7 @@ paths:
   # RuleList API
   /api/v1/rulelists/{name}/rules/{position}:
     get:
+      summary: Get a Rule from a RuleList
       description: >
         Get the Rule from a RuleList at a particular position (the Rule itself
         is returned).
@@ -1573,6 +1575,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     delete:
+      summary: Remove a Rule from a RuleList
       description: >
         Remove a Rule from a RuleList either by position (if the "position"
         parameter is an integer) or by name (if the "position" parameter is a
@@ -1611,6 +1614,7 @@ paths:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
   /api/v1/rulelists:
     get:
+      summary: Get a list of RuleLists
       description: Get a list of RuleLists (aka match-action tables).
       operationId: getRuleLists
       parameters:
