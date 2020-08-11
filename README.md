@@ -2,7 +2,7 @@
 
 *[L7mp is currently under construction, with many advertised features untested, not working as promised, or completely missing.]*
 
-L7mp is a Layer-7, multiprotocol service proxy and a service mesh framework. The emphasis is on *multiprotocol* support, which lets l7mp to handle lots of transport- and application-layer network protocols natively not just the usual TCP/HTTP, and transparently convert between different protocol encapsulations. The intention is for l7mp to serve as an incubator project to prototype the main service mesh features, in order to support network-intensive legacy/non-HTTP applications seamlessly in Kubernetes.
+L7mp is a Layer-7, multiprotocol service proxy and a service mesh framework. The emphasis is on *multiprotocol* support, which lets l7mp to handle lots of transport- and application-layer network protocols natively not just the usual TCP/HTTP, and transparently convert between different protocol encapsulations. The intention is for l7mp to serve as an incubator project to prototype the main service mesh features that are indispensable to support network-intensive legacy/non-HTTP applications seamlessly in Kubernetes.
 
 The distribution contains an *l7mp proxy* component, a programmable proxy that can stitch an arbitrary number of application-level traffic streams together into an end-to-end stream in a protocol-agnostic manner (e.g., you can pipe a UNIX domain socket to a WebSocket stream and vice versa), and a *service mesh* component, in the form of a Kubernetes operator, which can manage a legion of l7mp gateway and sidecar proxy instances seamlessly to enforce a rich set of high-level traffic management and observability policies throughout an entire cluster.
 
@@ -27,6 +27,7 @@ Use the below to install [l7mp](https://npmjs.org):
 
 ```sh
 npm install l7mp --save
+npm test
 ```
 
 You can also use the enclosed Dockerfile to deploy l7mp, at least Node.js v14 is required.
@@ -48,7 +49,7 @@ Configuration is accepted either in YAML format (if the extension is `.yaml`) or
 
 ## Query configuration
 
-The sample configuration will fire up a HTTP listener at port 1234 and route it to the l7mp controller that serves the l7mp REST API. This API can be used to query or configure the proxy on the fly; e.g., the below will dump the full configuration in JSON format:
+The sample configuration will fire up a HTTP listener on port 1234 and route it to the l7mp controller that serves the l7mp REST API. This API can be used to query or configure the proxy on the fly; e.g., the below will dump the full configuration in JSON format:
 
 ```sh
 curl http://localhost:1234/api/v1/config
@@ -59,7 +60,7 @@ For a list of all REST API endpoints, see the [l7mp OpenAPI specs](https://l7mp.
 
 ## Manage sessions
 
-On top of the static configuration, the response contains a new `sessions` list that enumerates the set of active (connected) sessions in l7mp. You can list the live sessions explicitly as follows:
+On top of the static configuration, the response contains a list of `sessions`, enumerating the set of active (connected) streams inside l7mp. You can list the live sessions explicitly as follows:
 
 ```sh
 curl http://localhost:1234/api/v1/sessions
@@ -109,7 +110,7 @@ EOF
 
 ## Add a new listener and a route
 
-Now add a new UDP *listener* called `udp-listener` at port 15000 that will accept connections with source port 15001 and *route* the received connections to the above cluster (named `ws-cluster`).
+Now add a new UDP *listener* called `udp-listener` at port 15000 that will accept connections from an IP address but only with source port 15001, and *route* the received connections to the above cluster (which, recall, we named as `ws-cluster`).
 
 ```sh
 curl -iX POST --header 'Content-Type:text/x-yaml' --data-binary @- <<EOF  http://localhost:1234/api/v1/listeners
@@ -205,14 +206,16 @@ curl -iX DELETE http://localhost:1234/api/v1/listeners/udp-listener
 curl -iX DELETE http://localhost:1234/api/v1/clusters/ws-cluster
 ```
 
-Note however that this will delete *only* the named listener and the cluster even though, as mentioned above, these objects may contain several *embedded* objects; e.g., `udp-listener` contains and implicit *rulelist* (a match-action table) with a single match-all *rule*, plus a *route* and an embedded cluster spec ("Logger"), and these will not be removed by the above calls. In order to delete everything, use the below `recursive` version of the delete operations, but bear in mind that this will remove *everything* that was implciitly defined by `udp-listener` and `ws-cluster` and this includes *all* the sessions emitted by the listener and *all* the sessions routed via the cluster. 
+Note however that this will delete *only* the named listener and the cluster even though, as mentioned above, these objects may contain several *embedded* objects; e.g., `udp-listener` contains and implicit *rulelist* (a match-action table) with a single match-all *rule*, plus a *route* and an embedded *cluster* spec ("Logger"), and these will not be removed by the above call. 
+
+You can use the below `recursive` version of the delete operations to delete all the embedded sub-objects of an object, but bear in mind that this will remove *everything* that was implciitly defined by `udp-listener` and `ws-cluster` and this includes *all* the sessions emitted by the listener and *all* the sessions routed via the cluster. 
 
 ```sh
 curl -iX DELETE http://localhost:1234/api/v1/listeners/udp-listener?recursive=true
 curl -iX DELETE http://localhost:1234/api/v1/clusters/ws-cluster?recursive=true
 ```
 
-You can avoid this by not using embedded defs or, if this is too inconvenient, explicitly naming all embedded objects and the using ghe specific APIs (the RuleList API, Rule API, etc.) to selectively clean up each.
+You can avoid this by not using embedded defs or, if this is too inconvenient, explicitly naming all embedded objects and then using the specific APIs (the RuleList API, Rule API, etc.) to clean up each object selectively.
 
 # Protocol support
 
@@ -238,36 +241,13 @@ Below is a summary of the protocols supported by l7mp and the current status of 
 |           | INLINE/JSONENcap | N/A                      | datagram-stream | c     | singleton        | yes/no  | Full    |
 |           | INLINE/JSONDecap | N/A                      | datagram-stream | c     | singleton        | yes/no  | Full    |
 
-The standard protocols, like TCP, HTTP/1.1 and HTTP/2 (although only listener/server side at the
-moment), WebSocket, and Unix Domain Socket (of the byte-stream type, see below) are fully
-supported, and for plain UDP there are two modes available: in the "UDP singleton mode" l7mp acts
-as a "connected" UDP server that is statically tied/connected to a downstream remote IP/port pair,
-while in "UDP server mode" l7mp emits a new "connected" UDP session for each packet received with a
-new IP 5-tuple. In addition, JSONSocket is a very simple "UDP equivalent of WebSocket" that allows
-to enrich a plain UDP stream with arbitrary JSON encoded metadata; see the
-[spec](doc/jsonsocket-spec.org).
+The standard protocols, like TCP, HTTP/1.1 and HTTP/2 (although only listener/server side at the moment), WebSocket, and Unix Domain Socket (of the byte-stream type, see below) are fully supported, and for plain UDP there are two modes available: in the "UDP singleton mode" l7mp acts as a "connected" UDP server that is statically tied/connected to a downstream remote IP/port pair, while in "UDP server mode" l7mp emits a new "connected" UDP session for each packet received with a new IP 5-tuple. In addition, JSONSocket is a very simple "UDP equivalent of WebSocket" that allows to enrich a plain UDP stream with arbitrary JSON encoded metadata; see the spec [here](doc/jsonsocket-spec.org). Finally, SCTP is a reliable message transport protocol widely used in telco applications; currently adding proper SCTP support is also a TODO item.
 
-Furthermore, there is a set of custom pseudo-protocols included in the l7mp proxy to simplify
-debugging and troubleshooting: the "Stdio" protocol makes it possible to pipe a stream to the l7mp
-proxy's stdin/stdout, the "Echo" protocol implements a simple Echo server behavior which writes
-back everything it reads to the input stream, "Discard" simply blackholes everyting it receives,
-and finally "Logger" is like the Echo protocol but it also writes everything that goes through it
-to a file or to the standard output.  Finally, there a couple of additional protocols are currently
-unimplemented but planned that would greatly improve the usability of l7mp (see the equivalents in
-`socat(1)`): "STDIO-fork" will be a protocol for communicating with a forked process through
-STDIO/STDOUT, and PIPE will use standard Linux pipes to do the same.
+Furthermore, there is a set of custom pseudo-protocols included in the l7mp proxy to simplify debugging and troubleshooting: the "Stdio" protocol makes it possible to pipe a stream to the l7mp proxy's stdin/stdout, the "Echo" protocol implements a simple Echo server behavior which writes back everything it reads to the input stream, "Discard" simply blackholes everyting it receives, and finally "Logger" is like the Echo protocol but it also writes everything that goes through it to a file or to the standard output.  Finally, there a couple of additional protocols are currently unimplemented but planned that would greatly improve the usability of l7mp (see the equivalents in `socat(1)`): "STDIO-fork" will be a protocol for communicating with a forked process through STDIO/STDOUT, and PIPE will use standard Linux pipes to do the same.
 
-There are two *types* of streams supported by L7mp: a "byte-stream" (like TCP or Unix Domain Sockets
-in SOL_STREAM mode) is a bidirectional stream that ignores segmentation/message boundaries, while
-"datagram-stream" is the same but it prefers segmentation/message boundaries as much as possible
-(e.g., UDP or WebSocket). The l7mp proxy warns if a datagram-stream type stream is routed to a
-byte-stream protocol, because this would lead to a loss of message segmentation.
+There are two *types* of streams supported by L7mp: a "byte-stream" (like TCP or Unix Domain Sockets in SOL_STREAM mode) is a bidirectional stream that ignores segmentation/message boundaries, while "datagram-stream" is the same but it prefers segmentation/message boundaries as much as possible (e.g., UDP or WebSocket). The l7mp proxy warns if a datagram-stream type stream is routed to a byte-stream protocol, because this would lead to a loss of message segmentation. In addition, any protocol may support any of two modes: a "singleton" mode protocol accepts only a single connection (e.g., a fully connected UDP listener) while a "server" mode listener may accept multiple client connections, emitting a separate session for each (e.g., a TCP or a HTTP listener).
 
-Finally, some abbreviations: a *listener* (l) is a server-side protocol "plug" that listens to
-incoming connections and emits new sessions, a *cluster* (c) implements the client side of each
-protocol to route a connection to an upstream service and load-balance across a set of remote
-endpoints, "Re" means that the protocol supports *retries* and "Lb" indicates that *load-balancing*
-support is also available for the protocol.
+Finally, some abbreviations: a *listener* (l) is a server-side protocol "plug" that listens to incoming connections and emits new sessions, a *cluster* (c) implements the client side of each protocol to route a connection to an upstream service and load-balance across a set of remote endpoints, "Re" means that the protocol supports *retries* and "Lb" indicates that *load-balancing* support is also available for the protocol.
 
 
 # License
