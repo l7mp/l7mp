@@ -235,11 +235,11 @@ describe('Cluster-API', ()  => {
                 return Promise.resolve();
             });
 
-            it('check-cluster-1', ()=>{ assert.nestedPropertyVal(res[1], 'name', 'test-cluster-1');});
-            it('check-cluster-2', ()=>{ assert.nestedPropertyVal(res[2], 'name', 'test-cluster-2');});
-            it('check-cluster-3', ()=>{ assert.nestedPropertyVal(res[3], 'name', 'test-cluster-3');});
-            it('check-cluster-4', ()=>{ assert.nestedPropertyVal(res[4], 'name', 'test-cluster-4');});
-            it('check-cluster-5', ()=>{ assert.nestedPropertyVal(res[5], 'name', 'test-cluster-5');});
+            it('check-cluster-1', ()=>{ assert.isOk( res.find( ({name}) => name === 'test-cluster-1'));});
+            it('check-cluster-2', ()=>{ assert.isOk( res.find( ({name}) => name === 'test-cluster-2'));});
+            it('check-cluster-3', ()=>{ assert.isOk( res.find( ({name}) => name === 'test-cluster-3'));});
+            it('check-cluster-4', ()=>{ assert.isOk( res.find( ({name}) => name === 'test-cluster-4'));});
+            it('check-cluster-5', ()=>{ assert.isOk( res.find( ({name}) => name === 'test-cluster-5'));});
             it('delete-multiple-clusters', async ()=>{
                 let reqs = [];
                 for(let i = 1; i < 6; i++){
