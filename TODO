@@ -1,5 +1,13 @@
+* Doc
+
+** TODO Landing page finalize
+** TODO OpenAPI docs: Streamline descriptions and add examples maybe
+
 * Importance: critical
 
+** TODO Git version in startup message
+** TODO Admin API: getAdmin error
+** TODO socket.close try/catch
 ** TODO UDP/singleton: reemit stream if retry policy requires so, otherwise remove listener all together
 ** TODO UDP/server: Implement TIME_WAIT semantics: after close, keep on replying with 'ICMP Port Unreachable' within a timeout to packets coming from the same IP/port
 ** TODO Fix error when JSONSocket client timeout does not initiate a reconnect
