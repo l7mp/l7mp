@@ -114,6 +114,8 @@ data:
 
 ### Run
 
+The below usage examples assume that the l7mp proxy is deployed in standalone mode and it is available on the `localhost`.
+
 Run l7mp locally with a [sample](config/l7mp-minimal.yaml) static configuration.
 
 ```sh
