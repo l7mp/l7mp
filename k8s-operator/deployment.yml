@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: l7mp-operator
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: l7mp-operator
+  template:
+    metadata:
+      labels:
+        app: l7mp-operator
+    spec:
+      serviceAccountName: l7mp-account
+      containers:
+      - name: the-only-one
+        image: l7mp/l7mp-operator
