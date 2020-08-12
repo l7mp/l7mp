@@ -42,7 +42,7 @@ Currently there are two ways to deploy l7mp: either the l7mp proxy is deployed i
 Use the below to install the l7mp proxy from the official l7mp distribution at [npm.js](https://npmjs.org).
 
 ```sh
-npm install l7mp --save
+npm install l7mp
 npm test
 ```
 
