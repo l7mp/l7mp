@@ -1,0 +1,10 @@
+sudo: false
+language: node_js
+node_js:
+  - 14
+
+install:
+  - npm ci
+
+notification:
+  emails: false
