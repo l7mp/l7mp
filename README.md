@@ -2,6 +2,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/l7mp/l7mp/badge.svg?branch=master)](https://coveralls.io/github/l7mp/l7mp?branch=master)
 
 <img src="./logo.svg" width="20%"></img>
+
 # l7mp: A L7 Multiprotocol Proxy and Service Mesh
 
 *[L7mp is currently under construction, with many advertised features untested, not working as promised, or completely missing.]*
@@ -13,7 +14,7 @@ The distribution contains an *l7mp proxy* component, a programmable proxy that c
 
 ## The l7mp data plane
 
-The data plane of the l7mp framework is comprised by a set of l7mp proxy instances. L7mp supports multiple deployment models; e.g., it can be deployed as an ingress gateway to feed traffic with exotic protocol encapsulations into a Kuberntes cluster, or as a sidecar proxy to expose a legacy UDP/SCTP application to a Kuberntes cluster using a cloud-native protocol.
+The data plane of the l7mp framework is comprised by a set of l7mp proxy instances. The l7mp proxy supports multiple deployment models; e.g., it can be deployed as an ingress gateway to feed traffic with exotic protocol encapsulations into a Kuberntes cluster, or as a sidecar proxy to expose a legacy UDP/SCTP application to a Kuberntes cluster using a cloud-native protocol.
 
 The l7mp proxy is modeled after [Envoy](https://github.com/envoyproxy/envoy), in that it uses similar abstractions (Listeners, Clusters, etc.), but in contrast to Envoy that is mostly HTTP/TCP-centric, l7mp is optimized for persistent, long-lived UDP-based media and tunneling protocol streams. The l7mp proxy features an extended routing API, which allows to transparently pipe application streams across diverse protocol encapsulations, with automatic and transparent protocol transformation, native support for datagram- and byte-streams, stream multiplexing and demultiplexing, encapsulation/decapsulation, etc.
 
