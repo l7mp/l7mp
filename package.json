@@ -1,7 +1,7 @@
 {
     "name": "l7mp",
     "description": "A programmable L7 multiprotocol proxy and service mesh",
-    "version": "0.5.1",
+    "version": "0.5.2",
     "main": "l7mp.js",
     "files": [
         "cluster.js",
@@ -16,7 +16,7 @@
         "stream-counter.js",
         "stream.js",
         "openapi/l7mp-openapi.yaml",
-        "config/l7mp-minimal.yaml",
+        "config/l7mp-minimal.yaml"
     ],
     "scripts": {
         "test": "mocha",
