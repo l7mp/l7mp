@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/l7mp/l7mp.svg?branch=master)](https://travis-ci.org/l7mp/l7mp)
+[![Coverage Status](https://coveralls.io/repos/github/l7mp/l7mp/badge.svg?branch=master)](https://coveralls.io/github/l7mp/l7mp?branch=master)
 
 <img src="./logo.svg" width="20%"></img>
 # l7mp: A L7 Multiprotocol Proxy and Service Mesh
