@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/l7mp/l7mp.svg?branch=master)](https://travis-ci.org/l7mp/l7mp)
 <img src="./logo.svg" width="20%"></img>
 # l7mp: A L7 Multiprotocol Proxy and Service Mesh
 
