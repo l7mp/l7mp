@@ -24,23 +24,92 @@ The l7mp proxy is written in Javascript/Node.js. This way, it is much simpler an
 
 The l7mp distribution contains a Kubernetes operator that makes it possible to deploy and configure multiple instances of l7mp as sidecar proxies and service/API gateways, in a framework that can be best described as a multiprotocol service mesh. The operator is currently under construction, more details to follow soon.
 
+# The l7mp data plane: The l7mp proxy
 
-# Installation
+## Installation
 
-Use the below to install [l7mp](https://npmjs.org):
+### Standalone installation
+
+Use the below to install the l7mp proxy from the [official l7mp distribution at npm.js](https://npmjs.org).
 
 ```sh
 npm install l7mp --save
 npm test
 ```
 
-You can also use the enclosed Dockerfile to deploy l7mp, at least Node.js v14 is required.
+At least Node.js v14 is required.
 
 
-# Usage example
+### Docker installation
+
+Pull the official image by `docker pull l7mp/l7mp:latest` or use the enclosed Dockerfile to deploy the l7mp proxy. 
 
 
-## Run
+### Deploy into Kubernetes
+
+Use the below configuration to deploy l7mp as an ingress gateway in your Kubernetes cluster.
+
+```yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: l7mp-ingress-gw
+  labels:
+    app: l7mp-ingress-gw
+spec:
+  selector:
+    matchLabels:
+      app: l7mp-ingress-gw
+  template:
+    metadata:
+      labels:
+        app: l7mp-ingress-gw
+    spec:
+      volumes:
+        - name: l7mp-ingress-gw-config
+          configMap:
+            name: l7mp-ingress-gw
+      containers:
+      - name: l7mp
+        image: l7mp/l7mp:latest
+        imagePullPolicy: IfNotPresent
+        command: [ "node" ]
+        args: [ "l7mp-proxy.js", "-c", "config/l7mp-ingress-gw.yaml", "-s", "-l", "info" ]
+        ports:
+        - containerPort: 1234
+        volumeMounts:
+          - name: l7mp-ingress-gw-config
+            mountPath: /app/config
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+
+---
+
+# Controller listening on 1234
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: l7mp-ingress-gw
+data:
+  l7mp-ingress-gw.yaml: |
+    admin:
+      log_level: info
+      log_file: stdout
+      access_log_path: /tmp/admin_access.log
+    listeners:
+      - name: controller-listener
+        spec: { protocol: HTTP, port: 1234 }
+        rules:
+          - action:
+              route:
+                cluster:
+                  spec: { protocol: L7mpController }
+```
+
+## Usage example
+
+
+### Run
 
 Run l7mp locally with a [sample](config/l7mp-minimal.yaml) static configuration.
 
@@ -51,7 +120,7 @@ node l7mp-proxy.js -c config/l7mp-minimal.yaml -l warn -s
 Configuration is accepted either in YAML format (if the extension is `.yaml`) or JSON (otherwise). Command line arguments override static configuration parameters.
 
 
-## Query configuration
+### Query configuration
 
 The sample configuration will fire up a HTTP listener on port 1234 and route it to the l7mp controller that serves the l7mp REST API. This API can be used to query or configure the proxy on the fly; e.g., the below will dump the full configuration in JSON format:
 
@@ -62,7 +131,7 @@ curl http://localhost:1234/api/v1/config
 For a list of all REST API endpoints, see the [l7mp OpenAPI specs](https://l7mp.io/openapi).
 
 
-## Manage sessions
+### Manage sessions
 
 On top of the static configuration, the response contains a list of `sessions`, enumerating the set of active (connected) streams inside l7mp. You can list the live sessions explicitly as follows:
 
@@ -79,7 +148,7 @@ curl -iX DELETE http://localhost:1234/api/v1/sessions/<session-name>
 ```
 
 
-## Add a new cluster
+### Add a new cluster
 
 Add a new WebSocket *cluster* named `ws-cluster` that will connect to an upstream WebSocket service with a single *endpoint* at `localhost:16000`.
 
@@ -112,7 +181,7 @@ EOF
 ```
 
 
-## Add a new listener and a route
+### Add a new listener and a route
 
 Now add a new UDP *listener* called `udp-listener` at port 15000 that will accept connections from an IP address but only with source port 15001, and *route* the received connections to the above cluster (which, recall, we named as `ws-cluster`).
 
@@ -161,7 +230,7 @@ EOF
 This flexibility of l7mp to accept explicit and implicit (embedded) configurations is available in essentially all REST API calls, and it greatly simplifies the use of the API.
 
 
-## Routing
+### Routing
 
 On session creation, l7mp will demultiplex the bidirectional stream received at the listener into two uni-directional streams: the *ingress stream* (in the direction from the source/listener to the destination/cluster) will be routed through the `Logger` transform cluster. Theoretically, a transform cluster is free to apply any modification it wants to the traffic passing through it, it can be local (built into the l7mp datapath, like `Logger`) or remote (e.g., another WebSocket cluster), the only requirement is that the cluster endpoint listen at the specified address on the specified port and send the modified traffic back to l7mp. For now, the `Logger` cluster just dumps the content of the stream without transforming it in any ways, but you get the point. The returned stream is then piped to the cluster `ws-cluster`. In the *egress direction* (from the destination/cluster back to the source/listener), no transformation occurs as the egress chain spec is missing.
 
@@ -173,12 +242,12 @@ The above should yield the routes:
     egress:  ws-cluster -> udp-listener
 
 
-## Retries and timeouts
+### Retries and timeouts
 
 Route specifications may contain a `retry` spec, in order to describe what to do when one of the connected endpoints fail. By the above spec, l7mp will automatically retry the connection at most 3 times both on connection setup errors and disconnect events on already established connections, waiting each time 2000 ms for the stream to be successfully re-established.
 
 
-## Test the connection
+### Test the connection
 
 To complete the connection, fire up a `socat(1)` sender (don't forget to bind the sender to 15001, otherwise l7mp, which connects back to this port, will not accept the connection):
 
@@ -195,7 +264,7 @@ websocat -Eb ws-l:127.0.0.1:16000 -
 What you type in the sender should now appear at the receiver verbatim, and the l7mp proxy should report everything that passes from the sender to the receiver on the standard output. Note that in the reverse direction, i.e., from the receiver to the sender, nothing will be logged, since the `Logger` was added to the *ingress route* only but not to the *egress route*.
 
 
-## Clean up
+### Clean up
 
 Provided that the new session is named `session-name` (l7mp automatically assigns a unique name to each session, you can check this by issuing a GET request to the API endpoint `/api/v1/sessions`), you can delete this session as follows:
 
@@ -221,7 +290,7 @@ curl -iX DELETE http://localhost:1234/api/v1/clusters/ws-cluster?recursive=true
 
 You can avoid this by not using embedded defs or, if this is too inconvenient, explicitly naming all embedded objects and then using the specific APIs (the RuleList API, Rule API, etc.) to clean up each object selectively.
 
-# Protocol support
+### Status
 
 Below is a summary of the protocols supported by l7mp and the current status of the implementations.
 
@@ -252,6 +321,11 @@ Furthermore, there is a set of custom pseudo-protocols included in the l7mp prox
 There are two *types* of streams supported by L7mp: a "byte-stream" (like TCP or Unix Domain Sockets in SOCK_STREAM mode) is a bidirectional stream that ignores segmentation/message boundaries, while "datagram-stream" is the same but it prefers segmentation/message boundaries whenever possible (e.g., UDP or WebSocket). The l7mp proxy warns if a datagram-stream type stream is routed to a byte-stream protocol, because this would lead to a loss of message segmentation. In addition, protocols may support any or both of the following two modes: a "singleton" mode protocol accepts only a single connection (e.g., a fully connected UDP listener will emit only a single session) while a "server" mode listener may accept multiple client connections, emitting a separate session for each connection received  (e.g., a TCP or a HTTP listener).
 
 A protocol is marked with a flag `l` if it has a listener implementation in l7mp, acting as a server-side protocol "plug" that listens to incoming connections and emits new sessions, and with flag `c` if it implements the cluster side, i.e., the client-side of the protocol that can route a connection to an upstream service and load-balance across a set of remote endpoints, `Re` means that the protocol supports *retries* and `Lb` indicates that *load-balancing* support is also available for the protocol.
+
+
+# The l7mp control plane: The l7mp service mesh
+
+The l7mp service mesh operator for Kubernetes is currently under construction, more details to follow soon.
 
 
 # License

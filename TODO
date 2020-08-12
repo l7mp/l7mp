@@ -5,6 +5,7 @@
 
 * Importance: critical
 
+** TODO Docker hub: create l7mp org and push an official image
 ** TODO Git version in startup message
 ** TODO Admin API: getAdmin error
 ** TODO socket.close try/catch
