@@ -11,7 +11,9 @@ L7mp is a Layer-7, multiprotocol service proxy and a service mesh framework. The
 The distribution contains an *l7mp proxy* component, a programmable proxy that can stitch an arbitrary number of application-level traffic streams together into an end-to-end stream in a protocol-agnostic manner (e.g., you can pipe a UNIX domain socket to a WebSocket stream and vice versa), and a *service mesh* component, in the form of a Kubernetes operator, which can manage a legion of l7mp gateway and sidecar proxy instances seamlessly to enforce a rich set of high-level traffic management and observability policies throughout an entire cluster.
 
 
-## The l7mp proxy
+## The l7mp data plane
+
+The data plane of the l7mp framework is comprised by a set of l7mp proxy instances. L7mp supports multiple deployment models; e.g., it can be deployed as an ingress gateway to feed traffic with exotic protocol encapsulations into a Kuberntes cluster, or as a sidecar proxy to expose a legacy UDP/SCTP application to a Kuberntes cluster using a cloud-native protocol.
 
 The l7mp proxy is modeled after [Envoy](https://github.com/envoyproxy/envoy), in that it uses similar abstractions (Listeners, Clusters, etc.), but in contrast to Envoy that is mostly HTTP/TCP-centric, l7mp is optimized for persistent, long-lived UDP-based media and tunneling protocol streams. The l7mp proxy features an extended routing API, which allows to transparently pipe application streams across diverse protocol encapsulations, with automatic and transparent protocol transformation, native support for datagram- and byte-streams, stream multiplexing and demultiplexing, encapsulation/decapsulation, etc.
 
@@ -20,11 +22,11 @@ Considering the strong emphasis on multiprotocol support, the l7mp proxy may act
 The l7mp proxy is written in Javascript/Node.js. This way, it is much simpler and easier to extend than Envoy or `socat`, but at the same time it is also much slower. It does not have to be that way though; an XDP/ebpf-based proxy-acceleration framework is under construction that would enable l7mp to run at hundreds of thousands of packets per second speed.
 
 
-## The l7mp service mesh
+## The l7mp control plane
 
 The l7mp distribution contains a Kubernetes operator that makes it possible to deploy and configure multiple instances of l7mp as sidecar proxies and service/API gateways, in a framework that can be best described as a multiprotocol service mesh. The operator is currently under construction, more details to follow soon.
 
-# The l7mp data plane: The l7mp proxy
+# The l7mp proxy
 
 ## Installation
 
@@ -323,7 +325,7 @@ There are two *types* of streams supported by L7mp: a "byte-stream" (like TCP or
 A protocol is marked with a flag `l` if it has a listener implementation in l7mp, acting as a server-side protocol "plug" that listens to incoming connections and emits new sessions, and with flag `c` if it implements the cluster side, i.e., the client-side of the protocol that can route a connection to an upstream service and load-balance across a set of remote endpoints, `Re` means that the protocol supports *retries* and `Lb` indicates that *load-balancing* support is also available for the protocol.
 
 
-# The l7mp control plane: The l7mp service mesh
+# The l7mp service mesh
 
 The l7mp service mesh operator for Kubernetes is currently under construction, more details to follow soon.
 
