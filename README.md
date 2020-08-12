@@ -125,6 +125,7 @@ The below usage examples assume that the l7mp proxy is deployed in standalone mo
 Run l7mp locally with a [sample](config/l7mp-minimal.yaml) static configuration.
 
 ```sh
+cd node_modules/l7mp
 node l7mp-proxy.js -c config/l7mp-minimal.yaml -l warn -s
 ```
 
