@@ -33,8 +33,9 @@ The l7mp distribution contains a Kubernetes operator that makes it possible to d
 Currently there are two ways to deploy l7mp: either the l7mp proxy is deployed in a standalone mode (e.g., as a gateway or a sidecar proxy) in which case each distinct l7mp proxy instance needs to be configured (using a static config file of via the l7mp proxy REST API), or it is used in conjunction with the l7mp service mesh operator for Kubernetes, which makes it possible to manage possibly large numbers of l7mp proxy instances enjoying the convenience of a high-level Kubernetes API.
 
 
-
 # The l7mp proxy
+
+## Installation
 
 ### Standalone installation
 
