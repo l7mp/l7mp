@@ -658,8 +658,8 @@ class NetServerListener extends Listener {
 
         this.server.on('connection', (socket) => this.onReq(socket));
         this.server.listen(this.protocol === 'TCP' ?
-                           { port: this.spec.port} :
-                           { path: this.spec.filename}, () => {
+                           { port: this.spec.port} : { path: this.spec.filename},
+                           () => {
                                log.silly('NetServerListener:',
                                          `Listener: ${this.name}:`,
                                          `protocol: ${this.protocol}:`,

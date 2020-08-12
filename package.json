@@ -15,7 +15,8 @@
         "session.js",
         "stream-counter.js",
         "stream.js",
-        "openapi/l7mp-openapi.yaml"
+        "openapi/l7mp-openapi.yaml",
+        "config/l7mp-minimal.yaml",
     ],
     "scripts": {
         "test": "mocha",
