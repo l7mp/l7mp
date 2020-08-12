@@ -2,11 +2,9 @@ language: node_js
 node_js:
   - 14
 
-install:
-  - npm ci
-
 script:
-  - npm build
+  - npm run lint
+  - npm run test:coveralls
 
 notifications:
   email: false
