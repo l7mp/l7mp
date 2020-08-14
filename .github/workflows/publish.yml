@@ -1,0 +1,49 @@
+name: "release"
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2.1.1
+      - name: node
+        uses: actions/setup-node@v1.4.2
+        with:
+          node-version: 14
+          registry-url: https://registry.npmjs.org
+      - name: versioning
+        run: npm version --new-version "${GITHUB_REF:11}" --no-git-tag-version
+      - name: commit changes
+        run: |
+          git config --global user.email "ricsi19981007@gmail.com"
+          git config --global user.name "Richard Varadi"
+          git add .
+          git commit -m "Update package version"
+      - name: push changes
+        uses: ad-m/github-push-action@master
+        with:
+          branch: master
+          github_token: ${{secrets.GITHUB_TOKEN}}
+      - name: publish    
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.NPM_AUTH_TOKEN}}
+  push_to_registry:
+    name: push docker image to dockerhub
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: push to dockerhub
+        uses: docker/build-push-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+          repository: l7mp/l7mp
+          tag_with_ref: true
