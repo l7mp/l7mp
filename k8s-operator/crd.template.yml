@@ -1,0 +1,95 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: virtualservices.l7mp.io
+spec:
+  scope: Namespaced
+  group: l7mp.io
+  names:
+    kind: VirtualService
+    plural: virtualservices
+    singular: virtualservice
+    shortNames:
+      - vsvc
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          $ref: schemas.yml#/crd/VirtualService
+      additionalPrinterColumns:
+        - name: Selector
+          type: string
+          priority: 0
+          jsonPath: .spec.selector
+          description: Selector
+        - name: Message
+          type: string
+          priority: 0
+          jsonPath: .status.create_fn.message
+          description: As returned from the handler (sometimes).
+---
+
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: targets.l7mp.io
+spec:
+  scope: Namespaced
+  group: l7mp.io
+  names:
+    kind: Target
+    plural: targets
+    singular: target
+    shortNames:
+      - tr
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          $ref: schemas.yml#/crd/Target
+      additionalPrinterColumns:
+        - name: Selector
+          type: string
+          priority: 0
+          jsonPath: .spec.selector
+          description: Selector
+        - name: Message
+          type: string
+          priority: 0
+          jsonPath: .status.create_fn.message
+          description: As returned from the handler (sometimes).
+---
+
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: rules.l7mp.io
+spec:
+  scope: Namespaced
+  group: l7mp.io
+  names:
+    kind: Rule
+    plural: rules
+    singular: rule
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          $ref: schemas.yml#/crd/Rule
+      additionalPrinterColumns:
+        - name: Selector
+          type: string
+          priority: 0
+          jsonPath: .spec.selector
+          description: Selector
+        - name: Message
+          type: string
+          priority: 0
+          jsonPath: .status.create_fn.message
+          description: As returned from the handler (sometimes).

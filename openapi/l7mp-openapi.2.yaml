@@ -1,0 +1,1990 @@
+openapi: 3.0.0
+
+info:
+  version: 1.99.0
+  title: L7mp control plane API
+  description: >
+    A programming interface for controlling L7mp.  This is a tentative update
+    of version 1.0.0 trying to harmonize it with the restrictions of the k8s
+    OpenApi.  See:
+    https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#specifying-a-structural-schema
+
+servers:
+  - url: '/io.l7mp.api.v1'
+
+components:
+  schemas:
+    Config:
+      description: Full L7mp static and runtime configuration
+      type: object
+      properties:
+        admin:
+          $ref: '#/components/schemas/Admin'
+        listeners:
+          description: A list of Listeners.
+          type: array
+          items:
+            $ref: '#/components/schemas/Listener'
+        clusters:
+          description: A list of Clusters.
+          type: array
+          items:
+            $ref: '#/components/schemas/Cluster'
+        sessions:
+          description: A list of Sessions.
+          type: array
+          items:
+            $ref: '#/components/schemas/Session'
+        rulelists:
+          description: A list of RuleLists.
+          type: array
+          items:
+            $ref: '#/components/schemas/RuleList'
+        rules:
+          description: A list of Rules.
+          type: array
+          items:
+            $ref: '#/components/schemas/Rule'
+        routes:
+          description: A list of Routes.
+          type: array
+          items:
+            $ref: '#/components/schemas/Route'
+      required:
+        - admin
+
+    AdminRequest:
+      description: >
+        Wrapper for addAdmin calls: contains only a single Admin object.
+      type: object
+      required:
+        - admin
+      properties:
+        admin:
+          $ref: '#/components/schemas/Admin'
+
+    Admin:
+      description: Static configuration
+      type: object
+      properties:
+        log_level:
+          type: string
+          description: >
+            Log verbosity, one of, from the most talkative, "silly",
+            "verbose", "info", "notice", "warn", "error", and "silent" (not
+            recommended). Default is "info".
+          enum: [silly, verbose, info, notice, warn, error, silly]
+          default: info
+        log_file:
+          type: string
+          description: File to write log messages to. Default is "stderr".
+        access_log_path:
+          type: string
+          description: Access log (currently unimplemented).
+        strict:
+          type: boolean
+          description: >
+            Enable strict mode: validates all REST API calls against OpenAPI
+            schema (default: false).
+        version:
+          type: string
+          description: Version info.
+
+    ListenerRequest:
+      description: >
+        Wrapper for addListener calls: contains only a single Listener object
+      type: object
+      required:
+        - listener
+      properties:
+        listener:
+          $ref: '#/components/schemas/Listener'
+
+    Listener:
+      description: >
+        A socket that listens for incoming connection requests, an abstraction
+        for an "ingress port".
+      type: object
+      oneOf:
+        - required: [name, spec, rules]
+          not: {required: [rulesRef]}
+        - required: [name, spec, rulesRef]
+          not: {required: [rules]}
+      x-l7mp-k8s-replace:
+        'oneOf':
+          - required: [spec, rules]
+            not: {required: [rulesRef]}
+          - required: [spec, rulesRef]
+            not: {required: [rules]}
+      properties:
+        name:
+          description: Name (required).
+          type: string
+        spec:
+          description: Listener specification (required).
+          type: object
+          properties:
+            HTTP: {$ref: '#/components/schemas/HTTPListenerSpec'}
+            WebSocket: {$ref: '#/components/schemas/WebSocketListenerSpec'}
+            UDP: {$ref: '#/components/schemas/UDPListenerSpec'}
+            TCP: {$ref: '#/components/schemas/TCPListenerSpec'}
+            UnixDomainSocket: {$ref: '#/components/schemas/UnixDomainSocketListenerSpec'}
+            JSONSocket: {$ref: '#/components/schemas/JSONSocketListenerSpec'}
+          maxProperties: 1
+          minProperties: 1
+          x-l7mp-old-property: protocol
+        rulesRef:
+          description: The name of a match-action table.
+          type: string
+          x-l7mp-old-name: rules
+        rules:
+          description: >
+            An inline list of match-action rules.
+          type: array
+          items:
+            $ref: '#/components/schemas/Rule'
+        options:
+          description: Optional features.
+          type: object
+          properties:
+            track:
+              description: >
+                Sessions created by this listener will be tracked and will be
+                available after ending for a specified amount of time, to help
+                post-mortem analysis. If specified, then value must be an
+                integer, providing the number of seconds during which the
+                session will be available before deletion.
+              type: integer
+
+    HTTPListenerSpec:
+        # - protocol: HTTP
+        # - session ID: IP 5-tuple
+        # - type: session
+        # - mode: server
+      description:
+        A HTTP server specification that accepts HTTP requests at a specified
+        port.
+      type: object
+      required: ["port"]
+      properties:
+        port:
+          $ref: '#/components/schemas/Parameter.Port'
+        path:
+          type: string
+          description: HTTP URL to serve.
+
+    WebSocketListenerSpec:
+        # - protocol: WebSocket
+        # - session ID: IP 5-tuple
+        # - type: datagram-stream
+        # - mode: server
+      description: >
+        A WebSocket server specification that accepts HTTP/WebSocket requests
+        at a specified port.
+      type: object
+      required: [port]
+      properties:
+        port:
+          $ref: '#/components/schemas/Parameter.Port'
+        path:
+          type: string
+          description: HTTP URL to serve.
+
+    UDPListenerSpec:
+        # - protocol: UDP
+        # - session ID: IP 5-tuple
+        # - type: datagram-stream
+        # - mode: "singleton/server"
+      description: >
+        A UDP listener that accepts UDP connections in the specified
+        port. The listener may work in one of 2 possible modes. In Singleton
+        mode, the listener also expects a fully qualified remote address-port
+        pair (both connect.address or connect.port specified), connects back
+        to the remote and stops accepting further connection requests. In
+        Server mode, the listener emits a new session for each UDP packet that
+        belongs to a yet unseen connection (unknown IP 4-tuple). If a remote
+        address or port is specified (one of connect.address or connect.port
+        is specified), accept connections only from that remote address or
+        port. Default is Singleton if both connect.address and connect.port
+        are specified, otherwise Server (override with options.mode).
+      type: object
+      required: [port]
+      properties:
+        port:
+          $ref: '#/components/schemas/Parameter.Port'
+        connect:
+          $ref: '#/components/schemas/Parameter.AddressPortPair'
+        options:
+          type: object
+          properties:
+            mode:
+              description: >
+                Work in singleton mode (only a single session is handled
+                by the listener to a known remote) or server mode (a new
+                session is emitted for each new peer address/port pair).
+              type: string
+              enum:
+              - server
+              - singleton
+
+    TCPListenerSpec:
+        # - protocol: TCP
+        # - session ID: IP 5-tuple
+        # - type: datagram-stream
+        # - mode: server
+      description: |
+        A TCP server specification that accepts TCP requests at a specified
+        port.
+      type: object
+      required: [port]
+      properties:
+        port:
+          $ref: '#/components/schemas/Parameter.Port'
+
+    UnixDomainSocketListenerSpec:
+        # - protocol: UnixDomainSocket
+        # - session ID: Listener name + ID
+        # - type: byte-stream
+        # - mode: server
+      description: >
+        A Unix Domain Socket (UDS) server specification that accepts IPC
+        connection requests at a specified filename.
+      type: object
+      required: [filename]
+      properties:
+        filename:
+          type: string
+          description: File system path to bind to.
+
+    JSONSocketListenerSpec:
+        # - protocol: JSONSocket
+        # - session ID: Listener name + ID
+        # - type: datagram-stream
+        # - mode: "singleton/server"
+      description: >
+        This listener implements the server side of the the JSONSocket
+        datagram streaming protocol. JSONSocket implements the "HTTP header"
+        semantics, but on top of a dumb unreliable datagram transport like UDP
+        or pure IP. Can be established over any datagram transport, the
+        listener expects the first packet of the stream to be a fully
+        specified JSON object, which will then be copied into the session
+        metadata, and can return an arbitrary response header to the
+        client. Both the JSON request and response headers are transmitted
+        reliably, subject to user specified timeout.
+      type: object
+      required: [transport]
+      properties:
+        transport:
+          description: >
+            The specification of the listener that provides the transport
+            service to JSONSocket.
+          type: object
+          properties:
+            WebSocket: {$ref: '#/components/schemas/WebSocketListenerSpec'}
+            UDP: {$ref: '#/components/schemas/UDPListenerSpec'}
+            UnixDomainSocket: {$ref: '#/components/schemas/UnixDomainSocketListenerSpec'}
+            TCP: {$ref: '#/components/schemas/TCPListenerSpec'}
+          maxProperties: 1
+          minProperties: 1
+          x-l7mp-old-property: protocol
+        parse:
+          type: array
+          items:
+            description: >
+              A JSON field to parse out from the JSONSocket header and write
+              into the session metadata.
+            type: object
+            properties:
+              path:
+                type: string
+                description: >
+                  Field to be copied from the JSON header to the session
+                  metadata header specified as a JSON Pointer.
+              target:
+                type: string
+                description: Target path to write parsed field.
+
+    EndPointRequest:
+      description: >
+        Wrapper for addEndPoint calls. Contains only a single EndPoint object.
+      type: object
+      required:
+        - endpoint
+      properties:
+        endpoint:
+          $ref: '#/components/schemas/EndPoint'
+
+    ClusterRequest:
+      description: >
+        Wrapper for addCluster calls. Contains only a single Cluster object.
+      type: object
+      required:
+        - cluster
+      properties:
+        cluster:
+          $ref: '#/components/schemas/Cluster'
+
+    ClusterOrRef:
+      type: object
+      x-l7mp-old-remove-level: true
+      properties:
+        cluster:
+          $ref: '#/components/schemas/Cluster'
+        clusterRef:
+          type: string
+      oneOf:
+        - required: [clusterRef]
+          not: {required: [cluster]}
+        - required: [cluster]
+          not: {required: [clusterRef]}
+
+    Cluster:
+      description: >
+        A socket that originates connections to external services, an
+        abstraction for an "egress port".
+      type: object
+      oneOf:
+        - required: [spec, endpointNum]
+          not: {required: [endpoints]}
+        - required: [spec, endpoints]
+          not: {required: [endpointNum]}
+        - required: [spec]
+          allOf:
+            - not: {required: [endpointNum]}
+            - not: {required: [endpoints]}
+      properties:
+        name:
+          type: string
+        spec:
+          type: object
+          properties:
+            WebSocket: {$ref: '#/components/schemas/WebSocketClusterSpec'}
+            UDP: {$ref: '#/components/schemas/UDPClusterSpec'}
+            TCP: {$ref: '#/components/schemas/TCPClusterSpec'}
+            UnixDomainSocket: {$ref: '#/components/schemas/UnixDomainSocketClusterSpec'}
+            JSONSocket: {$ref: '#/components/schemas/JSONSocketClusterSpec'}
+            L7mpController: {$ref: '#/components/schemas/L7mpControllerSpec'}
+            Sdtio: {$ref: '#/components/schemas/StdioClusterSpec'}
+            Echo: {$ref: '#/components/schemas/EchoClusterSpec'}
+            Discard: {$ref: '#/components/schemas/DiscardClusterSpec'}
+            Logger: {$ref: '#/components/schemas/LoggerClusterSpec'}
+            Sync: {$ref: '#/components/schemas/SyncClusterSpec'}
+            JSONEncap: {$ref: '#/components/schemas/JSONEncapClusterSpec'}
+            JSONDecap: {$ref: '#/components/schemas/JSONDecapClusterSpec'}
+          minProperties: 1
+          maxProperties: 1
+          x-l7mp-old-property: protocol
+        endpointNum:
+          description: >
+            The number of endpoints.  (Sometimes used in return values.)
+          type: integer
+        endpoints:
+          description:  A list of EndPoints.
+          type: array
+          items:
+            $ref: '#/components/schemas/EndPoint'
+        loadbalancer:
+            $ref: '#/components/schemas/LoadBalancer'
+        options:
+          description: Optional features.
+          type: object
+
+    WebSocketClusterSpec:
+      description: >
+        A WebSocket cluster specification that forwards HTTP/WebSocket
+        connections to an upstream cluster.
+      type: object
+      required: [port]
+      properties:
+        port:
+          $ref: '#/components/schemas/Parameter.Port'
+
+    UDPClusterSpec:
+      description: >
+        A UDP sender socket that forwards UDP connections to an upstream
+        cluster, connecting to a well-defined remote address-port pair.
+      type: object
+      required: [port]
+      properties:
+        port:
+          $ref: '#/components/schemas/Parameter.Port'
+        bind:
+          $ref: '#/components/schemas/Parameter.AddressPortPair'
+
+    TCPClusterSpec:
+      description: >
+        A TCP cluster specification that forwards TCP connections to an
+        upstream cluster.
+      type: object
+      required: [port]
+      properties:
+        port:
+          $ref: '#/components/schemas/Parameter.Port'
+        bind:
+          $ref: '#/components/schemas/Parameter.AddressPortPair'
+
+    UnixDomainSocketClusterSpec:
+      description: >
+        A Unix Domain Socket (UDS) cluster specification that forwards IPC
+        connections to an upstream cluster.
+      type: object
+      maxProperties: 0
+
+    JSONSocketClusterSpec:
+      description: >
+        A JSONSocket cluster specification that forwards JSONSocket
+        connections to an upstream cluster over a specified transport.
+      type: object
+      required: [transport]
+      properties:
+        transport:
+          description: >
+            The specification of the cluster that provides the transport
+            service to JSONSocket.
+          type: object
+          properties:
+            WebSocket: {$ref: '#/components/schemas/WebSocketClusterSpec'}
+            UDP: {$ref: '#/components/schemas/UDPClusterSpec'}
+            TCP: {$ref: '#/components/schemas/TCPClusterSpec'}
+            UnixDomainSocket: {$ref: '#/components/schemas/UnixDomainSocketClusterSpec'}
+            Stdio: {$ref: '#/components/schemas/StdioClusterSpec'}
+            Discard: {$ref: '#/components/schemas/DiscardClusterSpec'}
+          minProperties: 1
+          maxProperties: 1
+          x-l7mp-old-property: protocol
+
+    L7mpControllerSpec:
+      description: >
+        A virtual cluster that accepts L7mp controller REST API calls.
+      type: object
+      maxProperties: 0
+
+    StdioClusterSpec:
+      description: >
+        A virtual cluster that writes the stream routed to it to the proxy
+        standard output and pipes back standard input into the stream. Useful
+        for debugging.
+      type: object
+      maxProperties: 0
+
+    EchoClusterSpec:
+      description: A virtual cluster that echoes back everything it receives.
+      type: object
+      required: [Echo]
+      maxProperties: 0
+
+    DiscardClusterSpec:
+      description: A virtual cluster that discards everything it receives.
+      type: object
+      required: [Discard]
+      maxProperties: 0
+
+    LoggerClusterSpec:
+      description: >
+        A virtual cluster that logs everything that passes through it to a log
+        file.
+      type: object
+      properties:
+        log_file:
+          description: >
+            The file to log to. Opened it mode "w" (create or truncate if
+            exists). Default is '-' (stdout).
+          type: string
+        log_prefix:
+          description: Prefix log messages. Default is no prefix.
+          type: string
+
+    SyncClusterSpec:
+      description: >
+        A virtual cluster that allows multiple streams to synchronize and
+        exchange data. The Sync cluster acts as a rendezvous point for streams
+        whose metadata query evaluates to the same value (like e.g., multiple
+        WebSocket streams with the same HTTP cookie); these streams will be
+        connected into a single broadcast domain, whereby any data sent by any
+        of the streams will be boradcast to all the other streams. Useful for
+        connecting two ingress streams into a single end-to-end stream.
+      type: object
+      required: [query]
+      properties:
+        query:
+          description: >
+            A JSONPredicate query to the stream metadata. All streams for
+            which the query evaluates to the same value will be connected into
+            a single broadcast domain.
+          type: string
+
+    JSONEncapClusterSpec:
+      description: >
+        A virtual cluster to encapsulate data in JSON. Session metadata is
+        copied under the "/metadata" JSON path and content is copied under
+        "/payload".
+      type: object
+      maxProperties: 0
+
+    JSONDecapClusterSpec:
+      description: >
+        A virtual cluster to decapsulates data from JSON. In particular,
+        content from under "/payload" JSON path is decapsulated and returned
+        and everything else is dropped.
+      type: object
+      maxProperties: 0
+
+    EndPoint:
+      description: >
+        A particular upstream backend that accepts connects through a Cluster.
+      type: object
+      required:
+        - spec
+      properties:
+        name:
+          description: >
+            Name (optional, a unique endpoint name will be assigned
+            automatically if not specified.)
+          type: string
+        spec:
+          $ref: '#/components/schemas/EndPointSpec'
+        x-l7mp-k8s-add:
+          selector:
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+      x-l7mp-k8s-delete: [required]
+      x-l7mp-k8s-add:
+        anyOf:
+          - required: [spec]
+          - required: [selector]
+
+    # TODO: specialize for different endpoint types
+    EndPointSpec:
+      description: A generic endpoint specification.
+      type: object
+      properties:
+        filename:
+          type: string
+          description: Unix Domain Socket filename
+          x-l7mp-old-name: address
+        address:
+          $ref: '#/components/schemas/Parameter.Address'
+        weight:
+          description: Weight of the endpoint used in load-balancing.
+          type: integer
+      oneOf:
+        - required: [filename]
+          not: {required: [address]}
+        - required: [address]
+          not: {required: [filename]}          
+
+    LoadBalancer:
+      description: Load-balancer specification.
+      type: object
+      required:
+        - policy
+      properties:
+        policy:
+          type: string
+          description: >
+            Load-balancing policy. The "Trivial" load-balancer always chooses
+            the first endpoint. The "ConsistentHash" (alias for "HashRing")
+            chooses an endpoint based on hashing the "LoadBalancer.key" field
+            (or randomly if no key is specified). It provides soft session
+            affinity (map sessions to the same endpoint with high probability
+            even when adding/removing endpoints) and takes endpoint weights
+            into account (so "HashRing" with no key specified will implement a
+            somewhat expensive form of weighted random load-balancing).
+        key:
+          description: >
+            The JSON path to the metadata field to hash on (optional).
+          type: string
+
+    RouteRequest:
+      description: >
+        Wrapper for addRoute calls. Contains only a single Routet object.
+      type: object
+      required:
+        - route
+      properties:
+        route:
+          $ref: '#/components/schemas/Route'
+
+    Route:
+      description: The route to be assigned to a session in a math-action rule.
+      type: object
+      oneOf:
+        - required: [destinationRef]
+          not: {required: [destination]}
+        - required: [destination]
+          not: {required: [destinationRef]}
+      properties:
+        name:
+          description: >
+            Name (optional, a unique name name will be assigned automatically
+            if not specified.)
+          type: string
+        destination:
+          description: >
+            The target cluster of the route.  It is an inline cluster
+            definition. A new cluster will be added if necessary.
+          $ref: '#/components/schemas/Cluster'
+        destinationRef:
+          description: >
+            The target cluster of the route. It is the name of an existing
+            cluster.
+          type: string
+          x-l7mp-old-name: destination
+        ingress:
+          description: >
+            The set of transforms to be applied in the "ingress" (upstream,
+            from the listener to the cluster) direction (optional).
+          type: array
+          items:
+            description: >
+              An uplink transformer cluster. Can be a string in which case it
+              is the name of an existing cluster with the name given, or it
+              can be an inline cluster definition in which case a new cluster
+              will be added.
+            $ref: '#/components/schemas/ClusterOrRef'
+
+        egress:
+          description: >
+            The set of transforms to be applied in the "eress" (downstream,
+            from the cluster to the listener) direction (optional).
+          type: array
+          items:
+            description: >
+              A downlink transformer cluster. Can be a string in which case it
+              is the name of an existing cluster with the name given, or it
+              can be an inline cluster definition in which case a new cluster
+              will be added.
+            $ref: '#/components/schemas/ClusterOrRef'
+        retry:
+          description: Connection retry/timeout policy.
+          type: object
+          required:
+            - retry_on
+          properties:
+            retry_on:
+              description: >
+                One of "never" (never retry, default), "connect-failure"
+                (retry only on a failure in the connection setup phase),
+                "disconnect" (retry only when an already connected stream
+                disconnects), or "always" ("connect-failure" & "disconnect").
+              type: string
+              enum: [never, connect-failure, disconnect, always]
+            num_retries:
+              description: >
+                If "retry_on" is "never" then this is meaningless.  If
+                "retry_on" is "connect-failure" or "disconnect" then
+                "num_retries" means the number of times to attempt a reconnect
+                each cluster separately, so if there are two clusters in the
+                route and "num_retries" is 3, then retry connecting both
+                clusters 3 times. If a stream is reconnected after a
+                disconnect event, try again this many times from zero.
+              type: integer
+            timeout:
+              description: >
+                On "connect-failure", wait "timeout" msecs and then reconnect,
+                otherwise wait "timeout" msecs between each re-connect
+                attempts.
+              type: integer
+
+    # Match:
+    #   description: >
+    #     The "filter" part of a math-action rule that filters on session
+    #     metadata.
+    #   type: object
+    #   oneOf:
+    #     - $ref: '#/components/schemas/WildcardMatch'
+    #     - $ref: '#/components/schemas/JSONPredicate'
+
+    # WildcardMatch:
+    #   description: A wildcard filter, matches everything.
+    #   type: string
+
+    JSONPredicate:
+      description: >
+        A complex filter specified as a JSON predicate, see
+        https://tools.ietf.org/html/draft-snell-json-test-07
+      type: object
+      x-kubernetes-preserve-unknown-fields: true
+
+    Rewrite:
+      description: >
+        Metadata rewrite rule. Find or create metadata at the specified path
+        and set it to the specified value.
+      type: object
+      oneOf:
+        - required: [path, value]
+          not: {required: [valueStr]}
+        - required: [path, valueStr]
+          not: {required: [value]}
+      properties:
+        path:
+          description: >
+            The JSON path (as a JSON Pointer) to the metadata field to
+            rewrite. Will be created if path does not exist.
+          type: string
+        value:
+          description: >
+            The value to rewrite the metadata field at the specified path.
+          type: object
+        valueStr:
+          description: >
+            JSON encoded value to rewrite the metadata field at the
+            specified path.
+          type: string
+          x-l7mp-old-name: value
+
+    Action:
+      description: >
+        The "action" part of a math-action rule that assigns a route to the
+        matched sessions.
+      type: object
+      oneOf:
+        - required: [routeRef]
+          not: {required: [route]}
+        - required: [route]
+          not: {required: [routeRef]}
+        - allOf:
+            - not: {required: [route]}
+            - not: {required: [routeRef]}
+      properties:
+        rewrite:
+          description: A list of rewrite rules.
+          type: array
+          items:
+            $ref: '#/components/schemas/Rewrite'
+        route:
+          description: An inline Route specification.
+          $ref: '#/components/schemas/Route'
+        routeRef:
+          description: A named Route
+          type: string
+          x-l7mp-old-name: route
+        apply:
+          description: A named RuleList to defer match-action processing to.
+          type: string  # reference to a named Route
+
+    RuleRequest:
+      description: >
+        Wrapper for addRule calls. Contains only a single Rule object.
+      type: object
+      required:
+        - rule
+      properties:
+        rule:
+          $ref: '#/components/schemas/Rule'
+
+    RuleRequestUnchecked:
+      description: >
+        Wrapper for addRule calls. Contains only a single Rule object or a
+        name of a Rule.
+      type: object
+      required:
+        - rule
+
+    RuleOrRef:
+      type: object
+      oneOf:
+        - required: [ruleRef]
+          not: {required: [rule]}
+        - required: [rule]
+          not: {required: [ruleRef]}
+      properties:
+        rule:
+          $ref: '#/components/schemas/Rule'
+        ruleRef:
+          type: string
+
+    Rule:
+      description: >
+        A math-action rule that defines the route of a connection through the
+        L7mp pipeline. May contain a match and an action. If no match is
+        specified, a wildcard match is automatically installed.
+      type: object
+      required:
+        - action
+      properties:
+        name:
+          description: Name (optional).
+          type: string
+        match:
+          # $ref: '#/components/schemas/Match'
+          $ref: '#/components/schemas/JSONPredicate'
+        action:
+          $ref: '#/components/schemas/Action'
+
+    RuleListRequest:
+      description: >
+        Wrapper for addRuleList calls. Contains only a single RuleList object.
+      type: object
+      required:
+        - rulelist
+      properties:
+        rulelist:
+          $ref: '#/components/schemas/RuleList'
+
+    RuleList:
+      description: >
+        An abstraction for a math-action table, i.e., an ordered list of
+        match-action rules with each rule specifying a matching condition on
+        metadata and an action to execute if the corresponding rule
+        matches. Rules are searched sequentially until a matching one is
+        found; if no match is found the request is dropped.
+      type: object
+      required:
+        - rules
+      properties:
+        name:
+          description: Name (optional).
+          type: string
+        rules:
+          description: A list of Rule objects.
+          type: array
+          items:
+            $ref: '#/components/schemas/RuleOrRef'
+
+    Metadata:
+      description: >
+        Metadata that describes all known parameters of a session, like ports
+        and IP addresses, status, HTTP headers (if relevant), etc. In general,
+        metadata are created by the listener and they can be
+        modified/queried/matched in rules/actions.
+      type: object
+
+    Stage:
+      description: "A Stage along the ingress/egress pipeline for a session."
+      type: object
+      required:
+        - origin
+        - endpoint
+        - status
+      properties:
+        origin:
+          description: Name of the Cluster associated with the stage.
+          type: string
+        endpoint:
+          description: The EndPoint currently associated with the stage.
+          type: object
+        status:
+          description: Status.
+          type: string
+
+    Session:
+      description: >
+        An ongoing connection that is known by the proxy. A session is created
+        by a listener receiving a new connection request and it is processed
+        according to the match-action rules associated by the creating
+        listener.
+      type: object
+      required:
+        - name
+        - metadata
+        - source
+        - destination
+        - status
+      properties:
+        name:
+          description: Name.
+          type: string
+        metadata:
+          description: Metadata describing the state of the session.
+          type: object
+        source:
+          description: "The spec of the Listener that emitted the session."
+          type: object
+        destination:
+          # description: "The spec of the destination Cluster of the session."
+          $ref: '#/components/schemas/Metadata'
+        ingress:
+          description: >
+            The stages of the ingress pipeline, from the source to the
+            destination.
+          type: array
+          items:
+            $ref: '#/components/schemas/Stage'
+        egress:
+          description: >
+            The stages of the egress pipeline, from the destination to the
+            source.
+          type: array
+          items:
+            $ref: '#/components/schemas/Stage'
+        status:
+          description: Status.
+          type: string
+        events:
+          description: The last events for the session.
+          type: array
+          items:
+            type: object
+            properties:
+              event:
+                description: Name of the event.
+                type: string
+              timestamp:
+                description: Timestamp.
+                type: string
+              message:
+                description: Test description.
+                type: string
+
+    Status:
+      description: General status info.
+      type: object
+      required:
+        - message
+      properties:
+        status:
+          description: HTTP Status code.
+          type: integer
+        message:
+          description: Message.
+          type: string
+        # content:
+        #   description: Error (optional).
+
+    Parameter.Address:
+      description: A network layer (IP/IPv6) address or domain name.
+      type: string
+
+    Parameter.Port:
+      description: The valid transport protocol port.
+      type: integer
+      minimum: 1
+      maximum: 65535
+
+    Parameter.AddressPortPair:
+      description: >
+        A network layer (IP/IPv6) address/domain name and/or a transport layer
+        port.
+      type: object
+      properties:
+        address:
+          $ref: '#/components/schemas/Parameter.Address'
+        port:
+          $ref: '#/components/schemas/Parameter.Port'
+
+    JSONFormat:
+      description: >
+        Format JSON output, see "https://www.npmjs.com/package/format-json"
+        for the accepted options.
+      type: string
+      enum: [ plain, terse, space, lines, diffy ]
+
+
+paths:
+  # Full config API
+  /api/v1/config:
+    get:
+      description: Get the full configuration
+      operationId: getConf
+      parameters:
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/JSONFormat'
+      responses:
+        '200':
+          description: Full configuration
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Config'
+    post:
+      description: Reload configuration
+      operationId: setConf
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/Config'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+  # Static config API
+  /api/v1/admin:
+    get:
+      description: Get the static configuration
+      operationId: getAdmin
+      parameters:
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/JSONFormat'
+      responses:
+        '200':
+          description: Static configuration
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Admin'
+    post:
+      description: Apply static configuration
+      operationId: applyAdmin
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/AdminRequest'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+  # Listener API
+  /api/v1/listeners:
+    get:
+      description: Get a list of Listeners
+      operationId: getListeners
+      parameters:
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: >
+            Recursively list all sub-objects (rulelists, rules, routes,
+            clusters, etc.) of the Listener (regardless of whether the
+            sub-objects were implicitly defined in the Listener).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/JSONFormat'
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+                description: A list of Listeners.
+                type: array
+                items:
+                  $ref: '#/components/schemas/Listener'
+    post:
+      description: >
+        Create a Listener. Note that a Listener specification may either
+        contain a set of implicitly defined sub-objects (rulelists, rules,
+        routes, clusters, etc.) or it may refer to other named objects. In the
+        former case the corresponding objects are automatically generated (and
+        possibly automatically named too), while in the latter case the named
+        sub-objects referred to the Listener are assumed to be explicitly
+        defined using the corresponding APIs (the RuleList API, the Route API,
+        the Cluster API, etc.).
+      operationId: addListener
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/ListenerRequest'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+  /api/v1/listeners/{name}:
+    get:
+      description: Get a named Listener
+      operationId: getListener
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the Listener.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: >
+            Recursively list all sub-objects (rulelists, rules, routes,
+            clusters, etc.) of the Listener (regardless of whether the
+            sub-objects were implicitly defined in the Listener).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/JSONFormat'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Listener'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+    delete:
+      description: Delete a named Listener
+      operationId: deleteListener
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the Listener.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: >
+            Recursively delete all sub-objects (rulelists, rules, routes,
+            clusters, etc.) that were implicitly defined (auto-generated) in
+            the Listener, as well as all the Sessions emitted by the Listener.
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+  # Cluster API
+  /api/v1/clusters:
+    get:
+      description: >
+        Get a list of Clusters. If called with the recursive flag on, it will
+        also list the endpoints of each Cluster, otherwise, only the number of
+        endpoints is returned.
+      operationId: getClusters
+      parameters:
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively list all the endpoints of the Cluster.
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/JSONFormat'
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+                description: A list of Clusters.
+                type: array
+                items:
+                  $ref: '#/components/schemas/Cluster'
+    post:
+      description: >
+        Create a Cluster. Note that a Cluster specification may either contain
+        a set of implicitly defined endpoints, in which case endpoints are
+        automatically generated, named, and added to the cluster, or endpoints
+        may later be added/deleted explicitly using the EndPoint API.
+      operationId: addCluster
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/ClusterRequest'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+  /api/v1/clusters/{name}:
+    get:
+      description: >
+        Get a named Cluster. If called with the recursive flag on, it will
+        also list the endpoints of the Cluster, otherwise, only the number of
+        endpoints is returned.
+      operationId: getCluster
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the Cluster.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: Recursively list all the endpoints of the Cluster.
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/JSONFormat'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Cluster'
+        '400':
+          description: Invalid cluster name.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+    delete:
+      description: >
+        Delete the named Cluster. Note that deleting a cluster will delete the
+        corresponding endpoints as well, and it may also delete the Sessions
+        as well whose Route traverse the cluster depending on the "recursive"
+        query flag.
+      operationId: deleteCluster
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the Cluster.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: >
+            Delete the Sessions whose Route traverses the Cluster, either as a
+            destination or along the ingress or the egress chain.
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+  # EndPoint API
+  /api/v1/clusters/{name}/endpoints:
+    get:
+      summary: Get the EndPoints of a Cluster
+      description: Get a list of EndPoints associated with a Cluster.
+      operationId: getEndPoints
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the Cluster.
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/JSONFormat'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                description: A list of EndPoints.
+                type: array
+                items:
+                  $ref: '#/components/schemas/EndPoint'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+    post:
+      description: Create an EndPoint in a Cluster
+      operationId: addEndPoint
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the Cluster.
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/EndPointRequest'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+  /api/v1/endpoints/{name}:
+    get:
+      description: Get a named EndPoint
+      operationId: getEndPoint
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the EndPoint.
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/JSONFormat'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/EndPoint'
+        '400':
+          description: Invalid Cluster or EndPoint name.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+    delete:
+      description: >
+        Delete a named EndPoint. Note that the operation will also remove the
+        EndPoint from the corresponding Cluster.
+      operationId: deleteEndPoint
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The name of the EndPoint to delete.
+      responses:
+        '200':
+          description: Status
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+        '400':
+          description: Invalid EndPoint name.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+  # RuleList API
+  /api/v1/rulelists/{name}/rules/{position}:
+    get:
+      summary: Get a Rule from a RuleList
+      description: >
+        Get the Rule from a RuleList at a particular position (the Rule itself
+        is returned).
+      operationId: getRuleFromRuleList
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The name of the RuleList.
+        - name: position
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Position.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: >
+            Recursively list all sub-objects (routes, clusters, etc.) of the
+            Rule (regardless of whether the sub-objects were implicitly
+            defined in the Rule).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/JSONFormat'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Rule'
+        '400':
+          description: Invalid rulelist name or position.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+    post:
+      description: >
+        Add a Rule to a RuleList. Note that a Rule specification may either
+        contain a set of implicitly defined sub-objects (routes, clusters,
+        etc.) or it may refer to other named objects. In the former case the
+        corresponding objects are automatically generated (and possibly
+        automatically named too), while in the latter case the named
+        sub-objects referred to the Rule are assumed to be explicitly defined
+        using the corresponding APIs (the Route API, the Cluster API, etc.).
+      operationId: addRuleToRuleList
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the RuleList.
+        - name: position
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Position.
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/RuleRequestUnchecked'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+    delete:
+      summary: Remove a Rule from a RuleList
+      description: >
+        Remove a Rule from a RuleList either by position (if the "position"
+        parameter is an integer) or by name (if the "position" parameter is a
+        string and it refers to the name of a rule existing in the
+        rulelist). Note that the Rule itself will not be deleted, just removed
+        from this rulelist; to actually delete the Rule, use the delete
+        operation of the Rule API (deleteRule).
+      operationId: deleteRuleFromRuleList
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the RuleList.
+        - name: position
+          in: path
+          required: true
+          schema:
+            anyOf:
+              - type: integer
+              - type: string
+          description: Position or name of the Rule to delete.
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+  /api/v1/rulelists:
+    get:
+      summary: Get a list of RuleLists
+      description: Get a list of RuleLists (aka match-action tables).
+      operationId: getRuleLists
+      parameters:
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: >
+            Recursively list all sub-objects (rules, routes, clusters, etc.)
+            of the Rule (regardless of whether the sub-objects were implicitly
+            defined in the RuleList).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/JSONFormat'
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+                description: A list of RuleLists.
+                type: array
+                items:
+                  $ref: '#/components/schemas/RuleList'
+    post:
+      description: >
+        Create a RuleList. Note that a RuleList specification may either
+        contain a set of implicitly defined sub-objects (rules, routes,
+        clusters, etc.) or it may refer to other named objects. In the former
+        case the corresponding objects are automatically generated (and
+        possibly automatically named too), while in the latter case the named
+        sub-objects referred to the RuleList are assumed to be explicitly
+        defined using the corresponding APIs (the Rule API, Route API, the
+        Cluster API, etc.).
+      operationId: addRuleList
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/RuleListRequest'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+  /api/v1/rulelists/{name}:
+    get:
+      description: Get a named RuleList
+      operationId: getRuleList
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the RuleList.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: >
+            Recursively list all sub-objects (routes, clusters, etc.) of the
+            RuleList (regardless of whether the sub-objects were implicitly
+            defined in the RuleList).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/JSONFormat'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/RuleList'
+        '400':
+          description: Invalid rulelist name.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+    delete:
+      description: Delete a named RuleList
+      operationId: deleteRuleList
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the RuleList.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: >
+            Recursively delete all sub-objects (rules, routes, clusters, etc.)
+            that were implicitly defined (auto-generated) in the RuleList.
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+  # Rule API
+  /api/v1/rules:
+    get:
+      description: Get a list of Rules
+      operationId: getRules
+      parameters:
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: >
+            Recursively list all sub-objects (routes, clusters, etc.) of each
+            Rule (regardless of whether the sub-objects were implicitly
+            defined in the Rule).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/JSONFormat'
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+                description: A list of Rules.
+                type: array
+                items:
+                  $ref: '#/components/schemas/Rule'
+    post:
+      description: >
+        Create a Rule. Note that a Rule specification may either contain a set
+        of implicitly defined sub-objects (routes, clusters, etc.) or it may
+        refer to other named objects. In the former case the corresponding
+        objects are automatically generated (and possibly automatically named
+        too), while in the latter case the named sub-objects referred to the
+        Rule are assumed to be explicitly defined using the corresponding APIs
+        (the Route API, the Cluster API, etc.).
+      operationId: addRule
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/RuleRequest'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+  /api/v1/rules/{name}:
+    get:
+      description: Get a named Rule
+      operationId: getRule
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the Rule.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: >
+            Recursively list all sub-objects (routes, clusters, etc.) of the
+            Rule (regardless of whether the sub-objects were implicitly
+            defined in the Rule).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/JSONFormat'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Rule'
+        '400':
+          description: Invalid rule name.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+    delete:
+      description: Delete a named Rule
+      operationId: deleteRule
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the Rule.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: >
+            Recursively delete all sub-objects (routes, clusters, etc.) that
+            were implicitly defined (auto-generated) in the Rule.
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+  # Route API
+  /api/v1/routes:
+    get:
+      description: Get a list of Routes
+      operationId: getRoutes
+      parameters:
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: >
+            Recursively list all sub-objects (i.e., the destination cluster or
+            clusters on the ingress and the egress chain) of each Route
+            (regardless of whether the sub-objects were implicitly defined in
+            the Route).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/JSONFormat'
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+                description: A list of Routes.
+                type: array
+                items:
+                  $ref: '#/components/schemas/Route'
+    post:
+      description: >
+        Create a Route. Note that a Route specification may either contain a
+        set of implicitly defined sub-objects (i.e., the destination cluster
+        or clusters on the ingress and the egress chain) or it may refer to
+        other named objects. In the former case the corresponding objects are
+        automatically generated (and possibly automatically named too), while
+        in the latter case the named sub-objects referred to the Route are
+        assumed to be explicitly defined using the Cluster API.
+      operationId: addRoute
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/RouteRequest'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+  /api/v1/routes/{name}:
+    get:
+      description: Get a named Route
+      operationId: getRoute
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the Route.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: >
+            Recursively list all sub-objects (i.e., the destination cluster or
+            clusters on the ingress and the egress chain) of the Route
+            (regardless of whether the sub-objects were implicitly defined in
+            the Route).
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/JSONFormat'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Route'
+        '400':
+          description: Invalid rulelist name.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+    delete:
+      description: Delete a named Route
+      operationId: deleteRoute
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: >
+            Recursively delete all sub-objects (i.e., clusters) that were
+            implicitly defined (auto-generated) in the Route.
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+  # Session API
+  /api/v1/sessions:
+    get:
+      description: Get a list of Sessions
+      operationId: getSessions
+      parameters:
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/JSONFormat'
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+                description: A list of Sessions.
+                type: array
+                items:
+                  $ref: '#/components/schemas/Session'
+  /api/v1/sessions/{name}:
+    get:
+      description: Get a named Session
+      operationId: getSession
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: format
+          in: query
+          schema:
+            $ref: '#/components/schemas/JSONFormat'
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+    delete:
+      description: >
+        Delete a named Session. Note that recursively deleting a Listener that
+        emitted the session or a Cluster that the Route of the Session
+        traverses will delete the Session.
+      operationId: deleteSession
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+        '400':
+          description: Invalid configuration.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+
+
+# Local Variables:
+# fill-column: 78
+# End:
