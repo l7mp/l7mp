@@ -545,8 +545,7 @@ components:
           $ref: '#/components/schemas/EndPointSpec'
         x-l7mp-k8s-add:
           selector:
-            type: object
-            x-kubernetes-preserve-unknown-fields: true
+            $ref: '#/components/schemas/Selector'
       x-l7mp-k8s-delete: [required]
       x-l7mp-k8s-add:
         anyOf:
@@ -969,6 +968,137 @@ components:
         for the accepted options.
       type: string
       enum: [ plain, terse, space, lines, diffy ]
+
+    VirtualService:
+      type: object
+      properties:
+        spec:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+          properties:
+            updateOwners:
+              type: boolean
+              default: false
+            selector:
+              $ref: '#/components/schemas/Selector'
+            listener:
+              $ref: '#/components/schemas/Listener'
+          required: [selector, listener]
+        status:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+
+    Target:
+      type: object
+      properties:
+        status:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+        spec:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+          properties:
+            cluster:
+              $ref: '#/components/schemas/Cluster'
+            selector:
+              $ref: '#/components/schemas/Selector'
+
+    CrdRule:
+      type: object
+      properties:
+        status:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+        spec:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+          properties:
+            position:
+              type: integer
+            rule:
+              $ref: '#/components/schemas/Rule'
+            rulelist:
+              type: string
+            selector:
+              $ref: '#/components/schemas/Selector'
+
+    Selector:
+      type: object
+      properties:
+        matchLabels:
+          description: >
+            matchLabels is a map of {key,value} pairs. A single {key,value} in
+            the matchLabels map is equivalent to an element of
+            matchExpressions, whose key field is "key", the operator is
+            "In", and the values array contains only "value". The
+            requirements are ANDed.
+          type: object
+          "additionalProperties": { "type": "string" }
+          x-kubernetes-preserve-unknown-fields: true
+
+        matchExpressions:
+          description: >
+            matchExpressions is a list of label selector requirements. The
+            requirements are ANDed.
+          type: object
+          properties:
+            key:
+              description: key is the label key that the selector applies to.
+              type: string
+            operator:
+              description: >
+                "operator represents a key's relationship to a set of
+                values. Valid operators are In, NotIn, Exists and
+                DoesNotExist."
+              type: string
+              enum: [In, NotIn, Exists, DoesNotexist]
+            values:
+              description: >
+                values is an array of string values. If the operator is In
+                or NotIn, the values array must be non-empty. If the
+                operator is Exists or DoesNotExist, the values array must be
+                empty. This array is replaced during a strategic merge
+                patch.
+              type: array
+              items:
+                type: string
+
+        matchFields:
+          description: >
+            A list of node selector requirements by node's fields.
+          type: object
+          properties:
+            operator:
+              description: >
+                Represents a key's relationship to a set of values. Valid
+                operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+              type: string
+              enum: [In, NotIn, Exists, DoesNotExist, Gt, Lt]
+            key:
+              type: string
+              description: >
+                The label key that the selector applies to
+            values:
+              type: array
+              description: >
+                An array of string values. If the operator is In or NotIn, the
+                values array must be non-empty. If the operator is Exists or
+                DoesNotExist, the values array must be empty. If the operator
+                is Gt or Lt, the values array must have a single element,
+                which will be interpreted as an integer. This array is
+                replaced during a strategic merge patch.
+              items:
+                type: string
+
+        matchNamespace:
+          description:
+            matches pods with the given namespace
+          type: string
+
+        matchService:
+          description:
+            matches pods belonging to the given service
+          type: string
 
 
 paths:

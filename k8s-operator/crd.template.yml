@@ -17,7 +17,7 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
-          $ref: schemas.yml#/crd/VirtualService
+          $ref: ../openapi/l7mp-openapi.2.yaml#/components/schemas/VirtualService
       additionalPrinterColumns:
         - name: Selector
           type: string
@@ -50,7 +50,7 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
-          $ref: schemas.yml#/crd/Target
+          $ref: ../openapi/l7mp-openapi.2.yaml#/components/schemas/Target
       additionalPrinterColumns:
         - name: Selector
           type: string
@@ -81,7 +81,7 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
-          $ref: schemas.yml#/crd/Rule
+          $ref: ../openapi/l7mp-openapi.2.yaml#/components/schemas/CrdRule
       additionalPrinterColumns:
         - name: Selector
           type: string
