@@ -279,19 +279,15 @@ def get_conv_db():
     return conv_db
 
 def convert_to_old_api(logger, plural, obj):
-    # Currently, the l7mp proxy uses an old OpenApi scheme for
-    # validation.  That scheme is not compatible with k8s OpenApi:
+    # Currently, the l7mp proxy uses an old OpenApi schema for
+    # validation.  That schema is not compatible with k8s OpenApi:
     # https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#specifying-a-structural-schema
     # So, this function converts object conforming to the new Api back
     # to the old one.
     schema = get_conv_db()[plural]
-    with open('/tmp/test_scheme', 'w') as f:
-        yaml.dump(schema, f)
-    with open('/tmp/test_obj', 'w') as f:
-        yaml.dump(obj, f)
-    logger.warning('obj %s', obj)
+    logger.debug('obj %s', obj)
     _, obj =  convert_sub(schema['properties']['spec'], 'all', deepcopy(obj))
-    logger.warning('new obj: %s', obj)
+    logger.debug('new obj: %s', obj)
     return obj
 
 def convert_sub(schema, key, obj):
