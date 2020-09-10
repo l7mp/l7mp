@@ -62,21 +62,9 @@ class L7mpOpenAPI {
             res.status = new Response(l7mp.dumpL7mp());
         });
 
-        this.api.registerHandler('setConf', (ctx, req, res) => {
-            log.info("L7mp.api.setConf");
-            res.status = new BadRequestError('Not implemented');
-            // try {
-            //     l7mp.static_config = req.body;
-            //     let result = l7mp.run();
-            //     res.status = new Ok();
-            // } catch(e) {
-            //     res.status = new BadRequestError(e.message);
-            // }
-        });
-
         this.api.registerHandler('getAdmin', (ctx, req, res) => {
             log.info("L7mp.api.getAdmin");
-            res.status = new Response(l7mp.getAdmin().toJSON());
+            res.status = new Response(l7mp.getAdmin());
         });
 
         // Listener API
