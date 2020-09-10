@@ -240,7 +240,7 @@ class L7mp {
         this.admin.version =
             getVersion({ shaLength: 10, includeDate: true });
         // if git-commit is missing, we get 'null', remove it
-        this.admin.version.replace(/ null/, '');
+        this.admin.version = this.admin.version.replace(/ null/, '');
     }
 
     getAdmin(){
