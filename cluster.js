@@ -85,6 +85,7 @@ class HashRingLoadBalancer extends LoadBalancer {
         super(l);
         this.key = l.key || null;
         this.es = [];
+        this.keys = {};
     }
 
 

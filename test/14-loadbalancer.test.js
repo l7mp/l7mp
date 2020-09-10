@@ -28,6 +28,7 @@ const EndPoint     = require('../cluster.js').EndPoint;
 describe('LoadBalancing', () => {
     before( () => {
         l7mp = new L7mp();
+        // l7mp.applyAdmin({ log_level: 'silly' });
         l7mp.applyAdmin({ log_level: 'error' });
         l7mp.run(); 
     });
@@ -69,7 +70,7 @@ describe('LoadBalancing', () => {
         it('create', () => { hl = LoadBalancer.create({policy: 'HashRing'}); assert.exists(hl); });
         it('no-endpoint', () => {
             try {
-                hl.apply({});
+                hl.apply({name: 'Test-session'});
             } catch (error) {
                 assert.isOk(true);
             }
