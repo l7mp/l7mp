@@ -236,18 +236,11 @@ class L7mp {
             log.warn('L7mp.applyAdmin: access_log_path', 'TODO');
         }
 
-        // VERSION: 1: try to parse from git
+        // VERSION: package.jon:version + git-commit-hash + git-commit-date
         this.admin.version =
             getVersion({ shaLength: 10, includeDate: true });
-        // VERSION: 2: if no success, read package.json
-        if(!this.admin.version){
-            try{ 
-                let pjson = require('./package.json');
-                this.admin.version = pjson.version;
-            } catch { /* no error */ }
-        }
-        // VERSION: 3: if still no success, give up
-        if(!this.admin.version) { this.admin.version = '<UNKNOWN>' }
+        // if git-commit is missing, we get 'null', remove it
+        this.admin.version.replace(/ null/, '');
     }
 
     getAdmin(){
