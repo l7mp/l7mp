@@ -326,22 +326,6 @@ components:
               UDP: '#/components/schemas/io.l7mp.api.v1.UDPListenerSpec'
               UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
               TCP: '#/components/schemas/io.l7mp.api.v1.TCPListenerSpec'
-        parse:
-          type: array
-          items:
-            description: >
-              A JSON field to parse out from the JSONSocket header and write
-              into the session metadata.
-            type: object
-            properties:
-              path:
-                type: string
-                description: >
-                  Field to be copied from the JSON header to the session
-                  metadata header specified as a JSON Pointer.
-              target:
-                type: string
-                description: Target path to write parsed field.
 
     io.l7mp.api.v1.EndPointRequest:
       description: >
@@ -522,6 +506,22 @@ components:
               UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
               Stdio: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
               Discard: '#/components/schemas/io.l7mp.api.v1.DiscardClusterSpec'
+        header:
+          type: array
+          items:
+            description: >
+              A JSONPointer to the field(s) to parse out from the metadata
+              field to write into the JSONSocket header.
+            type: object
+            properties:
+              from:
+                type: string
+                description: >
+                  Field to be copied from the metadata into the JSON header
+                  specified as a JSON Pointer.
+              to:
+                type: string
+                description: Target path to write parsed field.
 
     io.l7mp.api.v1.L7mpControllerSpec:
       description: >

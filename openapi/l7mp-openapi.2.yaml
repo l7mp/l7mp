@@ -287,22 +287,6 @@ components:
           maxProperties: 1
           minProperties: 1
           x-l7mp-old-property: protocol
-        parse:
-          type: array
-          items:
-            description: >
-              A JSON field to parse out from the JSONSocket header and write
-              into the session metadata.
-            type: object
-            properties:
-              path:
-                type: string
-                description: >
-                  Field to be copied from the JSON header to the session
-                  metadata header specified as a JSON Pointer.
-              target:
-                type: string
-                description: Target path to write parsed field.
 
     EndPointRequest:
       description: >
@@ -452,6 +436,22 @@ components:
           minProperties: 1
           maxProperties: 1
           x-l7mp-old-property: protocol
+        header:
+          type: array
+          items:
+            description: >
+              A JSONPointer to the field(s) to parse out from the metadata
+              field to write into the JSONSocket header.
+            type: object
+            properties:
+              from:
+                type: string
+                description: >
+                  Field to be copied from the metadata into the JSON header
+                  specified as a JSON Pointer.
+              to:
+                type: string
+                description: Target path to write parsed field.
 
     L7mpControllerSpec:
       description: >
