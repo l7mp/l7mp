@@ -496,6 +496,7 @@ components:
             - $ref: '#/components/schemas/io.l7mp.api.v1.TCPClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.DiscardClusterSpec'
           discriminator:
             propertyName: protocol
@@ -505,23 +506,46 @@ components:
               TCP: '#/components/schemas/io.l7mp.api.v1.TCPClusterSpec'
               UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
               Stdio: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
+              Echo: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
               Discard: '#/components/schemas/io.l7mp.api.v1.DiscardClusterSpec'
         header:
           type: array
           items:
-            description: >
-              A JSONPointer to the field(s) to parse out from the metadata
-              field to write into the JSONSocket header.
             type: object
             properties:
-              from:
-                type: string
+              path:
                 description: >
-                  Field to be copied from the metadata into the JSON header
-                  specified as a JSON Pointer.
-              to:
-                type: string
-                description: Target path to write parsed field.
+                  Deepcopy the session metadata into the JSONSocket header
+                  under the specified path.
+                type: object
+                required:
+                  - from
+                  - to
+                properties:
+                  from:
+                    type: string
+                    description: >
+                      JSONPointer to the key to be deepcopied from the
+                      metadata into the JSONSocket header.
+                  to:
+                    type: string
+                    description: >
+                      Target path as a JSONPointer where the specified values
+                      are copied to.
+              set:
+                description: >
+                  Set a key in the JSONSocket header to the specified constant value. 
+                type: object
+                required:
+                  - key
+                  - value
+                properties:
+                  key:
+                    type: string
+                    description: JSONPointer to the key in the JSONSocket header.
+                  value:
+                    type: string
+                    description: Value to be set for the specified key.
 
     io.l7mp.api.v1.L7mpControllerSpec:
       description: >

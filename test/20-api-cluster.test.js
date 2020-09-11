@@ -20,6 +20,7 @@
 // ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+const udp         = require('dgram');
 const log         = require('npmlog');
 const Stream      = require('stream');
 const assert      = require('chai').assert;
@@ -845,6 +846,117 @@ describe('Cluster-API', ()  => {
                 let res = await httpRequest(options);
                 assert.nestedPropertyVal(res, 'status', 200)
                 return Promise.resolve();
+            });
+        });
+    });
+    
+    context('add-check-delete-JSONSocket-cluster-via-API', ()=>{
+        let res;
+        it('add-listener-unit', async ()=>{
+            await l7mp.addListener({
+                name: 'udp-listener',
+                spec: { protocol: 'UDP', port: 54321 },
+                rules: [
+                    {
+                        action: {
+                            route: { destination: 'jsonsocket-cluster' },
+                            rewrite: [
+                                { path: "/labels",
+                                  value: { session_id: 1, cookies: "test: test" } }
+                            ]
+                        }
+                    }
+                ]
+            });
+            return Promise.resolve();
+        });
+        
+        it('add-cluster', async ()=>{
+            const postData = JSON.stringify({
+                'cluster': {
+                    name: 'jsonsocket-cluster',
+                    spec: {protocol: 'JSONSocket',
+                           transport: { protocol: 'UDP', port: 16000 },
+                           header: [
+                               { path: { from: "/labels/session_id", to: "/labels/session_id" } },
+                               { set: { key: "/labels/field", value: 'value' } },
+                           ],
+                          },
+                    endpoints: [ {spec: {address: 'localhost'} } ],
+                }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters', method: 'POST',
+                headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            res = await httpRequest(options, postData);
+            assert.nestedPropertyVal(res, 'status', 200)
+            return Promise.resolve()
+        });
+        context('check-properties',()=>{
+            it('cluster-name', async() =>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/clusters',
+                    method: 'GET'
+                };
+                res = await httpRequest(options);
+                assert.nestedPropertyVal(res[1], 'name', 'jsonsocket-cluster');
+                return Promise.resolve();
+
+            });
+            it('has-protocol', () =>{assert.nestedProperty(res[1],'spec.protocol')});
+            it('protocol', () =>{assert.nestedPropertyVal(res[1],'spec.protocol','JSONSocket')});
+            it('has-transport', () =>{assert.nestedProperty(res[1],'spec.transport')});
+            it('port', () =>{assert.nestedPropertyVal(res[1],'spec.transport.port',16000)});
+        });
+
+        context('I/O',()=>{
+            let sender, receiver;
+            beforeEach(() => {
+                sender = new udp.createSocket('udp4');
+                sender.on('connect', () => { try{sender.send('dummy');}catch(e){console.warn('Cannot send: '+e)}});
+                receiver = new udp.createSocket('udp4');
+                receiver.bind(16000, 'localhost');
+            });
+            afterEach(() => { sender.close(); receiver.close(); });
+
+            it('header',  (done) => {
+                receiver.on('message', (msg, rinfo) => {
+                    msg = msg instanceof Buffer ? msg.toString() : msg;
+                    try {
+                        let header = JSON.parse(msg);
+                        assert.deepEqual(header,
+                                         {"labels": {"session_id":1, "field":"value"},
+                                          "JSONSocketVersion":1});
+                        try {
+                            receiver.send(JSON.stringify({JSONSocketVersion:1, Status: 200}),
+                                          rinfo.port, rinfo.address);
+                        } catch(e) {
+                            console.warn('Cannot send response header: '+e)
+                        };
+                        done();
+                    } catch(e) { assert.fail()};
+                });
+                sender.connect(54321, 'localhost');
+            });
+        });
+        
+        context('delete', ()=>{
+            it('delete-cluster', async ()=>{
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/clusters/jsonsocket-cluster',
+                    method: 'DELETE'
+                };
+                res = await httpRequest(options);
+                assert.nestedPropertyVal(res, 'status', 200)
+                return Promise.resolve();
+            });
+            it('delete-listener-unit', ()=>{
+                l7mp.deleteListener('udp-listener', {recursive: true});
+                assert.isOk(1);
             });
         });
     });

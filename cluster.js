@@ -642,11 +642,11 @@ class JSONSocketCluster extends Cluster {
                                  dumper(s.metadata,6));
                     }
                 } else if(h.set &&
-                          typeof h.set.path !== "undefined" &&
+                          typeof h.set.key !== "undefined" &&
                           typeof h.set.value !== "undefined" ){
                     log.silly('JSONSocketCluster.stream:', `${this.name}:`,
-                              `Adding "${h.set.path}: ${dumper(h.set.value,4)} to the header`);
-                    req_header = Rule.setAtPath(req_header, h.set.path, h.set.value);
+                              `Adding "${h.set.key}: ${dumper(h.set.value,4)} to the header`);
+                    req_header = Rule.setAtPath(req_header, h.set.key, h.set.value);
                 } else {
                     return Promise.reject(new GeneralError(
                         'Unknown JSONSocket header spec: '+ dumper(h, 4)));
@@ -664,8 +664,8 @@ class JSONSocketCluster extends Cluster {
                     multiArgs: false, timeout:  s.route.retry.timeout,
                 });
             } catch(e){
-                let err = `Failed to receive JSONSocket in ${s.route.retry.timeout} msecs: `+
-                    e.message;
+                let err = `Failed to receive JSONSocket response in `+
+                    `${s.route.retry.timeout} msecs: ` + e.message;
                 log.warn('JSONSocketCluster:', `${this.name}:`, err);
                 stream.destroy();
                 return Promise.reject(new GeneralError(err));
