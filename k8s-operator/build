@@ -8,6 +8,6 @@ version=$(sed -ns '1,30s/.*version: \(.*\)/\1/p' l7mp.py)
 name=l7mp/l7mp-operator
 
 cp -r ../python-client/out/l7mp_client .
-cp ../python-client/requirements.txt .
+cp ../python-client/out/requirements.txt .
 
 docker build . -t $name:$version -t $name:latest
