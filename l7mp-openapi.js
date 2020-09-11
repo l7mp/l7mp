@@ -193,9 +193,10 @@ class L7mpOpenAPI {
 
         this.api.registerHandler('deleteEndPoint', (ctx, req, res) => {
             log.info("L7mp.api.deleteEndPoint");
-            // cannot be resursive
+            let recursive = ctx.request.query.recursive === 'true' ?
+                ctx.request.query.recursive : false;
             try {
-                l7mp.deleteEndPoint(ctx.request.params.name);
+                l7mp.deleteEndPoint(ctx.request.params.name, {recursive: recursive});
                 res.status = new Ok();
             } catch(err){
                 res.status = new BadRequestError(err.message);

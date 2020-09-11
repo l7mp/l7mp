@@ -368,7 +368,7 @@ describe('Session', () => {
         it('event-length',  () => { assert.equal(sess.events.length, 4); });
         it('event-status',  () => { assert.propertyVal(sess.events[2], 'event', 'END'); });
         it('event-message', () => { assert.propertyVal(sess.events[2], 'message', 'Test'); });
-        it('event-content', () => { assert.notProperty(sess.events[2], 'content'); });
+        it('event-content', () => { assert.property(sess.events[2], 'content'); });
     });
 
     context('Router', () => {

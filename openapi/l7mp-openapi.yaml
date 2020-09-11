@@ -1497,6 +1497,16 @@ paths:
           schema:
             type: string
           description: The name of the EndPoint to delete.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: >
+            With recursive mode enabled, deleting the endpoint will disconnect
+            all sessions routed through the endpoint. This allows room for the
+            sessions whose retry policy allows it ("retry_on=disconnect" or
+            "retry_on=always") to reconnect if the cluster still has
+            functional endpoints. Otherwise, the session will fail.
       responses:
         '200':
           description: Status

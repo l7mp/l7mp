@@ -54,6 +54,11 @@ let static_config = {
                                     protocol: "Test",
                                 },
                                 endpoints: [{ name: 'Test-e', spec: {}}]
+                            },
+                            retry: {
+                                retry_on: 'always',
+                                num_retries: 1,
+                                timeout: 100,
                             }
                         }
                     }
@@ -141,7 +146,8 @@ function httpRequest(params, postData) {
 }
 
 describe('Session API', ()  => {
-    let s;
+    let s, c, e1, e2;
+    const du = new DuplexPassthrough;
     before( async function () {
         this.timeout(8000);
         l7mp = new L7mp();
@@ -149,7 +155,6 @@ describe('Session API', ()  => {
         // do not validate config: Test listener/cluster is not exposed in OpenAPI
         l7mp.admin.strict = false;
         await l7mp.run(); // should return
-        const du = new DuplexPassthrough;
         let x = { metadata: {name: 'test-session'},
             source: { origin: 'test-listener', stream: du.right }};
         // s = new Session(x);
@@ -163,9 +168,7 @@ describe('Session API', ()  => {
         let l = l7mp.getListener('controller-listener');
         l.close();
     });
-    //DONE: get session /api/v1/sessions
-    //DONE: get session by name /api/v1/sessions/{name}
-    //TODO: delete session by name    /api/v1/sessions/{name}
+
     context('sessions', ()=>{
         it('get-sessions', async ()=>{
             let res;
@@ -179,7 +182,7 @@ describe('Session API', ()  => {
             return Promise.resolve();
         });
     });
-    context('get-check-delete-sessions-by-name',()=>{
+    context('get-check-sessions-by-name',()=>{
         let res;
         it('get-session-by-name', async()=>{
             let options = {
@@ -201,7 +204,87 @@ describe('Session API', ()  => {
         it('has-source-status', ()=>{ assert.nestedProperty(res,'source.status')});
         it('source-status-value', ()=>{ assert.nestedPropertyVal(res,'source.status','READY')});
         it('has-destination', ()=>{ assert.property(res,'destination')});
+        it('I/O-1', (done) => {
+            du.left.on('readable', () => {
+                let data = ''; let chunk;
+                while (null !== (chunk = du.left.read())) {
+                    data += chunk;
+                }
+                assert.equal(data, 'test');
+                du.left.removeAllListeners();
+                done();
+            });
+            du.left.write('test');
+        });
+    });
+ 
+    context('delete-endpoint-recursive-disconnects-session', () => {
+        it('add-endpoint', async () =>{
+            const postData = JSON.stringify({
+                endpoint: {
+                    name: 'Test-e-2', spec: { address: 'dummy'}
+                }
+            });
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/clusters/test-cluster/endpoints', method: 'POST',
+                headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
+            }
+            res = await httpRequest(options, postData);
+            assert.nestedPropertyVal(res, 'status', 200);
+            return Promise.resolve();
+        });
+        
+        it('get-session-cluster-and-endpoints', () => {
+            s = l7mp.getSession('test-session');
+            c = l7mp.getCluster('test-cluster');
+            e1 = c.endpoints[0];
+            e2 = c.endpoints[1];
+            // console.log(s.toJSON());
+            // dump(l7mp, 2);
+            assert.isOk(s && c && e1 && e2);
+        });
+        // trivial load-balancer should use the first endpoint
+        it('endpoint-1-ok', () => {
+            assert.nestedPropertyVal(s, 'destination.endpoint.name', 'Test-e');
+        });
 
+        // delete first endPoint recursively, session should disconnect
+        it('delete-endpoint-1', async () => {
+            s.once('disconnect', () => {return Promise.resolve()});
+            let options = {
+                host : 'localhost', port : 1234,
+                path : '/api/v1/endpoints/Test-e?recursive=true',
+                method : 'DELETE'
+            };
+            res = await httpRequest(options);
+            assert.propertyVal(res, 'status', 200);
+        });
+        // session should reconnect on endpoint-2 immediately
+        it('reconnect', (done) => {
+            setTimeout(() => {
+                assert.equal(s.status, 'CONNECTED');
+                done();
+            }, 500);
+        });
+        it('endpoint-2-ok', () => {
+            assert.equal(s.destination.endpoint.name, 'Test-e-2');
+        });
+        it('I/O-2',  (done) => {
+            du.left.on('readable', () => {
+                let data = ''; let chunk;
+                while (null !== (chunk = du.left.read())) {
+                    data += chunk;
+                }
+                du.left.removeAllListeners();
+                assert.equal(data, 'test');
+                done();
+            });
+            du.left.write('test');
+        });
+    });
+    
+    context('get-check-sessions-by-name',()=>{
         it('delete-session-by-name', async ()=>{
            let options = {
                host : 'localhost', port : 1234,
