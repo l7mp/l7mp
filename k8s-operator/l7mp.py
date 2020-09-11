@@ -352,7 +352,7 @@ async def exec_delete_vsvc(s, pod, action, _new, logger):
     l7mp_instance = get_l7mp_instance(pod)
     logger.info(f'Delete vsvc:{fqn} from pod:{pod["metadata"]["name"]}')
     try:
-        l7mp_instance.delete_listener(fqn)
+        l7mp_instance.delete_listener(fqn, recursive="true")
     except l7mp_client.exceptions.ApiException as e:
         content = json.loads(e.body).get('content', '')
         not_found = 'Cannot delete listener: Unknown listener'
@@ -409,7 +409,7 @@ async def exec_delete_target(s, pod, action, _new, logger):
     l7mp_instance = get_l7mp_instance(pod)
     logger.info(f'Delete target:{fqn} from pod:%s', pod['metadata']['name'])
     try:
-        l7mp_instance.delete_cluster(fqn)
+        l7mp_instance.delete_cluster(fqn, recursive="true")
     except l7mp_client.exceptions.ApiException as e:
         content = json.loads(e.body).get('content', '')
         not_found = 'Cannot delete cluster: Unknown cluster'

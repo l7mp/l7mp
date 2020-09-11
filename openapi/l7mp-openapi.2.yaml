@@ -1040,6 +1040,9 @@ components:
               type: string
             selector:
               $ref: '#/components/schemas/Selector'
+            updateOwners:
+              type: boolean
+              default: false
 
     Selector:
       type: object
