@@ -30,6 +30,7 @@ import collections.abc
 import functools
 import itertools
 import json
+import os
 import urllib3
 import yaml
 from copy import deepcopy
@@ -267,8 +268,7 @@ def get_conv_db():
     if conv_db:
         return conv_db
 
-    # FIXME: __file__/conv.yaml
-    with open('conv.yml') as f:
+    with open(os.path.join(os.path.dirname(__file__), 'conv.yml')) as f:
         for doc in yaml.safe_load_all(f):
             plural = doc.get('spec', {}).get('names', {}).get('plural')
             versions = doc.get('spec', {}).get('versions', [])

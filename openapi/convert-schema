@@ -112,7 +112,7 @@ def inline_references(d, url):
 def remove_prop(d, url):
     # remove properties that are unnecessary for converting a value to
     # the old form.
-    logging.info(f'url: {url} type:{type(d)}')
+    logging.debug(f'url: {url} type:{type(d)}')
     if isinstance(d, list):
         l = []
         for i, v in enumerate(d):
