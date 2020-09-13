@@ -22,8 +22,8 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-# python3.7 ~/kopf/kopf run --namespace=default ./l7mp.py --verbose
-# version: 0.2
+# python3.7 ~/kopf/kopf run --peering=operator.l7mp.io --namespace=default ./l7mp.py --verbose
+# version: 0.2.2
 
 import asyncio
 import collections.abc
@@ -563,6 +563,15 @@ def fail_if_pod_not_ready(o_type, body, **kw):
     if not kw['status'].get('podIP'):
         raise kopf.TemporaryError(f'No podIP in {kw["name"]}', delay=3)
 
+
+@kopf.on.startup()
+def startup_fn(settings: kopf.OperatorSettings, logger, **kw):
+    settings.persistence.finalizer = 'operator.l7mp.io/kopf-finalizer'
+    settings.persistence.progress_storage = kopf.AnnotationsProgressStorage(
+        prefix='operator.l7mp.io')
+    settings.persistence.diffbase_storage = kopf.AnnotationsDiffBaseStorage(
+        name='operator.l7mp.io/last-handled-configuration',
+    )
 
 @kopf.on.field('', 'v1', 'pods', field='status.containerStatuses')
 async def pod_status_fn(new, body, logger, **kw):
