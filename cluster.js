@@ -438,7 +438,7 @@ class Cluster {
     }
 
     addEndPoint(e){
-        log.silly('Cluster.addEndPoint:', dumper(e));
+        log.silly('Cluster.addEndPoint:', `cluster: ${this.name}:`, dumper(e, 2));
         let ep = EndPoint.create(this, e);
         this.endpoints.push(ep);
         this.loadbalancer.update(this.endpoints);
@@ -450,7 +450,7 @@ class Cluster {
     }
 
     deleteEndPoint(n){
-        log.silly('Cluster.deleteEndPoint: name:', n);
+        log.silly('Cluster.deleteEndPoint:', `cluster: ${this.name}:`, 'name:', n);
 
         var i = this.endpoints.findIndex( ({name}) => name === n );
         if(i < 0){
