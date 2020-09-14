@@ -376,13 +376,18 @@ class NetSocketEndPoint extends EndPoint {
 class JSONSocketEndPoint extends EndPoint {
     constructor(c, e) {
         super(c, e);
-        this.cluster.transport.addEndPoint(e);
+        this.transport_endpoint = this.cluster.transport.addEndPoint(e);
     }
 
     connect(s){
-        throw new Error('JSONSocketEndPoint.connect: Internal error:',
-                       'Should never be called directly');
+        log.silly('JSONSocketEndpoint.connect:', dumper(s));
+        return this.transport_endpoint.connect(s);
     }
+
+    // connect(s){
+    //     throw new Error('JSONSocketEndPoint.connect: Internal error:',
+    //                    'Should never be called directly');
+    // }
 };
 
 EndPoint.create = (c, e) => {
@@ -593,17 +598,15 @@ class JSONSocketCluster extends Cluster {
             log.warn(e);
             throw new Error(e);
         }
-        this.transport = Cluster.create(cu);
-        this.type = this.transport.type;
-        this.header = c.spec.header || [];
-
-        // if(es)
-        //     es.forEach( (e) => this.addEndPoint(e) );
+        this.transport    = Cluster.create(cu);
+        this.type         = this.transport.type;
+        this.header       = c.spec.header || [];
+        this.loadbalancer = this.transport.loadbalancer;
 
         log.info('JSONSocketCluster:', `${this.name} initialized, using transport:`,
                  dumper(this.transport, 2));
     }
-
+    
     // 2. add JSONSocket fields to metadata and send as header
     // 4. wait for a valid response header from server and return stream to caller
     stream(s){
