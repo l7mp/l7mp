@@ -1,5 +1,5 @@
 {
-    "name": "l7mp",
+    "name": "@l7mp/l7mp",
     "description": "A programmable L7 multiprotocol proxy and service mesh",
     "version": "0.5.2",
     "main": "l7mp.js",
