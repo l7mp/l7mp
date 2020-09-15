@@ -38,12 +38,32 @@ jobs:
     name: push docker image to dockerhub
     runs-on: ubuntu-latest
     steps:
-      - name: checkout
+      - name: Checkout 
         uses: actions/checkout@v2
-      - name: push to dockerhub
-        uses: docker/build-push-action@v1
+      - name: Prepare
+        id: prep
+        run: |
+          DOCKER_IMAGE=l7mp/l7mp
+          VERSION=${GITHUB_REF#refs/tags/}
+          TAGS="${DOCKER_IMAGE}:${VERSION}"
+          TAGS="$TAGS, ${DOCKER_IMAGE}:latest"
+          echo ::set-output name=tags::${TAGS}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
         with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_TOKEN }}
-          repository: l7mp/l7mp
-          tag_with_ref: true
+      - name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@v2
+        env:
+          tag: ${GITHUB_REF:11}
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.prep.outputs.tags }}
