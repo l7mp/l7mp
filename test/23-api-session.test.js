@@ -27,6 +27,7 @@ const L7mp              = require('../l7mp.js').L7mp;
 const Rule              = require('../rule.js').Rule;
 const RuleList          = require('../rule.js').RuleList;
 const Session           = require('../session.js').Session;
+const Cluster           = require('../cluster.js').Cluster;
 const DuplexPassthrough = require('../stream.js').DuplexPassthrough;
 
 let static_config = {
@@ -54,6 +55,27 @@ let static_config = {
                                 },
                                 endpoints: [{ name: 'Test-e', spec: {}}]
                             }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            name: "test-listener-undefined",
+            spec: {
+                protocol: "Test",
+            },
+            rules: [
+                {
+                    action: {
+                        route: {
+                            destination: {
+                                name: "test-cluster-undefined",
+                                spec: {
+                                    protocol: "Test",
+                                },
+                                endpoints: [{ name: 'test-e-undefined', mode: ['ok'], timeout:3001, spec: {}}]
+                            },
                         }
                     }
                 }
@@ -215,6 +237,34 @@ describe('Session API', ()  => {
                     () =>{ return Promise.reject(new Error('Expected method to reject.'))},
                     err => { assert.instanceOf(err, Error); return Promise.resolve()}
                 );
+        });
+        before(async function() {
+            this.timeout(8000);
+            const du = new DuplexPassthrough;
+            let x = { metadata: {name: 'test-session-undefined'},
+                source: { origin: 'test-listener-undefined', stream: du.right },
+                destination: { origin: 'test-cluster-undefined'}};
+            let e = await l7mp.getEndPoint('test-e-undefined');
+            e.mode=['ok'];
+            e.timeout = 1000;
+            console.log(e)
+            await l7mp.addSession(x);
+            console.log(await l7mp.getSession('test-session-undefined'));
+        });
+        //TODO Fix it, doesnt work right now, if timeout is set high
+        // enough, then the response for the GET request will be
+        // 'Bad request: non such session'
+        it('get-session-with-undefined-destination', async ()=>{
+
+            let options = {
+                host: 'localhost', port: '1234',
+                path: '/api/v1/sessions/test-session-undefined',
+                method : 'GET'
+            }
+            res = await httpRequest(options);
+            assert.isOk(res);
+            console.log(res);
+            return Promise.resolve();
         });
     });
 
