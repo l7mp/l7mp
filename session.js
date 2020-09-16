@@ -394,7 +394,7 @@ class Session {
             this.create();
             var status = await this.pipeline();
         } catch(err){
-            // log.silly(`Session.router: Error:`, dumper(err, 6));
+            log.silly(`Session.router: Error:`, dumper(err, 6));
             let msg = `Could not route session "${this.name}": ` + (err.content || "");
             log.info(`Session.router:`, msg);
             this.error(err);

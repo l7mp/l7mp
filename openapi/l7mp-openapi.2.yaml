@@ -1,55 +1,59 @@
 openapi: 3.0.0
 
 info:
-  version: 1.0.0
+  version: 1.99.0
   title: L7mp control plane API
-  description: A programming interface for controlling L7mp
+  description: >
+    A programming interface for controlling L7mp.  This is a tentative update
+    of version 1.0.0 trying to harmonize it with the restrictions of the k8s
+    OpenApi.  See:
+    https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#specifying-a-structural-schema
 
 servers:
   - url: '/io.l7mp.api.v1'
 
 components:
   schemas:
-    io.l7mp.api.v1.Config:
+    Config:
       description: Full L7mp static and runtime configuration
       type: object
       properties:
         admin:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Admin'
+          $ref: '#/components/schemas/Admin'
         listeners:
           description: A list of Listeners.
           type: array
           items:
-            $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
+            $ref: '#/components/schemas/Listener'
         clusters:
           description: A list of Clusters.
           type: array
           items:
-            $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
+            $ref: '#/components/schemas/Cluster'
         sessions:
           description: A list of Sessions.
           type: array
           items:
-            $ref: '#/components/schemas/io.l7mp.api.v1.Session'
+            $ref: '#/components/schemas/Session'
         rulelists:
           description: A list of RuleLists.
           type: array
           items:
-            $ref: '#/components/schemas/io.l7mp.api.v1.RuleList'
+            $ref: '#/components/schemas/RuleList'
         rules:
           description: A list of Rules.
           type: array
           items:
-            $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+            $ref: '#/components/schemas/Rule'
         routes:
           description: A list of Routes.
           type: array
           items:
-            $ref: '#/components/schemas/io.l7mp.api.v1.Route'
+            $ref: '#/components/schemas/Route'
       required:
         - admin
 
-    io.l7mp.api.v1.AdminRequest:
+    AdminRequest:
       description: >
         Wrapper for addAdmin calls: contains only a single Admin object.
       type: object
@@ -57,9 +61,9 @@ components:
         - admin
       properties:
         admin:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Admin'
+          $ref: '#/components/schemas/Admin'
 
-    io.l7mp.api.v1.Admin:
+    Admin:
       description: Static configuration
       type: object
       properties:
@@ -69,6 +73,8 @@ components:
             Log verbosity, one of, from the most talkative, "silly",
             "verbose", "info", "notice", "warn", "error", and "silent" (not
             recommended). Default is "info".
+          enum: [silly, verbose, info, notice, warn, error, silly]
+          default: info
         log_file:
           type: string
           description: File to write log messages to. Default is "stderr".
@@ -84,7 +90,7 @@ components:
           type: string
           description: Version info.
 
-    io.l7mp.api.v1.ListenerRequest:
+    ListenerRequest:
       description: >
         Wrapper for addListener calls: contains only a single Listener object
       type: object
@@ -92,17 +98,24 @@ components:
         - listener
       properties:
         listener:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
+          $ref: '#/components/schemas/Listener'
 
-    io.l7mp.api.v1.Listener:
+    Listener:
       description: >
         A socket that listens for incoming connection requests, an abstraction
         for an "ingress port".
       type: object
-      required:
-        - name
-        - spec
-        - rules
+      oneOf:
+        - required: [name, spec, rules]
+          not: {required: [rulesRef]}
+        - required: [name, spec, rulesRef]
+          not: {required: [rules]}
+      x-l7mp-k8s-replace:
+        'oneOf':
+          - required: [spec, rules]
+            not: {required: [rulesRef]}
+          - required: [spec, rulesRef]
+            not: {required: [rules]}
       properties:
         name:
           description: Name (required).
@@ -110,32 +123,26 @@ components:
         spec:
           description: Listener specification (required).
           type: object
-          oneOf:
-            - $ref: '#/components/schemas/io.l7mp.api.v1.HTTPListenerSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.UDPListenerSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.TCPListenerSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.JSONSocketListenerSpec'
-          discriminator:
-            propertyName: protocol
-            mapping:
-              HTTP: '#/components/schemas/io.l7mp.api.v1.HTTPListenerSpec'
-              WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
-              UDP: '#/components/schemas/io.l7mp.api.v1.UDPListenerSpec'
-              TCP: '#/components/schemas/io.l7mp.api.v1.TCPListenerSpec'
-              UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
-              JSONSocket: '#/components/schemas/io.l7mp.api.v1.JSONSocketListenerSpec'
+          properties:
+            HTTP: {$ref: '#/components/schemas/HTTPListenerSpec'}
+            WebSocket: {$ref: '#/components/schemas/WebSocketListenerSpec'}
+            UDP: {$ref: '#/components/schemas/UDPListenerSpec'}
+            TCP: {$ref: '#/components/schemas/TCPListenerSpec'}
+            UnixDomainSocket: {$ref: '#/components/schemas/UnixDomainSocketListenerSpec'}
+            JSONSocket: {$ref: '#/components/schemas/JSONSocketListenerSpec'}
+          maxProperties: 1
+          minProperties: 1
+          x-l7mp-old-property: protocol
+        rulesRef:
+          description: The name of a match-action table.
+          type: string
+          x-l7mp-old-name: rules
         rules:
           description: >
-            The name of a match-action table or an inline list of match-action
-            rules (required).
-          anyOf:
-            - type: string  # reference to a named RuleList
-            - type: array
-              items:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
-          #   # - $ref: '#/components/schemas/io.l7mp.api.v1.RuleList'
+            An inline list of match-action rules.
+          type: array
+          items:
+            $ref: '#/components/schemas/Rule'
         options:
           description: Optional features.
           type: object
@@ -149,31 +156,24 @@ components:
                 session will be available before deletion.
               type: integer
 
-    io.l7mp.api.v1.HTTPListenerSpec:
+    HTTPListenerSpec:
         # - protocol: HTTP
         # - session ID: IP 5-tuple
         # - type: session
         # - mode: server
-      description: 
+      description:
         A HTTP server specification that accepts HTTP requests at a specified
         port.
       type: object
-      required:
-        - protocol
-        - port
+      required: ["port"]
       properties:
-        protocol:
-          type: string
-          enum:  # fixed value
-            - HTTP
-          description: The protocol, must be "HTTP".
         port:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
+          $ref: '#/components/schemas/Parameter.Port'
         path:
           type: string
           description: HTTP URL to serve.
 
-    io.l7mp.api.v1.WebSocketListenerSpec:
+    WebSocketListenerSpec:
         # - protocol: WebSocket
         # - session ID: IP 5-tuple
         # - type: datagram-stream
@@ -182,22 +182,15 @@ components:
         A WebSocket server specification that accepts HTTP/WebSocket requests
         at a specified port.
       type: object
-      required:
-        - protocol
-        - port
+      required: [port]
       properties:
-        protocol:
-          type: string
-          enum:  # fixed value
-            - WebSocket
-          description: The protocol, must be "WebSocket".
         port:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
+          $ref: '#/components/schemas/Parameter.Port'
         path:
           type: string
           description: HTTP URL to serve.
 
-    io.l7mp.api.v1.UDPListenerSpec:
+    UDPListenerSpec:
         # - protocol: UDP
         # - session ID: IP 5-tuple
         # - type: datagram-stream
@@ -215,33 +208,26 @@ components:
         port. Default is Singleton if both connect.address and connect.port
         are specified, otherwise Server (override with options.mode).
       type: object
-      required:
-        - protocol
-        - port
+      required: [port]
       properties:
-        protocol:
-          description: The protocol, must be "UDP".
-          type: string
-          enum:  # fixed value
-            - UDP
         port:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
+          $ref: '#/components/schemas/Parameter.Port'
         connect:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.AddressPortPair'
+          $ref: '#/components/schemas/Parameter.AddressPortPair'
         options:
           type: object
           properties:
             mode:
               description: >
-                Work in singleton mode (only a single session is handled by
-                the listener to a known remote) or server mode (a new session
-                is emitted for each new peer address/port pair).
+                Work in singleton mode (only a single session is handled
+                by the listener to a known remote) or server mode (a new
+                session is emitted for each new peer address/port pair).
               type: string
               enum:
               - server
               - singleton
 
-    io.l7mp.api.v1.TCPListenerSpec:
+    TCPListenerSpec:
         # - protocol: TCP
         # - session ID: IP 5-tuple
         # - type: datagram-stream
@@ -250,19 +236,12 @@ components:
         A TCP server specification that accepts TCP requests at a specified
         port.
       type: object
-      required:
-        - protocol
-        - port
+      required: [port]
       properties:
-        protocol:
-          type: string
-          enum:  # fixed value
-            - TCP
-          description: The protocol, must be "TCP".
         port:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
+          $ref: '#/components/schemas/Parameter.Port'
 
-    io.l7mp.api.v1.UnixDomainSocketListenerSpec:
+    UnixDomainSocketListenerSpec:
         # - protocol: UnixDomainSocket
         # - session ID: Listener name + ID
         # - type: byte-stream
@@ -271,20 +250,13 @@ components:
         A Unix Domain Socket (UDS) server specification that accepts IPC
         connection requests at a specified filename.
       type: object
-      required:
-        - protocol
-        - filename
+      required: [filename]
       properties:
-        protocol:
-          type: string
-          enum:  # fixed value
-            - UnixDomainSocket
-          description: The protocol, must be "UnixDomainSocket".
         filename:
           type: string
           description: File system path to bind to.
 
-    io.l7mp.api.v1.JSONSocketListenerSpec:
+    JSONSocketListenerSpec:
         # - protocol: JSONSocket
         # - session ID: Listener name + ID
         # - type: datagram-stream
@@ -300,34 +272,23 @@ components:
         client. Both the JSON request and response headers are transmitted
         reliably, subject to user specified timeout.
       type: object
-      required:
-        - protocol
-        - transport
+      required: [transport]
       properties:
-        protocol:
-          type: string
-          enum:  # fixed value
-            - JSONSocket
-          description: The protocol, must be "JSONSocket".
         transport:
           description: >
             The specification of the listener that provides the transport
             service to JSONSocket.
           type: object
-          oneOf:
-            - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.UDPListenerSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.TCPListenerSpec'
-          discriminator:
-            propertyName: protocol
-            mapping:
-              WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
-              UDP: '#/components/schemas/io.l7mp.api.v1.UDPListenerSpec'
-              UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
-              TCP: '#/components/schemas/io.l7mp.api.v1.TCPListenerSpec'
+          properties:
+            WebSocket: {$ref: '#/components/schemas/WebSocketListenerSpec'}
+            UDP: {$ref: '#/components/schemas/UDPListenerSpec'}
+            UnixDomainSocket: {$ref: '#/components/schemas/UnixDomainSocketListenerSpec'}
+            TCP: {$ref: '#/components/schemas/TCPListenerSpec'}
+          maxProperties: 1
+          minProperties: 1
+          x-l7mp-old-property: protocol
 
-    io.l7mp.api.v1.EndPointRequest:
+    EndPointRequest:
       description: >
         Wrapper for addEndPoint calls. Contains only a single EndPoint object.
       type: object
@@ -335,9 +296,9 @@ components:
         - endpoint
       properties:
         endpoint:
-          $ref: '#/components/schemas/io.l7mp.api.v1.EndPoint'
+          $ref: '#/components/schemas/EndPoint'
 
-    io.l7mp.api.v1.ClusterRequest:
+    ClusterRequest:
       description: >
         Wrapper for addCluster calls. Contains only a single Cluster object.
       type: object
@@ -345,169 +306,136 @@ components:
         - cluster
       properties:
         cluster:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
+          $ref: '#/components/schemas/Cluster'
 
-    io.l7mp.api.v1.Cluster:
+    ClusterOrRef:
+      type: object
+      x-l7mp-old-remove-level: true
+      properties:
+        cluster:
+          $ref: '#/components/schemas/Cluster'
+        clusterRef:
+          type: string
+      oneOf:
+        - required: [clusterRef]
+          not: {required: [cluster]}
+        - required: [cluster]
+          not: {required: [clusterRef]}
+
+    Cluster:
       description: >
         A socket that originates connections to external services, an
         abstraction for an "egress port".
       type: object
-      required:
-        - spec
+      oneOf:
+        - required: [spec, endpointNum]
+          not: {required: [endpoints]}
+        - required: [spec, endpoints]
+          not: {required: [endpointNum]}
+        - required: [spec]
+          allOf:
+            - not: {required: [endpointNum]}
+            - not: {required: [endpoints]}
       properties:
         name:
           type: string
         spec:
           type: object
-          oneOf:
-            - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.UDPClusterSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.TCPClusterSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.JSONSocketClusterSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.L7mpControllerSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.DiscardClusterSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.LoggerClusterSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.SyncClusterSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.JSONEncapClusterSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.JSONDecapClusterSpec'
-          discriminator:
-            propertyName: protocol
-            mapping:
-              WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
-              UDP: '#/components/schemas/io.l7mp.api.v1.UDPClusterSpec'
-              TCP: '#/components/schemas/io.l7mp.api.v1.TCPClusterSpec'
-              JSONSocket: '#/components/schemas/io.l7mp.api.v1.JSONSocketClusterSpec'
-              UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
-              L7mpController: '#/components/schemas/io.l7mp.api.v1.L7mpControllerSpec'
-              Stdio: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
-              Echo: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
-              Discard: '#/components/schemas/io.l7mp.api.v1.DiscardClusterSpec'
-              Logger: '#/components/schemas/io.l7mp.api.v1.LoggerClusterSpec'
-              Sync: '#/components/schemas/io.l7mp.api.v1.SyncClusterSpec'
-              JSONEncap: '#/components/schemas/io.l7mp.api.v1.JSONEncapClusterSpec'
-              JSONDecap: '#/components/schemas/io.l7mp.api.v1.JSONDecapClusterSpec'
+          properties:
+            WebSocket: {$ref: '#/components/schemas/WebSocketClusterSpec'}
+            UDP: {$ref: '#/components/schemas/UDPClusterSpec'}
+            TCP: {$ref: '#/components/schemas/TCPClusterSpec'}
+            UnixDomainSocket: {$ref: '#/components/schemas/UnixDomainSocketClusterSpec'}
+            JSONSocket: {$ref: '#/components/schemas/JSONSocketClusterSpec'}
+            L7mpController: {$ref: '#/components/schemas/L7mpControllerSpec'}
+            Sdtio: {$ref: '#/components/schemas/StdioClusterSpec'}
+            Echo: {$ref: '#/components/schemas/EchoClusterSpec'}
+            Discard: {$ref: '#/components/schemas/DiscardClusterSpec'}
+            Logger: {$ref: '#/components/schemas/LoggerClusterSpec'}
+            Sync: {$ref: '#/components/schemas/SyncClusterSpec'}
+            JSONEncap: {$ref: '#/components/schemas/JSONEncapClusterSpec'}
+            JSONDecap: {$ref: '#/components/schemas/JSONDecapClusterSpec'}
+          minProperties: 1
+          maxProperties: 1
+          x-l7mp-old-property: protocol
+        endpointNum:
+          description: >
+            The number of endpoints.  (Sometimes used in return values.)
+          type: integer
         endpoints:
-          description: The number of endpoints or a list of EndPoints.
-          anyOf:
-            - type: integer
-            - type: array
-              items:
-                $ref: '#/components/schemas/io.l7mp.api.v1.EndPoint'
+          description:  A list of EndPoints.
+          type: array
+          items:
+            $ref: '#/components/schemas/EndPoint'
         loadbalancer:
-            $ref: '#/components/schemas/io.l7mp.api.v1.LoadBalancer'
+            $ref: '#/components/schemas/LoadBalancer'
         options:
           description: Optional features.
           type: object
 
-    io.l7mp.api.v1.WebSocketClusterSpec:
+    WebSocketClusterSpec:
       description: >
         A WebSocket cluster specification that forwards HTTP/WebSocket
         connections to an upstream cluster.
       type: object
-      required:
-        - protocol
-        - port
+      required: [port]
       properties:
-        protocol:
-          type: string
-          enum:  # fixed value
-            - WebSocket
-          description: The protocol, must be "WebSocket".
         port:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
+          $ref: '#/components/schemas/Parameter.Port'
 
-    io.l7mp.api.v1.UDPClusterSpec:
+    UDPClusterSpec:
       description: >
         A UDP sender socket that forwards UDP connections to an upstream
         cluster, connecting to a well-defined remote address-port pair.
       type: object
-      required:
-        - protocol
-        - port
+      required: [port]
       properties:
-        protocol:
-          description: The protocol, must be "UDP".
-          type: string
-          enum:  # fixed value
-            - UDP
         port:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
+          $ref: '#/components/schemas/Parameter.Port'
         bind:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.AddressPortPair'
+          $ref: '#/components/schemas/Parameter.AddressPortPair'
 
-    io.l7mp.api.v1.TCPClusterSpec:
+    TCPClusterSpec:
       description: >
         A TCP cluster specification that forwards TCP connections to an
         upstream cluster.
       type: object
-      required:
-        - protocol
-        - port
+      required: [port]
       properties:
-        protocol:
-          type: string
-          enum:  # fixed value
-            - TCP
-          description: The protocol, must be "TCP".
         port:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
+          $ref: '#/components/schemas/Parameter.Port'
         bind:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.AddressPortPair'
+          $ref: '#/components/schemas/Parameter.AddressPortPair'
 
-    io.l7mp.api.v1.UnixDomainSocketClusterSpec:
+    UnixDomainSocketClusterSpec:
       description: >
         A Unix Domain Socket (UDS) cluster specification that forwards IPC
         connections to an upstream cluster.
       type: object
-      required:
-        - protocol
-      properties:
-        protocol:
-          type: string
-          enum:  # fixed value
-            - UnixDomainSocket
-          description: The protocol, must be "UnixDomainSocket".
+      maxProperties: 0
 
-    io.l7mp.api.v1.JSONSocketClusterSpec:
+    JSONSocketClusterSpec:
       description: >
         A JSONSocket cluster specification that forwards JSONSocket
         connections to an upstream cluster over a specified transport.
       type: object
-      required:
-        - protocol
-        - transport
+      required: [transport]
       properties:
-        protocol:
-          type: string
-          enum:  # fixed value
-            - JSONSocket
-          description: The protocol, must be "JSONSocket".
         transport:
           description: >
             The specification of the cluster that provides the transport
             service to JSONSocket.
           type: object
-          oneOf:
-            - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.UDPClusterSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.TCPClusterSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
-            - $ref: '#/components/schemas/io.l7mp.api.v1.DiscardClusterSpec'
-          discriminator:
-            propertyName: protocol
-            mapping:
-              WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
-              UDP: '#/components/schemas/io.l7mp.api.v1.UDPClusterSpec'
-              TCP: '#/components/schemas/io.l7mp.api.v1.TCPClusterSpec'
-              UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
-              Stdio: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
-              Echo: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
-              Discard: '#/components/schemas/io.l7mp.api.v1.DiscardClusterSpec'
+          properties:
+            WebSocket: {$ref: '#/components/schemas/WebSocketClusterSpec'}
+            UDP: {$ref: '#/components/schemas/UDPClusterSpec'}
+            TCP: {$ref: '#/components/schemas/TCPClusterSpec'}
+            UnixDomainSocket: {$ref: '#/components/schemas/UnixDomainSocketClusterSpec'}
+            Stdio: {$ref: '#/components/schemas/StdioClusterSpec'}
+            Discard: {$ref: '#/components/schemas/DiscardClusterSpec'}
+          minProperties: 1
+          maxProperties: 1
+          x-l7mp-old-property: protocol
         header:
           type: array
           items:
@@ -547,71 +475,36 @@ components:
                     type: string
                     description: Value to be set for the specified key.
 
-    io.l7mp.api.v1.L7mpControllerSpec:
+    L7mpControllerSpec:
       description: >
         A virtual cluster that accepts L7mp controller REST API calls.
       type: object
-      required:
-        - protocol
-      properties:
-        protocol:
-          description: The protocol, must be "L7mpController".
-          type: string
-          enum:  # fixed value
-            - L7mpController
+      maxProperties: 0
 
-    io.l7mp.api.v1.StdioClusterSpec:
+    StdioClusterSpec:
       description: >
         A virtual cluster that writes the stream routed to it to the proxy
         standard output and pipes back standard input into the stream. Useful
         for debugging.
       type: object
-      required:
-        - protocol
-      properties:
-        protocol:
-          description: The protocol, must be "Stdio".
-          type: string
-          enum:  # fixed value
-            - Stdio
+      maxProperties: 0
 
-    io.l7mp.api.v1.EchoClusterSpec:
+    EchoClusterSpec:
       description: A virtual cluster that echoes back everything it receives.
       type: object
-      required:
-        - protocol
-      properties:
-        protocol:
-          description: The protocol, must be "Echo".
-          type: string
-          enum:  # fixed value
-            - Echo
+      maxProperties: 0
 
-    io.l7mp.api.v1.DiscardClusterSpec:
+    DiscardClusterSpec:
       description: A virtual cluster that discards everything it receives.
       type: object
-      required:
-        - protocol
-      properties:
-        protocol:
-          description: The protocol, must be "Discard".
-          type: string
-          enum:  # fixed value
-            - Discard
+      maxProperties: 0
 
-    io.l7mp.api.v1.LoggerClusterSpec:
+    LoggerClusterSpec:
       description: >
         A virtual cluster that logs everything that passes through it to a log
         file.
       type: object
-      required:
-        - protocol
       properties:
-        protocol:
-          description: The protocol, must be "Logger".
-          type: string
-          enum:  # fixed value
-            - Logger
         log_file:
           description: >
             The file to log to. Opened it mode "w" (create or truncate if
@@ -621,7 +514,7 @@ components:
           description: Prefix log messages. Default is no prefix.
           type: string
 
-    io.l7mp.api.v1.SyncClusterSpec:
+    SyncClusterSpec:
       description: >
         A virtual cluster that allows multiple streams to synchronize and
         exchange data. The Sync cluster acts as a rendezvous point for streams
@@ -631,15 +524,8 @@ components:
         of the streams will be boradcast to all the other streams. Useful for
         connecting two ingress streams into a single end-to-end stream.
       type: object
-      required:
-        - protocol
-        - query
+      required: [query]
       properties:
-        protocol:
-          description: The protocol, must be "Sync".
-          type: string
-          enum:  # fixed value
-            - Sync
         query:
           description: >
             A JSONPredicate query to the stream metadata. All streams for
@@ -647,37 +533,23 @@ components:
             a single broadcast domain.
           type: string
 
-    io.l7mp.api.v1.JSONEncapClusterSpec:
+    JSONEncapClusterSpec:
       description: >
         A virtual cluster to encapsulate data in JSON. Session metadata is
         copied under the "/metadata" JSON path and content is copied under
         "/payload".
       type: object
-      required:
-        - protocol
-      properties:
-        protocol:
-          description: The protocol, must be "JSONEncap".
-          type: string
-          enum:  # fixed value
-            - JSONEncap
+      maxProperties: 0
 
-    io.l7mp.api.v1.JSONDecapClusterSpec:
+    JSONDecapClusterSpec:
       description: >
         A virtual cluster to decapsulates data from JSON. In particular,
         content from under "/payload" JSON path is decapsulated and returned
         and everything else is dropped.
       type: object
-      required:
-        - protocol
-      properties:
-        protocol:
-          description: The protocol, must be "JSONDecap".
-          type: string
-          enum:  # fixed value
-            - JSONDecap
+      maxProperties: 0
 
-    io.l7mp.api.v1.EndPoint:
+    EndPoint:
       description: >
         A particular upstream backend that accepts connects through a Cluster.
       type: object
@@ -690,24 +562,37 @@ components:
             automatically if not specified.)
           type: string
         spec:
-          $ref: '#/components/schemas/io.l7mp.api.v1.EndPointSpec'
+          $ref: '#/components/schemas/EndPointSpec'
+        x-l7mp-k8s-add:
+          selector:
+            $ref: '#/components/schemas/Selector'
+      x-l7mp-k8s-delete: [required]
+      x-l7mp-k8s-add:
+        anyOf:
+          - required: [spec]
+          - required: [selector]
 
     # TODO: specialize for different endpoint types
-    io.l7mp.api.v1.EndPointSpec:
+    EndPointSpec:
       description: A generic endpoint specification.
       type: object
-      required:
-        - address
       properties:
+        filename:
+          type: string
+          description: Unix Domain Socket filename
+          x-l7mp-old-name: address
         address:
-          anyOf:
-            - type: string  # Unix Domain Socket filename
-            - $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
+          $ref: '#/components/schemas/Parameter.Address'
         weight:
           description: Weight of the endpoint used in load-balancing.
           type: integer
+      oneOf:
+        - required: [filename]
+          not: {required: [address]}
+        - required: [address]
+          not: {required: [filename]}          
 
-    io.l7mp.api.v1.LoadBalancer:
+    LoadBalancer:
       description: Load-balancer specification.
       type: object
       required:
@@ -729,7 +614,7 @@ components:
             The JSON path to the metadata field to hash on (optional).
           type: string
 
-    io.l7mp.api.v1.RouteRequest:
+    RouteRequest:
       description: >
         Wrapper for addRoute calls. Contains only a single Routet object.
       type: object
@@ -737,13 +622,16 @@ components:
         - route
       properties:
         route:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Route'
+          $ref: '#/components/schemas/Route'
 
-    io.l7mp.api.v1.Route:
+    Route:
       description: The route to be assigned to a session in a math-action rule.
       type: object
-      required:
-        - destination
+      oneOf:
+        - required: [destinationRef]
+          not: {required: [destination]}
+        - required: [destination]
+          not: {required: [destinationRef]}
       properties:
         name:
           description: >
@@ -752,13 +640,15 @@ components:
           type: string
         destination:
           description: >
-            The target cluster of the route (required). Can be a string in
-            which case it is the name of an existing cluster with the name
-            given, or it can be an inline cluster definition in which case a
-            new cluster will be added.
-          anyOf:
-            - type: string
-            - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
+            The target cluster of the route.  It is an inline cluster
+            definition. A new cluster will be added if necessary.
+          $ref: '#/components/schemas/Cluster'
+        destinationRef:
+          description: >
+            The target cluster of the route. It is the name of an existing
+            cluster.
+          type: string
+          x-l7mp-old-name: destination
         ingress:
           description: >
             The set of transforms to be applied in the "ingress" (upstream,
@@ -770,9 +660,8 @@ components:
               is the name of an existing cluster with the name given, or it
               can be an inline cluster definition in which case a new cluster
               will be added.
-            anyOf:
-              - type: string
-              - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
+            $ref: '#/components/schemas/ClusterOrRef'
+
         egress:
           description: >
             The set of transforms to be applied in the "eress" (downstream,
@@ -784,9 +673,7 @@ components:
               is the name of an existing cluster with the name given, or it
               can be an inline cluster definition in which case a new cluster
               will be added.
-            anyOf:
-              - type: string
-              - $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
+            $ref: '#/components/schemas/ClusterOrRef'
         retry:
           description: Connection retry/timeout policy.
           type: object
@@ -800,6 +687,7 @@ components:
                 "disconnect" (retry only when an already connected stream
                 disconnects), or "always" ("connect-failure" & "disconnect").
               type: string
+              enum: [never, connect-failure, disconnect, always]
             num_retries:
               description: >
                 If "retry_on" is "never" then this is meaningless.  If
@@ -817,31 +705,36 @@ components:
                 attempts.
               type: integer
 
-    # io.l7mp.api.v1.Match:
-    #   description: The "filter" part of a math-action rule that filters on session metadata.
+    # Match:
+    #   description: >
+    #     The "filter" part of a math-action rule that filters on session
+    #     metadata.
     #   type: object
     #   oneOf:
-    #     - $ref: '#/components/schemas/io.l7mp.api.v1.WildcardMatch'
-    #     - $ref: '#/components/schemas/io.l7mp.api.v1.JSONPredicate'
+    #     - $ref: '#/components/schemas/WildcardMatch'
+    #     - $ref: '#/components/schemas/JSONPredicate'
 
-    # io.l7mp.api.v1.WildcardMatch:
+    # WildcardMatch:
     #   description: A wildcard filter, matches everything.
     #   type: string
 
-    io.l7mp.api.v1.JSONPredicate:
+    JSONPredicate:
       description: >
         A complex filter specified as a JSON predicate, see
         https://tools.ietf.org/html/draft-snell-json-test-07
       type: object
+      x-kubernetes-preserve-unknown-fields: true
 
-    io.l7mp.api.v1.Rewrite:
+    Rewrite:
       description: >
         Metadata rewrite rule. Find or create metadata at the specified path
         and set it to the specified value.
       type: object
-      required:
-        - path
-        - value
+      oneOf:
+        - required: [path, value]
+          not: {required: [valueStr]}
+        - required: [path, valueStr]
+          not: {required: [value]}
       properties:
         path:
           description: >
@@ -850,30 +743,47 @@ components:
           type: string
         value:
           description: >
-            The value to rewrite the metadata field at the specified path. Can
-            be a simple string or a JSON/YAML snippet.
+            The value to rewrite the metadata field at the specified path.
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+        valueStr:
+          description: >
+            JSON encoded value to rewrite the metadata field at the
+            specified path.
+          type: string
+          x-l7mp-old-name: value
 
-    io.l7mp.api.v1.Action:
+    Action:
       description: >
         The "action" part of a math-action rule that assigns a route to the
         matched sessions.
       type: object
+      oneOf:
+        - required: [routeRef]
+          not: {required: [route]}
+        - required: [route]
+          not: {required: [routeRef]}
+        - allOf:
+            - not: {required: [route]}
+            - not: {required: [routeRef]}
       properties:
         rewrite:
           description: A list of rewrite rules.
           type: array
           items:
-            $ref: '#/components/schemas/io.l7mp.api.v1.Rewrite'
+            $ref: '#/components/schemas/Rewrite'
         route:
-          description: A named Route or an inline Route specification.
-          anyOf:
-            - type: string  # reference to a named Route
-            - $ref: '#/components/schemas/io.l7mp.api.v1.Route'
+          description: An inline Route specification.
+          $ref: '#/components/schemas/Route'
+        routeRef:
+          description: A named Route
+          type: string
+          x-l7mp-old-name: route
         apply:
           description: A named RuleList to defer match-action processing to.
           type: string  # reference to a named Route
 
-    io.l7mp.api.v1.RuleRequest:
+    RuleRequest:
       description: >
         Wrapper for addRule calls. Contains only a single Rule object.
       type: object
@@ -881,9 +791,9 @@ components:
         - rule
       properties:
         rule:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+          $ref: '#/components/schemas/Rule'
 
-    io.l7mp.api.v1.RuleRequestUnchecked:
+    RuleRequestUnchecked:
       description: >
         Wrapper for addRule calls. Contains only a single Rule object or a
         name of a Rule.
@@ -891,7 +801,20 @@ components:
       required:
         - rule
 
-    io.l7mp.api.v1.Rule:
+    RuleOrRef:
+      type: object
+      oneOf:
+        - required: [ruleRef]
+          not: {required: [rule]}
+        - required: [rule]
+          not: {required: [ruleRef]}
+      properties:
+        rule:
+          $ref: '#/components/schemas/Rule'
+        ruleRef:
+          type: string
+
+    Rule:
       description: >
         A math-action rule that defines the route of a connection through the
         L7mp pipeline. May contain a match and an action. If no match is
@@ -904,12 +827,12 @@ components:
           description: Name (optional).
           type: string
         match:
-          # $ref: '#/components/schemas/io.l7mp.api.v1.Match'
-          $ref: '#/components/schemas/io.l7mp.api.v1.JSONPredicate'
+          # $ref: '#/components/schemas/Match'
+          $ref: '#/components/schemas/JSONPredicate'
         action:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Action'
+          $ref: '#/components/schemas/Action'
 
-    io.l7mp.api.v1.RuleListRequest:
+    RuleListRequest:
       description: >
         Wrapper for addRuleList calls. Contains only a single RuleList object.
       type: object
@@ -917,9 +840,9 @@ components:
         - rulelist
       properties:
         rulelist:
-          $ref: '#/components/schemas/io.l7mp.api.v1.RuleList'
+          $ref: '#/components/schemas/RuleList'
 
-    io.l7mp.api.v1.RuleList:
+    RuleList:
       description: >
         An abstraction for a math-action table, i.e., an ordered list of
         match-action rules with each rule specifying a matching condition on
@@ -937,19 +860,18 @@ components:
           description: A list of Rule objects.
           type: array
           items:
-            anyOf:
-              - type: string  # reference to a named Rule
-              - $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+            $ref: '#/components/schemas/RuleOrRef'
 
-    io.l7mp.api.v1.Metadata:
+    Metadata:
       description: >
         Metadata that describes all known parameters of a session, like ports
         and IP addresses, status, HTTP headers (if relevant), etc. In general,
         metadata are created by the listener and they can be
         modified/queried/matched in rules/actions.
       type: object
+      x-kubernetes-preserve-unknown-fields: true
 
-    io.l7mp.api.v1.Stage:
+    Stage:
       description: "A Stage along the ingress/egress pipeline for a session."
       type: object
       required:
@@ -967,7 +889,7 @@ components:
           description: Status.
           type: string
 
-    io.l7mp.api.v1.Session:
+    Session:
       description: >
         An ongoing connection that is known by the proxy. A session is created
         by a listener receiving a new connection request and it is processed
@@ -992,21 +914,21 @@ components:
           type: object
         destination:
           # description: "The spec of the destination Cluster of the session."
-          $ref: '#/components/schemas/io.l7mp.api.v1.Metadata'
+          $ref: '#/components/schemas/Metadata'
         ingress:
           description: >
             The stages of the ingress pipeline, from the source to the
             destination.
           type: array
           items:
-            $ref: '#/components/schemas/io.l7mp.api.v1.Stage'
+            $ref: '#/components/schemas/Stage'
         egress:
           description: >
             The stages of the egress pipeline, from the destination to the
             source.
           type: array
           items:
-            $ref: '#/components/schemas/io.l7mp.api.v1.Stage'
+            $ref: '#/components/schemas/Stage'
         status:
           description: Status.
           type: string
@@ -1026,7 +948,7 @@ components:
                 description: Test description.
                 type: string
 
-    io.l7mp.api.v1.Status:
+    Status:
       description: General status info.
       type: object
       required:
@@ -1041,31 +963,164 @@ components:
         # content:
         #   description: Error (optional).
 
-    io.l7mp.api.v1.Parameter.Address:
+    Parameter.Address:
       description: A network layer (IP/IPv6) address or domain name.
       type: string
 
-    io.l7mp.api.v1.Parameter.Port:
+    Parameter.Port:
       description: The valid transport protocol port.
       type: integer
       minimum: 1
       maximum: 65535
 
-    io.l7mp.api.v1.Parameter.AddressPortPair:
+    Parameter.AddressPortPair:
       description: >
         A network layer (IP/IPv6) address/domain name and/or a transport layer
         port.
       type: object
       properties:
         address:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Address'
+          $ref: '#/components/schemas/Parameter.Address'
         port:
-          $ref: '#/components/schemas/io.l7mp.api.v1.Parameter.Port'
+          $ref: '#/components/schemas/Parameter.Port'
 
-    io.l7mp.api.v1.JSONFormat:
-      description: Format JSON output, see "https://www.npmjs.com/package/format-json" for the accepted options.
+    JSONFormat:
+      description: >
+        Format JSON output, see "https://www.npmjs.com/package/format-json"
+        for the accepted options.
       type: string
       enum: [ plain, terse, space, lines, diffy ]
+
+    VirtualService:
+      type: object
+      properties:
+        spec:
+          type: object
+          properties:
+            updateOwners:
+              type: boolean
+              default: false
+            selector:
+              $ref: '#/components/schemas/Selector'
+            listener:
+              $ref: '#/components/schemas/Listener'
+          required: [selector, listener]
+        status:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+
+    Target:
+      type: object
+      properties:
+        status:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+        spec:
+          type: object
+          properties:
+            cluster:
+              $ref: '#/components/schemas/Cluster'
+            selector:
+              $ref: '#/components/schemas/Selector'
+
+    CrdRule:
+      type: object
+      properties:
+        status:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+        spec:
+          type: object
+          properties:
+            position:
+              type: integer
+            rule:
+              $ref: '#/components/schemas/Rule'
+            rulelist:
+              type: string
+            selector:
+              $ref: '#/components/schemas/Selector'
+            updateOwners:
+              type: boolean
+              default: false
+
+    Selector:
+      type: object
+      properties:
+        matchLabels:
+          description: >
+            matchLabels is a map of {key,value} pairs. A single {key,value} in
+            the matchLabels map is equivalent to an element of
+            matchExpressions, whose key field is "key", the operator is
+            "In", and the values array contains only "value". The
+            requirements are ANDed.
+          type: object
+          "additionalProperties": { "type": "string" }
+          x-kubernetes-preserve-unknown-fields: true
+
+        matchExpressions:
+          description: >
+            matchExpressions is a list of label selector requirements. The
+            requirements are ANDed.
+          type: object
+          properties:
+            key:
+              description: key is the label key that the selector applies to.
+              type: string
+            operator:
+              description: >
+                "operator represents a key's relationship to a set of
+                values. Valid operators are In, NotIn, Exists and
+                DoesNotExist."
+              type: string
+              enum: [In, NotIn, Exists, DoesNotexist]
+            values:
+              description: >
+                values is an array of string values. If the operator is In
+                or NotIn, the values array must be non-empty. If the
+                operator is Exists or DoesNotExist, the values array must be
+                empty. This array is replaced during a strategic merge
+                patch.
+              type: array
+              items:
+                type: string
+
+        matchFields:
+          description: >
+            A list of node selector requirements by node's fields.
+          type: object
+          properties:
+            operator:
+              description: >
+                Represents a key's relationship to a set of values. Valid
+                operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+              type: string
+              enum: [In, NotIn, Exists, DoesNotExist, Gt, Lt]
+            key:
+              type: string
+              description: >
+                The label key that the selector applies to
+            values:
+              type: array
+              description: >
+                An array of string values. If the operator is In or NotIn, the
+                values array must be non-empty. If the operator is Exists or
+                DoesNotExist, the values array must be empty. If the operator
+                is Gt or Lt, the values array must have a single element,
+                which will be interpreted as an integer. This array is
+                replaced during a strategic merge patch.
+              items:
+                type: string
+
+        matchNamespace:
+          description:
+            matches pods with the given namespace
+          type: string
+
+        matchService:
+          description:
+            matches pods belonging to the given service
+          type: string
 
 
 paths:
@@ -1078,14 +1133,14 @@ paths:
         - name: format
           in: query
           schema:
-            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+            $ref: '#/components/schemas/JSONFormat'
       responses:
         '200':
           description: Full configuration
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Config'
+                $ref: '#/components/schemas/Config'
     post:
       description: Reload configuration
       operationId: setConf
@@ -1094,20 +1149,20 @@ paths:
         content:
           'application/json':
             schema:
-              $ref: '#/components/schemas/io.l7mp.api.v1.Config'
+              $ref: '#/components/schemas/Config'
       responses:
         '200':
           description: Status.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
   # Static config API
   /api/v1/admin:
     get:
@@ -1117,14 +1172,14 @@ paths:
         - name: format
           in: query
           schema:
-            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+            $ref: '#/components/schemas/JSONFormat'
       responses:
         '200':
           description: Static configuration
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Admin'
+                $ref: '#/components/schemas/Admin'
     post:
       description: Apply static configuration
       operationId: applyAdmin
@@ -1133,20 +1188,20 @@ paths:
         content:
           'application/json':
             schema:
-              $ref: '#/components/schemas/io.l7mp.api.v1.AdminRequest'
+              $ref: '#/components/schemas/AdminRequest'
       responses:
         '200':
           description: Status.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
   # Listener API
   /api/v1/listeners:
     get:
@@ -1164,7 +1219,7 @@ paths:
         - name: format
           in: query
           schema:
-            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+            $ref: '#/components/schemas/JSONFormat'
       responses:
         '200':
           description: OK
@@ -1174,7 +1229,7 @@ paths:
                 description: A list of Listeners.
                 type: array
                 items:
-                  $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
+                  $ref: '#/components/schemas/Listener'
     post:
       description: >
         Create a Listener. Note that a Listener specification may either
@@ -1191,20 +1246,20 @@ paths:
         content:
           'application/json':
             schema:
-              $ref: '#/components/schemas/io.l7mp.api.v1.ListenerRequest'
+              $ref: '#/components/schemas/ListenerRequest'
       responses:
         '200':
           description: Status.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
   /api/v1/listeners/{name}:
     get:
       description: Get a named Listener
@@ -1227,20 +1282,20 @@ paths:
         - name: format
           in: query
           schema:
-            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+            $ref: '#/components/schemas/JSONFormat'
       responses:
         '200':
           description: Status.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Listener'
+                $ref: '#/components/schemas/Listener'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
     delete:
       description: Delete a named Listener
       operationId: deleteListener
@@ -1265,19 +1320,20 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
   # Cluster API
   /api/v1/clusters:
     get:
       description: >
-        Get a list of Clusters. If called with the recursive flag on, it will also list the
-        endpoints of each Cluster, otherwise, only the number of endpoints is returned.
+        Get a list of Clusters. If called with the recursive flag on, it will
+        also list the endpoints of each Cluster, otherwise, only the number of
+        endpoints is returned.
       operationId: getClusters
       parameters:
         - name: recursive
@@ -1288,7 +1344,7 @@ paths:
         - name: format
           in: query
           schema:
-            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+            $ref: '#/components/schemas/JSONFormat'
       responses:
         '200':
           description: OK
@@ -1298,7 +1354,7 @@ paths:
                 description: A list of Clusters.
                 type: array
                 items:
-                  $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
+                  $ref: '#/components/schemas/Cluster'
     post:
       description: >
         Create a Cluster. Note that a Cluster specification may either contain
@@ -1311,25 +1367,25 @@ paths:
         content:
           'application/json':
             schema:
-              $ref: '#/components/schemas/io.l7mp.api.v1.ClusterRequest'
+              $ref: '#/components/schemas/ClusterRequest'
       responses:
         '200':
           description: Status.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
   /api/v1/clusters/{name}:
     get:
       description: >
-        Get a named Cluster. If called with the recursive flag on, it will also
-        list the endpoints of the Cluster, otherwise, only the number of 
+        Get a named Cluster. If called with the recursive flag on, it will
+        also list the endpoints of the Cluster, otherwise, only the number of
         endpoints is returned.
       operationId: getCluster
       parameters:
@@ -1347,20 +1403,20 @@ paths:
         - name: format
           in: query
           schema:
-            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+            $ref: '#/components/schemas/JSONFormat'
       responses:
         '200':
           description: Status.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Cluster'
+                $ref: '#/components/schemas/Cluster'
         '400':
           description: Invalid cluster name.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
     delete:
       description: >
         Delete the named Cluster. Note that deleting a cluster will delete the
@@ -1388,13 +1444,13 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
   # EndPoint API
   /api/v1/clusters/{name}/endpoints:
     get:
@@ -1411,7 +1467,7 @@ paths:
         - name: format
           in: query
           schema:
-            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+            $ref: '#/components/schemas/JSONFormat'
       responses:
         '200':
           description: Status.
@@ -1421,13 +1477,13 @@ paths:
                 description: A list of EndPoints.
                 type: array
                 items:
-                  $ref: '#/components/schemas/io.l7mp.api.v1.EndPoint'
+                  $ref: '#/components/schemas/EndPoint'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
     post:
       description: Create an EndPoint in a Cluster
       operationId: addEndPoint
@@ -1443,20 +1499,20 @@ paths:
         content:
           'application/json':
             schema:
-              $ref: '#/components/schemas/io.l7mp.api.v1.EndPointRequest'
+              $ref: '#/components/schemas/EndPointRequest'
       responses:
         '200':
           description: Status.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
   /api/v1/endpoints/{name}:
     get:
       description: Get a named EndPoint
@@ -1471,20 +1527,20 @@ paths:
         - name: format
           in: query
           schema:
-            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+            $ref: '#/components/schemas/JSONFormat'
       responses:
         '200':
           description: Status.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.EndPoint'
+                $ref: '#/components/schemas/EndPoint'
         '400':
           description: Invalid Cluster or EndPoint name.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
     delete:
       description: >
         Delete a named EndPoint. Note that the operation will also remove the
@@ -1503,13 +1559,13 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
         '400':
           description: Invalid EndPoint name.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
   # RuleList API
   /api/v1/rulelists/{name}/rules/{position}:
     get:
@@ -1542,20 +1598,20 @@ paths:
         - name: format
           in: query
           schema:
-            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+            $ref: '#/components/schemas/JSONFormat'
       responses:
         '200':
           description: Status.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+                $ref: '#/components/schemas/Rule'
         '400':
           description: Invalid rulelist name or position.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
     post:
       description: >
         Add a Rule to a RuleList. Note that a Rule specification may either
@@ -1584,20 +1640,20 @@ paths:
         content:
           'application/json':
             schema:
-              $ref: '#/components/schemas/io.l7mp.api.v1.RuleRequestUnchecked'
+              $ref: '#/components/schemas/RuleRequestUnchecked'
       responses:
         '200':
           description: Status.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
     delete:
       summary: Remove a Rule from a RuleList
       description: >
@@ -1629,13 +1685,13 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
   /api/v1/rulelists:
     get:
       summary: Get a list of RuleLists
@@ -1653,7 +1709,7 @@ paths:
         - name: format
           in: query
           schema:
-            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+            $ref: '#/components/schemas/JSONFormat'
       responses:
         '200':
           description: OK
@@ -1663,7 +1719,7 @@ paths:
                 description: A list of RuleLists.
                 type: array
                 items:
-                  $ref: '#/components/schemas/io.l7mp.api.v1.RuleList'
+                  $ref: '#/components/schemas/RuleList'
     post:
       description: >
         Create a RuleList. Note that a RuleList specification may either
@@ -1680,20 +1736,20 @@ paths:
         content:
           'application/json':
             schema:
-              $ref: '#/components/schemas/io.l7mp.api.v1.RuleListRequest'
+              $ref: '#/components/schemas/RuleListRequest'
       responses:
         '200':
           description: Status.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
   /api/v1/rulelists/{name}:
     get:
       description: Get a named RuleList
@@ -1716,20 +1772,20 @@ paths:
         - name: format
           in: query
           schema:
-            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+            $ref: '#/components/schemas/JSONFormat'
       responses:
         '200':
           description: Status.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.RuleList'
+                $ref: '#/components/schemas/RuleList'
         '400':
           description: Invalid rulelist name.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
     delete:
       description: Delete a named RuleList
       operationId: deleteRuleList
@@ -1753,13 +1809,13 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
   # Rule API
   /api/v1/rules:
     get:
@@ -1777,7 +1833,7 @@ paths:
         - name: format
           in: query
           schema:
-            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+            $ref: '#/components/schemas/JSONFormat'
       responses:
         '200':
           description: OK
@@ -1787,7 +1843,7 @@ paths:
                 description: A list of Rules.
                 type: array
                 items:
-                  $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+                  $ref: '#/components/schemas/Rule'
     post:
       description: >
         Create a Rule. Note that a Rule specification may either contain a set
@@ -1803,20 +1859,20 @@ paths:
         content:
           'application/json':
             schema:
-              $ref: '#/components/schemas/io.l7mp.api.v1.RuleRequest'
+              $ref: '#/components/schemas/RuleRequest'
       responses:
         '200':
           description: Status.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
   /api/v1/rules/{name}:
     get:
       description: Get a named Rule
@@ -1839,20 +1895,20 @@ paths:
         - name: format
           in: query
           schema:
-            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+            $ref: '#/components/schemas/JSONFormat'
       responses:
         '200':
           description: Status.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Rule'
+                $ref: '#/components/schemas/Rule'
         '400':
           description: Invalid rule name.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
     delete:
       description: Delete a named Rule
       operationId: deleteRule
@@ -1876,13 +1932,13 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
   # Route API
   /api/v1/routes:
     get:
@@ -1901,7 +1957,7 @@ paths:
         - name: format
           in: query
           schema:
-            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+            $ref: '#/components/schemas/JSONFormat'
       responses:
         '200':
           description: OK
@@ -1911,7 +1967,7 @@ paths:
                 description: A list of Routes.
                 type: array
                 items:
-                  $ref: '#/components/schemas/io.l7mp.api.v1.Route'
+                  $ref: '#/components/schemas/Route'
     post:
       description: >
         Create a Route. Note that a Route specification may either contain a
@@ -1927,20 +1983,20 @@ paths:
         content:
           'application/json':
             schema:
-              $ref: '#/components/schemas/io.l7mp.api.v1.RouteRequest'
+              $ref: '#/components/schemas/RouteRequest'
       responses:
         '200':
           description: Status.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
   /api/v1/routes/{name}:
     get:
       description: Get a named Route
@@ -1964,20 +2020,20 @@ paths:
         - name: format
           in: query
           schema:
-            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+            $ref: '#/components/schemas/JSONFormat'
       responses:
         '200':
           description: Status.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Route'
+                $ref: '#/components/schemas/Route'
         '400':
           description: Invalid rulelist name.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
     delete:
       description: Delete a named Route
       operationId: deleteRoute
@@ -2000,13 +2056,13 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
   # Session API
   /api/v1/sessions:
     get:
@@ -2016,7 +2072,7 @@ paths:
         - name: format
           in: query
           schema:
-            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+            $ref: '#/components/schemas/JSONFormat'
       responses:
         '200':
           description: OK
@@ -2026,7 +2082,7 @@ paths:
                 description: A list of Sessions.
                 type: array
                 items:
-                  $ref: '#/components/schemas/io.l7mp.api.v1.Session'
+                  $ref: '#/components/schemas/Session'
   /api/v1/sessions/{name}:
     get:
       description: Get a named Session
@@ -2040,20 +2096,20 @@ paths:
         - name: format
           in: query
           schema:
-            $ref: '#/components/schemas/io.l7mp.api.v1.JSONFormat'
+            $ref: '#/components/schemas/JSONFormat'
       responses:
         '200':
           description: Status.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Session'
+                $ref: '#/components/schemas/Session'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
     delete:
       description: >
         Delete a named Session. Note that recursively deleting a Listener that
@@ -2072,13 +2128,13 @@ paths:
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
         '400':
           description: Invalid configuration.
           content:
             'application/json':
               schema:
-                $ref: '#/components/schemas/io.l7mp.api.v1.Status'
+                $ref: '#/components/schemas/Status'
 
 
 # Local Variables:

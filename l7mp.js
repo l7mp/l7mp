@@ -236,9 +236,11 @@ class L7mp {
             log.warn('L7mp.applyAdmin: access_log_path', 'TODO');
         }
 
+        // VERSION: package.jon:version + git-commit-hash + git-commit-date
         this.admin.version =
-            getVersion({ shaLength: 10, includeDate: true }) ||
-            '<UNKNOWN>';
+            getVersion({ shaLength: 10, includeDate: true });
+        // if git-commit is missing, we get 'null', remove it
+        this.admin.version = this.admin.version.replace(/ null/, '');
     }
 
     getAdmin(){

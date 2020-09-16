@@ -636,8 +636,11 @@ class UDPListener extends Listener {
 
     // do not close session, ie, this.socket for singleton
     close(){
-        this.socket.close();
-        this.socket.unref();
+        try{ this.socket.close(); this.socket.unref(); } catch(err){
+            log.silly('UDPListener.close: Cannot close UDP socket (probably harmless)',
+                      err.message);
+        }
+
     }
 };
 

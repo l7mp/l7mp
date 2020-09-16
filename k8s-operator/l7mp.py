@@ -22,15 +22,17 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-# python3.7 ~/kopf/kopf run --namespace=default ./l7mp.py --verbose
-# version: 0.2
+# python3.7 ~/kopf/kopf run --peering=operator.l7mp.io --namespace=default ./l7mp.py --verbose
+# version: 0.2.2
 
 import asyncio
 import collections.abc
 import functools
 import itertools
 import json
+import os
 import urllib3
+import yaml
 from copy import deepcopy
 from collections import defaultdict
 
@@ -261,20 +263,73 @@ async def set_owner_status(s, o_type, fqn, logger):
             patch={'status': {'children': {'applied': {fqn: generation}}}},
         )
 
+conv_db = {}
+def get_conv_db():
+    if conv_db:
+        return conv_db
+
+    with open(os.path.join(os.path.dirname(__file__), 'conv.yml')) as f:
+        for doc in yaml.safe_load_all(f):
+            plural = doc.get('spec', {}).get('names', {}).get('plural')
+            versions = doc.get('spec', {}).get('versions', [])
+            if len(versions) != 1:
+                logger.error(f'conversion to old {plural} is failed: %s',
+                             'len(versions) != 1')
+            conv_db[plural] = versions[0]['schema']['openAPIV3Schema']
+    return conv_db
+
+def convert_to_old_api(logger, plural, obj):
+    # Currently, the l7mp proxy uses an old OpenApi schema for
+    # validation.  That schema is not compatible with k8s OpenApi:
+    # https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#specifying-a-structural-schema
+    # So, this function converts object conforming to the new Api back
+    # to the old one.
+    schema = get_conv_db()[plural]
+    logger.debug('obj %s', obj)
+    _, obj =  convert_sub(schema['properties']['spec'], 'all', deepcopy(obj))
+    logger.debug('new obj: %s', obj)
+    return obj
+
+def convert_sub(schema, key, obj):
+    if obj is None:
+        return key, obj
+    if schema.get('properties'):
+        for k, v in schema['properties'].items():
+            if not k.startswith('x-l7mp-old'):
+                k1, v1 = convert_sub(v, k, obj.get(k))
+                if v1:
+                    obj[k1] = v1
+                if k1 != k:
+                    del obj[k]
+    if schema.get('items'):
+        return key, [convert_sub(schema['items'], '_', item)[1] for item in obj]
+    key = schema.get('x-l7mp-old-name') or key
+    # if schema.get('x-l7mp-old-conversion'):
+    #     obj = globals()['conv_' + schema['x-l7mp-old-conversion']](obj)
+    if schema.get('x-l7mp-old-remove-level'):
+        subkey = next(iter(obj))
+        obj = obj[subkey]
+    if schema.get('x-l7mp-old-property'):
+        subkey = next(iter(obj))
+        obj = obj[subkey]
+        obj[schema['x-l7mp-old-property']] = subkey
+    return key, obj
+
 async def exec_add_vsvc(s, pod, _old, action, logger):
     vname = action['name']
     pname = pod['metadata']['name']
     vsvc_spec = action['spec']
+    vsvc_spec = convert_to_old_api(logger, 'virtualservices', vsvc_spec)
     logger.info(f'configuring pod:{pname} for vsvc:{vname}')
 
     l7mp_instance = get_l7mp_instance(pod)
 
     listener = l7mp_client.IoL7mpApiV1Listener(
         name=vname,
-        spec=vsvc_spec.get('listener'),
-        rules=vsvc_spec.get('rules'))
+        spec=vsvc_spec.get('listener', {}).get('spec'),
+        rules=vsvc_spec.get('listener', {}).get('rules'))
     request = l7mp_client.IoL7mpApiV1ListenerRequest(listener=listener)
-    logger.debug(f'request: {request}')
+    logger.warning(f'request: {request}')
     try:
         l7mp_instance.add_listener(request)
     except l7mp_client.exceptions.ApiException as e:
@@ -297,7 +352,7 @@ async def exec_delete_vsvc(s, pod, action, _new, logger):
     l7mp_instance = get_l7mp_instance(pod)
     logger.info(f'Delete vsvc:{fqn} from pod:{pod["metadata"]["name"]}')
     try:
-        l7mp_instance.delete_listener(fqn)
+        l7mp_instance.delete_listener(fqn, recursive="true")
     except l7mp_client.exceptions.ApiException as e:
         content = json.loads(e.body).get('content', '')
         not_found = 'Cannot delete listener: Unknown listener'
@@ -322,6 +377,7 @@ async def exec_add_target(s, pod, _old, action, logger):
     tname = action['name']
     pname = pod['metadata']['name']
     tspec = action['spec']
+    tspec = convert_to_old_api(logger, 'targets', tspec)
     logger.info(f'configuring pod:{pname} for target:{tname}')
 
     l7mp_instance = get_l7mp_instance(pod)
@@ -353,7 +409,7 @@ async def exec_delete_target(s, pod, action, _new, logger):
     l7mp_instance = get_l7mp_instance(pod)
     logger.info(f'Delete target:{fqn} from pod:%s', pod['metadata']['name'])
     try:
-        l7mp_instance.delete_cluster(fqn)
+        l7mp_instance.delete_cluster(fqn, recursive="true")
     except l7mp_client.exceptions.ApiException as e:
         content = json.loads(e.body).get('content', '')
         not_found = 'Cannot delete cluster: Unknown cluster'
@@ -435,9 +491,12 @@ async def exec_add_rule(s, pod, _old, action, logger):
     logger.info(f'configuring pod:{pname} for rule:{rname}')
     l7mp_instance = get_l7mp_instance(pod)
 
-    rulelist = action['spec']['rulelist']
-    position = action['spec']['position']
-    rspec = deepcopy(action['spec']['rule'])
+    spec = action['spec']
+    spec = convert_to_old_api(logger, 'rules', spec)
+    rulelist = spec['rulelist']
+    position = spec['position']
+    rspec = deepcopy(spec['rule'])
+
     rspec['name'] = rname
     body = {'rule': rspec}
 
@@ -504,6 +563,15 @@ def fail_if_pod_not_ready(o_type, body, **kw):
     if not kw['status'].get('podIP'):
         raise kopf.TemporaryError(f'No podIP in {kw["name"]}', delay=3)
 
+
+@kopf.on.startup()
+def startup_fn(settings: kopf.OperatorSettings, logger, **kw):
+    settings.persistence.finalizer = 'operator.l7mp.io/kopf-finalizer'
+    settings.persistence.progress_storage = kopf.AnnotationsProgressStorage(
+        prefix='operator.l7mp.io')
+    settings.persistence.diffbase_storage = kopf.AnnotationsDiffBaseStorage(
+        name='operator.l7mp.io/last-handled-configuration',
+    )
 
 @kopf.on.field('', 'v1', 'pods', field='status.containerStatuses')
 async def pod_status_fn(new, body, logger, **kw):

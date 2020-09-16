@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+
+# Copyright 2020 by its authors.
+# Some rights reserved. See AUTHORS.
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation files
+# (the 'Software'), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge,
+# publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+import argparse
+import logging
+import sys
+import yaml
+from copy import deepcopy
+from pathlib import Path
+from urllib.parse import urljoin, urlparse
+
+logging.basicConfig(level=logging.INFO)
+
+def convert_crd(crd, url):
+    for version in crd.get('spec', {}).get('versions', []):
+        schema = version.get('schema', {}).get('openAPIV3Schema', {})
+        if schema:
+            version['schema']['openAPIV3Schema'] = convert_schema(schema, url)
+    return crd
+
+doc_cache = {}
+
+def get_ref(url, base_url):
+    logging.debug(f'$ref:{url} base:{base_url}')
+    ref_url = urljoin(str(base_url), url)
+    parsed = urlparse(ref_url)
+    if parsed.scheme or parsed.netloc:
+        raise Exception('Only local relative refs supported: %s', d['$ref'])
+    logging.debug(f'loading: {parsed.path} {parsed.fragment}')
+    if parsed.path not in doc_cache:
+        logging.info(f'loading: {parsed.path}')
+        with Path(parsed.path).open() as f:
+            ref_doc = yaml.safe_load(f)
+        doc_cache[parsed.path] = ref_doc
+    else:
+        ref_doc = doc_cache[parsed.path]
+    if not parsed.fragment.startswith('/'):
+        logging.error(f'url: {url}')
+        logging.error(f'base_url: {base_url}')
+        raise Exception(f'Fragments must be absolute: {parsed.fragment}')
+    for component in parsed.fragment[1:].split('/'):
+        logging.debug(f'component: {component}')
+        ref_doc = ref_doc[component]
+    return ref_doc, ref_url
+
+def convert_schema(schema, url):
+    base_url = urljoin(str(url), '#/')
+    schema = inline_references(schema, base_url)
+    if args.type == 'old':
+        schema, _ = remove_prop(schema, base_url)
+    return schema
+
+def inline_references(d, url):
+    if isinstance(d, (bool, str, int, type(None))):
+        return d
+    if isinstance(d, list):
+        for i, item in enumerate(d):
+            d[i] = inline_references(item, url+f'/{i}')
+        return d
+    if not isinstance(d, dict):
+        raise Exception(f'Unknown type: {type(d)} {url}')
+
+    if d.get('$ref'):
+        ref_doc, ref_url = get_ref(d["$ref"], url)
+        ref_doc = deepcopy(ref_doc)
+        ref_doc = inline_references(ref_doc, ref_url)
+        del d['$ref']
+        d.update(ref_doc)
+    for k, v in d.items():
+        d[k] = inline_references(v, url+f'/{k}')
+
+    if args.type == 'k8s':
+        for rkey, rval in d.get('x-l7mp-k8s-replace', {}).items():
+            d[rkey] = rval
+        for akey, aval in d.get('x-l7mp-k8s-add', {}).items():
+            d[akey] = aval
+        for dkey in list(d.get('x-l7mp-k8s-delete', [])):
+            del d[dkey]
+
+        for k in list(d.keys()):
+            if k.startswith('x-') and not k.startswith('x-kubernetes-'):
+                del d[k]
+
+    if args.compact:
+        for k in ['summary', 'description']:
+            if k in d:
+                del d[k]
+    return d
+
+
+def remove_prop(d, url):
+    # remove properties that are unnecessary for converting a value to
+    # the old form.
+    logging.debug(f'url: {url} type:{type(d)}')
+    if isinstance(d, list):
+        l = []
+        for i, v in enumerate(d):
+            v, keep = remove_prop(v, url+f'/{i}')
+            if keep:
+                l.append(v)
+        return l, l != []
+    if not isinstance(d, dict):
+        return None, False
+    for k, v in list(d.items()):
+        if k.startswith('x-l7mp-old-'):
+            keep = True
+        else:
+            v, keep = remove_prop(v, url+f'/{k}')
+        if keep:
+            d[k] = v
+        else:
+            del d[k]
+
+    return d, len(d)
+
+
+parser = argparse.ArgumentParser(description="""
+
+    Kuberentes limits its OpenApi schemas in a Custom Resource
+    Definition to a subset of the OpenApi standard.  This program
+    alleviates the situation a bit by inlining $ref references.
+
+    It also removes illegal property names starting with "x-".
+    """)
+parser.add_argument('--infile', '-i',
+    type=argparse.FileType('r'), default=sys.stdin)
+parser.add_argument('--outfile', '-o',
+    type=argparse.FileType('w'), default=sys.stdout)
+parser.add_argument('--compact', '-c', action='store_true',
+    help="Remove some properties unnecessary for schema validation.")
+parser.add_argument('--type', '-t', choices = ['k8s', 'old'], default='k8s',
+    help=""" k8s: Convert OpenApi schema to a more restricted k8s schema.  old:
+        Create a yml to help convert a document conforming to the new
+        version of the schema to a document conforming to the old
+        schema. """)
+
+args = parser.parse_args()
+
+url = Path(args.infile.name).resolve()
+separator = ''
+for doc in yaml.safe_load_all(args.infile):
+    args.outfile.write(separator)
+    yaml.dump(convert_crd(doc, url), args.outfile, width=1024)
+    separator = "---\n\n"
+
