@@ -27,6 +27,7 @@ const L7mp              = require('../l7mp.js').L7mp;
 const Rule              = require('../rule.js').Rule;
 const RuleList          = require('../rule.js').RuleList;
 const Session           = require('../session.js').Session;
+const Cluster           = require('../cluster.js').Cluster;
 const DuplexPassthrough = require('../stream.js').DuplexPassthrough;
 
 let static_config = {
@@ -54,6 +55,27 @@ let static_config = {
                                 },
                                 endpoints: [{ name: 'Test-e', spec: {}}]
                             }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            name: "test-listener-test",
+            spec: {
+                protocol: "Test",
+            },
+            rules: [
+                {
+                    action: {
+                        route: {
+                            destination: {
+                                name: "test-cluster-test",
+                                spec: {
+                                    protocol: "Test",
+                                },
+                                endpoints: [{ name: 'test-e-test', mode: ['ok'], timeout:3001, spec: {}}]
+                            },
                         }
                     }
                 }
@@ -203,7 +225,7 @@ describe('Session API', ()  => {
     });
 
     context('invalid-requests', ()=>{
-        let res;
+        let res, x;
         it('delete-nonexistent-session', async ()=>{
             let options = {
                 host : 'localhost', port : 1234,
@@ -215,6 +237,36 @@ describe('Session API', ()  => {
                     () =>{ return Promise.reject(new Error('Expected method to reject.'))},
                     err => { assert.instanceOf(err, Error); return Promise.resolve()}
                 );
+        });
+        before(async function() {
+            this.timeout(8000);
+            const du = new DuplexPassthrough;
+            x = { metadata: {name: 'test-session-test'},
+                source: { origin: 'test-listener-test', stream: du.right },
+                destination: { origin: 'test-cluster-test'}};
+        });
+        //TODO Fix it, doesnt work right now, if timeout is set high enough, then the response for
+        // the GET request will be 'Bad request: non such session'
+        it('get-session-with-test-destination', async function(){
+            let e = l7mp.getEndPoint('test-e-test');
+            // console.log(e)
+            e.mode=['ok'];
+            e.timeout = 1000;
+            // no await: just start the session and let the getSession arrive while the session
+            // endpoint stream request is pending
+            l7mp.addSession(x);
+            // let the session init itself
+            this.timeout(100);
+            // now, issue the getSession: should fail with half-connected session
+            let options = {
+                host: 'localhost', port: '1234',
+                path: '/api/v1/sessions/test-session-test',
+                method : 'GET'
+            }
+            res = await httpRequest(options);
+            // console.log(res);
+            assert.isOk(res);
+            return Promise.resolve();
         });
     });
 

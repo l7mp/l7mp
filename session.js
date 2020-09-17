@@ -326,9 +326,10 @@ class Session {
             name:        this.name,
             metadata:    m,
             source:      this.source.toJSON(),
-            destination: this.destination.toJSON(),
-            ingress:     this.chain.ingress.map(x => x.toJSON()),
-            egress:      this.chain.egress.map(x => x.toJSON()),
+            destination: this.detination && this.destination.status ?
+                this.destination.toJSON() : { status: 'PENDING'},
+            ingress:     this.chain.ingress.map(x => { x && x.status ? x.toJSON() : { status: 'PENDING'}}),
+            egress:      this.chain.egress.map(x =>  { x && x.status ? x.toJSON() : { status: 'PENDING'}}),
             status:      this.status,
             events:      this.events,
         };
