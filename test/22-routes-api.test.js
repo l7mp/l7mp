@@ -1135,11 +1135,11 @@ describe('Routes API', ()  => {
             return Promise.resolve();
         });
 
-        it('check-route-1', ()=>{ assert.nestedPropertyVal(res[1], 'name', 'test-route-1');});
-        it('check-route-2', ()=>{ assert.nestedPropertyVal(res[2], 'name', 'test-route-2');});
-        it('check-route-3', ()=>{ assert.nestedPropertyVal(res[3], 'name', 'test-route-3');});
-        it('check-route-4', ()=>{ assert.nestedPropertyVal(res[4], 'name', 'test-route-4');});
-        it('check-route-5', ()=>{ assert.nestedPropertyVal(res[5], 'name', 'test-route-5');});
+        it('check-route-1', ()=>{ assert.isOk( res.find( ({name}) => name ===  'test-route-1' )); });
+        it('check-route-2', ()=>{ assert.isOk( res.find( ({name}) => name ===  'test-route-2' )); });
+        it('check-route-3', ()=>{ assert.isOk( res.find( ({name}) => name ===  'test-route-3' )); });
+        it('check-route-4', ()=>{ assert.isOk( res.find( ({name}) => name ===  'test-route-4' )); });
+        it('check-route-5', ()=>{ assert.isOk( res.find( ({name}) => name ===  'test-route-5' )); });
 
         it('delete-multiple-route', async ()=>{
             let res, reqs = [];
