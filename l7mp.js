@@ -1019,22 +1019,27 @@ class L7mp {
                     if(s.destination.endpoint && s.destination.endpoint.name === n)
                         // note: s.disconnect returns a promise but we don't want to wait for it to
                         // be resolved: just call without await
-                        s.disconnect(s.destination, new Ok(`Traversed EndPoint ${n} of destination stage `+
-                                                           `Cluster ${cl.name} is deleted from API`));
-                    
+                        s.disconnect(s.destination, new Ok(`Traversed EndPoint ${n} of destination `+
+                                                           `cluster ${cl.name} is deleted from API`)).
+                        catch(err => { /* ignore error silently: disconnect logs what's needed */ });
+
+
                     let stages = s.chain.ingress.filter(_stage => _stage.endpoint.name === n);
                     for(let stage of stages)
                         // note: s.disconnect returns a promise but we don't want to wait for it to
                         // be resolved: just call without await
                         s.disconnect(stage, new Ok(`Traversed EndPoint ${n} of Cluster ${cl.name} `+
-                                                   `on the ingress chain is deleted from API`));
-                        
+                                                   `on the ingress chain is deleted from API`)).
+                        catch(err => { /* ignore error silently: disconnect logs what's needed */ });
+
                     stages = s.chain.egress.filter(_stage => _stage.endpoint.name === n);
                     for(let stage of stages)
                         // note: s.disconnect returns a promise but we don't want to wait for it to
                         // be resolved: just call without await
                         s.disconnect(stage, new Ok(`Traversed EndPoint ${n} of Cluster ${cl.name} `+
-                                                   `on the egress chain is deleted from API`));
+                                                   `on the egress chain is deleted from API`)).
+                        catch(err => { /* ignore error silently: disconnect logs what's needed */ });
+
                 }
 
         } else {
