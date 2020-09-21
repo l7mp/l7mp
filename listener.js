@@ -417,6 +417,10 @@ class UDPListener extends Listener {
         log.info('UDPListener:run:', `"${this.name}:"`,
                  `bound to ${this.local_address}:${this.local_port}`);
 
+        log.info('UDPListener:run:',
+                 `rx buffer size: ${this.socket.getRecvBufferSize()} bytes`,
+                 `tx buffer size: ${this.socket.getSendBufferSize()} bytes`);
+
         if(this.mode === 'singleton')
             return this.runSingleton();
         else
