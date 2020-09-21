@@ -210,7 +210,6 @@ describe('Listeners API', ()  => {
                 method: 'GET',
             };
             res = await httpRequest(options);
-            console.log(res)
             assert.instanceOf(res.rules[0],Object);
             assert.nestedProperty(res.rules[0],'action');
             assert.nestedProperty(res.rules[0].action,'route');
