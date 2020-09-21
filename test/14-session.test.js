@@ -21,6 +21,9 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 const assert            = require('chai').assert;
+const eventDebug        = require('event-debug');
+const log               = require('npmlog');
+
 const L7mp              = require('../l7mp.js').L7mp;
 const Session           = require('../session.js').Session;
 const Stage             = require('../session.js').Stage;
@@ -33,19 +36,23 @@ const Route             = require('../route.js').Route;
 const PassThrough       = require('stream').PassThrough;
 const NotFoundError     = require('../error.js');
 
+Object.defineProperty(log, 'heading',
+                      { get: () => { return new Date().toISOString() } });
+
 function remove(){
     l7mp.listeners.pop();
     l7mp.clusters.pop();
     l7mp.rules.pop();
     l7mp.rulelists.pop();
     l7mp.routes.pop();
+    while(l7mp.endpoints.length)l7mp.endpoints.pop();
     l7mp.sessions.pop();
 }
 
 describe('Session', () => {
     before( () => {
         l7mp = new L7mp();
-        l7mp.applyAdmin({ log_level: 'error' });
+        l7mp.applyAdmin({ log_level: 'warn' });
         // l7mp.applyAdmin({ log_level: 'silly' });
         l7mp.run(); // should return
     });
@@ -94,7 +101,7 @@ describe('Session', () => {
         it('event-object',  () => { assert.instanceOf(sess, Object); });
         it('event-length',  () => { assert.equal(sess.events.length, 1); });
         it('event-status',  () => { assert.propertyVal(sess.events[0], 'event', 'INIT'); });
-        it('event-message', () => { assert.propertyVal(sess.events[0], 'message', 'Session Test-s initialized'); });
+        it('event-message', () => { assert.match(sess.events[0].message, /Session Test-s initialized.*/); });
         it('status',        () => { assert.propertyVal(sess, 'status', 'INIT'); });
     });
 
@@ -319,7 +326,7 @@ describe('Session', () => {
         it('event-length',  () => { assert.equal(sess.events.length, 3); });
         it('event-status',  () => { assert.propertyVal(sess.events[2], 'event', 'ERROR'); });
         it('event-message', () => { assert.propertyVal(sess.events[2], 'message', 'Test'); });
-        it('event-content', () => { assert.instanceOf(sess.events[2].content, Error); });
+        it('event-content', () => { assert.equal(sess.events[2].content, ''); });
     });
 
     context('End', () => {
@@ -818,8 +825,8 @@ describe('Session', () => {
             await sess.disconnect(stage, Error('Test')).catch( (error) => { return Promise.resolve(); });
         });
         it('events-length',      () => { assert.lengthOf(sess.events, 3); });
-        it('event-message',      () => { assert.equal(sess.events[2].message, 'Session.disconnect: Stage: Test-l: Error: Test'); });
-        it('event-content_type', () => { assert.instanceOf(sess.events[2].content, Error); });
+        it('event-message',      () => { assert.match(sess.events[2].message, /Session.disconnect: Stage: Test-l/); });
+        it('event-content_type', () => { assert.equal(sess.events[2].content, ''); });
         it('stage-status',       () => { assert.equal(stage.status, 'INIT'); });
         it('ready-connected', async () => {
             sess.active_streams = 1;
@@ -859,7 +866,7 @@ describe('Session', () => {
         it('sess-status', () => { assert.equal(sess.status, 'CONNECTED'); });
         it('last-event', () => { assert.equal(sess.events[sess.events.length - 1].event, 'CONNECT'); });
     });
-
+    
     context('Repipe', () => {
         let stage, sess, l, c, e, ru, rl, r;
         beforeEach( async () => {
@@ -969,4 +976,80 @@ describe('Session', () => {
             assert.equal(sess.destroy(), 1);
         });
     });
+
+    context('Disconnect-on-endpoint-recursive-delete-endpoint', () => {
+        let stage, sess, l, c, e1, e2, ru, rl, r;
+        before( async () => {
+            l = Listener.create( {name: 'Test-l', spec: { protocol: 'Test' }, rules: 'Test-rs'});
+            l7mp.listeners.push(l);
+            // loadbalancer is Trivial
+            c = Cluster.create({ name: 'Test-c', spec: {protocol: 'Test'}});
+            l7mp.clusters.push(c);
+            await c.run();
+            l7mp.addEndPoint('Test-c', { name: 'Test-e-1', spec: {}});
+            l7mp.addEndPoint('Test-c', { name: 'Test-e-2', spec: {}});
+            e1 = c.endpoints[0];
+            e1.mode=['ok']; e1.timeout=0;
+            e2 = c.endpoints[1];
+            e2.mode=['ok']; e2.timeout=0;
+            ru = Rule.create({name: 'Test-ru', action: {route: 'Test-r'}});
+            l7mp.rules.push(ru);
+            rl = RuleList.create({name: 'Test-rs', rules: ['Test-ru']});
+            l7mp.rulelists.push(rl);
+            l.rules='Test-rs';
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'Test-c',
+                retry: {
+                    retry_on: 'disconnect',
+                    num_retries: 1,
+                    timeout: 2000,
+                }
+            });
+            l7mp.routes.push(r);
+            var du = new DuplexPassthrough();
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            sess = new Session(x);
+            l7mp.sessions.push(sess);
+        });
+        after( () => {
+            remove();
+        });
+        it('router',          async () => { sess = await sess.router(); assert.isOk(sess); });
+        it('status',                () => { assert.propertyVal(sess.source, 'status', 'READY'); });
+        it('session-status',        () => {
+            // eventDebug(sess);
+            assert.nestedPropertyVal(sess, 'status', 'CONNECTED');
+        });
+        it('route-via-endpoint-1',  () => {
+            assert.nestedPropertyVal(sess.destination, 'endpoint.name', 'Test-e-1');
+        });
+        it('delete-endpoint-1-disc',(done) => {
+            // give room for the next test to set up its event handler
+            // console.log(JSON.stringify(sess, null, 4));
+            e2.timeout=1000;
+            sess.once('disconnect', (_c, _e) => { assert.isOk(true); done(); });
+            l7mp.deleteEndPoint('Test-e-1', {recursive: true});
+        });
+        it('stage-status',     () => {
+            // console.log(JSON.stringify(sess, null, 4));
+            assert.nestedPropertyVal(sess.destination, 'status', 'DISCONNECTED');
+        });
+        // should reconnect after 300 msec
+        it('delete-endpoint-1-reconnect',(done) => {
+            sess.once('connect', () => { assert.isOk(true); done(); });
+        });
+        it('stage-status',     () => {
+            assert.nestedPropertyVal(sess.destination, 'status', 'READY');
+        });
+        it('session-status',     () => {
+            assert.nestedPropertyVal(sess, 'status', 'CONNECTED');
+        });
+        it('delete-endpoint-2-disc',(done) => {
+            sess.once('error', () => { assert.isOk(true); done(); });
+            l7mp.deleteEndPoint('Test-e-2', {recursive: true});
+        });
+    });
+
 });
