@@ -42,9 +42,13 @@ const _             = require('lodash');
 const StreamCounter = require('./stream-counter.js').StreamCounter;
 const L7mpOpenAPI   = require('./l7mp-openapi.js').L7mpOpenAPI;
 const utils         = require('./stream.js');
+const listener      = require('./listener');
 const Status        = utils.Status;
 // for getAtPath()
 const Rule          = require('./rule.js').Rule;
+//for prometheus
+const client        = require('prom-client');
+const listenerMR      = require('./monitoring').listenerMetricRegistry;
 
 const {L7mpError, Ok, InternalError, BadRequestError, NotFoundError, GeneralError} = require('./error.js');
 
@@ -975,6 +979,47 @@ class SyncCluster extends Cluster {
     }
 };
 
+class PrometheusCluster extends Cluster{
+    constructor(c) {
+        super({
+            name:       c.name || 'PrometheusCluster',
+            spec:       {protocol: 'Prometheus'},
+            endpoints:  [],
+        });
+        this.type = 'byte-stream'
+    }
+
+    async stream(s){
+        log.silly('PrometheusCluster.stream:', `Session: ${s.name}`);
+
+        // the writable part is in objectMode: result is status/message
+        let passthrough =
+            new utils.DuplexPassthrough({}, {writableObjectMode: true});
+        let stream = passthrough.right;
+        // eventDebug(stream);
+        var body = '';
+        stream.on('data', (chunk) => { body += chunk; });
+        //TODO here comes register.metrics()
+        //registers should be in an array
+        //iterating through it
+        stream.on('end',  () => { this.handleRequest(s, body, stream) } );
+
+        return Promise.resolve({stream: passthrough.left,
+            endpoint: this.virtualEndPoint() });
+    }
+
+    async handleRequest(s,body,stream){
+        log.silly('l7mp.prometheus: handleRequest:', dumper(s.metadata, 10))
+
+        // console.log(`S: ${s}`);
+        // console.log(`metadata: ${JSON.stringify(s.metadata, null, 6)}`);
+        // console.log(`stream: ${stream}`);
+        console.log(listenerMR.metrics());
+        stream.end(await listenerMR.metrics());
+    }
+
+}
+
 Cluster.create = (c) => {
     log.silly('Cluster.create', dumper(c, 4));
     switch(c.spec.protocol){
@@ -993,6 +1038,7 @@ Cluster.create = (c) => {
     case 'JSONDecap':        return new JSONDecapCluster(c);
     case 'Sync':             return new SyncCluster(c);
     case 'L7mpController':   return new L7mpControllerCluster(c);
+    case 'Prometheus':       return new PrometheusCluster(c);
     default:
         let err='Cluster.create: '+`TODO: Protocol "${c.spec.protocol}" unimplemented`;
         log.warn(err);
