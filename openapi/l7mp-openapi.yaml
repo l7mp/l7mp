@@ -373,6 +373,7 @@ components:
             - $ref: '#/components/schemas/io.l7mp.api.v1.SyncClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.JSONEncapClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.JSONDecapClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.PrometheusClusterSpec'
           discriminator:
             propertyName: protocol
             mapping:
@@ -389,6 +390,7 @@ components:
               Sync: '#/components/schemas/io.l7mp.api.v1.SyncClusterSpec'
               JSONEncap: '#/components/schemas/io.l7mp.api.v1.JSONEncapClusterSpec'
               JSONDecap: '#/components/schemas/io.l7mp.api.v1.JSONDecapClusterSpec'
+              Prometheus: '#/components/schemas/io.l7mp.api.v1.PrometheusClusterSpec'
         endpoints:
           description: The number of endpoints or a list of EndPoints.
           anyOf:
@@ -401,6 +403,19 @@ components:
         options:
           description: Optional features.
           type: object
+
+    io.l7mp.api.v1.PrometheusClusterSpec:
+      description: >
+        A Prometheus cluster specification that queries metrics from the proxy.
+      type: object
+      required:
+        - protocol
+      properties:
+        protocol:
+          description: The protocol, must be "Prometheus".
+          type: string
+          enum:  # fixed value
+            - Prometheus
 
     io.l7mp.api.v1.WebSocketClusterSpec:
       description: >
