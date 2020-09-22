@@ -1,0 +1,24 @@
+# Controller listening on 1234, plus some useful debug clusters
+admin:
+  log_level: info
+  log_file: stdout
+  access_log_path: /tmp/admin_access.log
+listeners:
+  - name: controller_listener
+    spec: { protocol: HTTP, port: 1234 }
+    rules:
+      - action:
+          route:
+            destination:
+              name: l7mp-controller
+              spec: { protocol: L7mpController }
+  - name: prometheus_listener
+    spec: { protocol: HTTP, port: 1235 }
+    rules:
+      - name: rule-prom
+        match: {op: starts, path: '/HTTP/url/path', value: '/prometheus'}
+        action:
+          route:
+            destination:
+              name: prometheus-cluster
+              spec: { protocol: Prometheus }
