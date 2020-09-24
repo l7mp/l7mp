@@ -20,6 +20,7 @@
 // ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+const log      = require('npmlog');
 const assert   = require('chai').assert;
 const L7mp     = require('../l7mp.js').L7mp;
 const http     = require('http');
@@ -445,6 +446,165 @@ describe('RuleList API', ()  => {
                     ()=>{ return Promise.reject(new Error('Expected method to reject.'))},
                     err => { assert.instanceOf(err, Error); return Promise.resolve()}
                 )
+        });
+    });
+
+    context('delete-rule-from-rulelist-by-pos-recursive', ()=>{
+        let res;
+        it('controller-rulelists', async() =>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rulelists',
+                method: 'GET'
+            };
+            res = await httpRequest(options);
+            controller_rulelist_name = res[0].name;
+            return Promise.resolve();
+        });
+        it('add-rule-to-rulelist', async ()=>{
+            // rule contains implicit cluster spec
+            // delete test-rule if exists and add it back again
+            try {
+                let options = {
+                    host: 'localhost', port: 1234,
+                    path: '/api/v1/rules/test-rule',
+                    method: 'DELETE'
+                };
+                res = await httpRequest(options);
+            } catch { /* ignore */ }            
+            const postData_rule = JSON.stringify({
+                'rule': {
+                    name: 'test-rule',
+                    action: {route: {destination: { name: "echo-2", spec: { protocol: "Echo"}}}}
+                }
+            });
+            let options_rule = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/rulelists/${controller_rulelist_name}/rules/1`, method: 'POST',
+                headers: {'Content-Type' : 'text/x-json'}
+            }
+            res = await httpRequest(options_rule, postData_rule);
+            assert.nestedPropertyVal(res, 'status', 200);
+            return Promise.resolve();
+        });
+        it('get-rule-by-position', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/rulelists/${controller_rulelist_name}/rules/1`,
+                method: 'GET'
+            };
+            res = await httpRequest(options);
+            assert.nestedPropertyVal(res, 'name', 'test-rule');
+        });
+        it('get-cluster', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/clusters/echo-2`,
+                method: 'GET'
+            };
+            res = await httpRequest(options);
+            assert.nestedPropertyVal(res, 'name', 'echo-2');
+            return Promise.resolve()
+        });
+        it('delete-rule-from-rulelist-by-pos-recursive', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/rulelists/${controller_rulelist_name}/rules/1?recursive=true`,
+                method: 'DELETE'
+            };
+            res = await httpRequest(options);
+            assert.nestedPropertyVal(res,'status', 200);
+            return Promise.resolve()
+        });
+        it('get-cluster-missing', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/clusters/echo-2`,
+                method: 'GET'
+            };
+            await httpRequest(options).catch( (err) => {
+                return Promise.resolve()
+            });
+        });
+        it('controller-rulelists', async() =>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/rulelists/${controller_rulelist_name}`,
+                method: 'GET'
+            };
+            res = await httpRequest(options);
+            assert.lengthOf(res.rules,1);
+            return Promise.resolve();
+        });
+    });
+
+    context('delete-rule-from-rulelist-by-name-recursive', ()=>{
+        let res;
+        it('add-rule-to-rulelist', async ()=>{
+            // rule contains implicit cluster spec
+            const postData_rule = JSON.stringify({
+                'rule': {
+                    name: 'test-rule',
+                    action: {route: {destination: { name: "echo-2", spec: { protocol: "Echo"}}}}
+                }
+            });
+            let options_rule = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/rulelists/${controller_rulelist_name}/rules/1`, method: 'POST',
+                headers: {'Content-Type' : 'text/x-json'}
+            }
+            res = await httpRequest(options_rule, postData_rule);
+            assert.nestedPropertyVal(res, 'status', 200);
+            return Promise.resolve();
+        });
+        it('get-rule-by-position', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/rulelists/${controller_rulelist_name}/rules/1`,
+                method: 'GET'
+            };
+            res = await httpRequest(options);
+            assert.nestedPropertyVal(res, 'name', 'test-rule');
+        });
+        it('get-cluster', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/clusters/echo-2`,
+                method: 'GET'
+            };
+            res = await httpRequest(options);
+            assert.nestedPropertyVal(res, 'name', 'echo-2');
+            return Promise.resolve()
+        });
+        it('delete-rule-from-rulelist-by-namerecursive', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/rulelists/${controller_rulelist_name}/rules/test-rule?recursive=true`,
+                method: 'DELETE'
+            };
+            res = await httpRequest(options);
+            assert.nestedPropertyVal(res,'status', 200);
+            return Promise.resolve()
+        });
+        it('get-cluster-missing', async ()=>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/clusters/echo-2`,
+                method: 'GET'
+            };
+            await httpRequest(options).catch( (err) => {
+                return Promise.resolve()
+            });
+        });
+        it('controller-rulelists', async() =>{
+            let options = {
+                host: 'localhost', port: 1234,
+                path: `/api/v1/rulelists/${controller_rulelist_name}`,
+                method: 'GET'
+            };
+            res = await httpRequest(options);
+            assert.lengthOf(res.rules,1);
+            return Promise.resolve();
         });
     });
 
