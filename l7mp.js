@@ -643,8 +643,10 @@ class L7mp {
 
     // must be called with a ref to rulelist!
     // cannot be recursive
-    deleteRuleFromRuleList(rl, pos){
-        log.info(`L7mp.deleteRuleFromRuleList: rulelist ${rl.name}, position ${pos}`);
+    deleteRuleFromRuleList(rl, pos, options){
+        options = {recursive: false, ...options};
+        log.info(`L7mp.deleteRuleFromRuleList: rulelist ${rl.name}, position ${pos}`,
+                 'options:', dumper(options, 4));
 
         if(!(rl instanceof RuleList)){
             let e = `Invalid rulelist`;
@@ -658,6 +660,9 @@ class L7mp {
             throw new Error(e);
         }
 
+        let r = rl.rules[pos];
+        if(options.recursive)
+            this.deleteRule(r, options);
         rl.rules.splice(pos, 1);
     }
 
