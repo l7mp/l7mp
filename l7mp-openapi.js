@@ -287,8 +287,9 @@ class L7mpOpenAPI {
         });
 
         this.api.registerHandler('deleteRuleFromRuleList', (ctx, req, res) => {
+            let recursive = ctx.request.query.recursive === 'true' ?
+                ctx.request.query.recursive : false;
             log.info("L7mp.api.deleteRuleFromRuleList");
-            // cannot be resursive
             try {
                 let name = ctx.request.params.name;
                 let rulelist = l7mp.getRuleList(name);
@@ -297,12 +298,12 @@ class L7mpOpenAPI {
                 let pos = ctx.request.params.position;
                 if(!isNaN(parseInt(pos, 10))){
                     // integer arg
-                    l7mp.deleteRuleFromRuleList(rulelist, pos);
+                    l7mp.deleteRuleFromRuleList(rulelist, pos, {recursive: recursive});
                 } else if(typeof pos === 'string' || pos instanceof String){
                     let i = rulelist.rules.findIndex( (n) => n === pos);
                     if(i<0)
                         throw new Error(`No rule ${pos} on rulelist ${name}`);
-                    l7mp.deleteRuleFromRuleList(rulelist, i);
+                    l7mp.deleteRuleFromRuleList(rulelist, i, {recursive: recursive});
                 } else {
                     throw new Error(`Parmaeter ${pos} must be string or integer`);
                 }
