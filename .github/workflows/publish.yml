@@ -44,7 +44,7 @@ jobs:
         id: prep
         run: |
           DOCKER_IMAGE=l7mp/l7mp
-          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${GITHUB_REF:11}
           TAGS="${DOCKER_IMAGE}:${VERSION}"
           TAGS="$TAGS, ${DOCKER_IMAGE}:latest"
           echo ::set-output name=tags::${TAGS}
