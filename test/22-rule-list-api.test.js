@@ -464,14 +464,14 @@ describe('RuleList API', ()  => {
         it('add-rule-to-rulelist', async ()=>{
             // rule contains implicit cluster spec
             // delete test-rule if exists and add it back again
+            let options = {
+                host: 'localhost', port: 1234,
+                path: '/api/v1/rules/test-rule',
+                method: 'DELETE'
+            };
             try {
-                let options = {
-                    host: 'localhost', port: 1234,
-                    path: '/api/v1/rules/test-rule',
-                    method: 'DELETE'
-                };
                 res = await httpRequest(options);
-            } catch { /* ignore */ }            
+            } catch(err) { /* ignore */ }            
             const postData_rule = JSON.stringify({
                 'rule': {
                     name: 'test-rule',
