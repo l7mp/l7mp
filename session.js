@@ -67,7 +67,7 @@ class Stage {
         } else {
             return {
                 origin:   this.origin,
-                endpoint: { name: this.endpoint.name, spec: this.endpoint.spec } || '<INVALID>',
+                endpoint: this.endpoint ? { name: this.endpoint.name, spec: this.endpoint.spec } : '<INVALID>',
                 status:   this.status,
             };
         }
@@ -76,7 +76,7 @@ class Stage {
     // STAGE: stage = cluster + stream + status
     // STATUS: CONNECTED -> READY -> DISCONNECTED -> RETRYING -> END
     // returns a promise!
-    connect(num_retries, timeout){
+    async connect(num_retries, timeout){
         const fail = (err, a) => {
             err.stage = this;
             // log.silly(dumper(err, 6));
@@ -85,8 +85,8 @@ class Stage {
             throw new pRetry.AbortError(err);
         };
 
-        let run = (attempt) => {
-            log.silly("Session.connect:", `Session: ${this.session.name}:`,
+        let run = async (attempt) => {
+            log.silly("Stage.connect:", `Session: ${this.session.name}:`,
                       `stage "${this.origin}" at attempt ${attempt}, timeout: ${timeout}`);
 
             // do not retry a session that has been deleted from the API
@@ -110,12 +110,13 @@ class Stage {
 
             let cluster = l7mp.getCluster(this.origin);
             if(!cluster)
+                // we don't want to abort the retry process, in the hope that the missing cluster
+                // will be added from the API later (otherwise, we'd call fail())
                 throw new NotFoundError(`Cannot find cluster "${this.origin}"`);
-                // fail(new NotFoundError(`Cannot find cluster "${this.origin}"`), attempt);
             this.retriable = cluster.retriable;
 
-            return cluster.stream(this.session).
-                then((ret) => {
+            return cluster.stream(this.session).then(
+                (ret) => {
                     log.verbose("Stage.connect:", `Session: ${this.session.name}:`,
                                 `stage "${this.origin}" connected to endoint`,
                                 ret.endpoint.name);
@@ -134,7 +135,7 @@ class Stage {
                           `Attempt ${error.attemptNumber} failed`,
                           `(${error.retriesLeft} retries left, timeout: ${timeout}):`,
                           error.message,
-                          (error.content ? `: ${error.content}` : ''));
+                          (error && error.content ? `: ${error.content}` : ''));
 
                 // dump(error,10);
 
@@ -250,7 +251,6 @@ class Stage {
         } else {
             // cluster: connect as usual
             let new_stage = await this.connect(num_retries > 0 ? num_retries-1 : 0, retry.timeout);
-
             // store new stream
             this.stream = new_stage.stream;
             this.endpoint = new_stage.endpoint;
@@ -399,11 +399,6 @@ class Session {
             let msg = `Could not route session "${this.name}": ` + (err.content || "");
             log.info(`Session.router:`, msg);
             this.error(err);
-            this.events.push({ event: 'ERROR',
-                               timestamp: new Date().toISOString(),
-                               message: msg,
-                               content: err,
-                             });
             return err;
         }
 
@@ -483,11 +478,11 @@ class Session {
                 (error.content || "");
             // log.verbose(err);
 
-            this.events.push({ event: 'ERROR',
-                               timestamp: new Date().toISOString(),
-                               message: err,
-                               content: error,
-                             });
+            // this.events.push({ event: 'ERROR',
+            //                    timestamp: new Date().toISOString(),
+            //                    message: err,
+            //                    content: error,
+            //                  });
 
             return Promise.reject(new NotFoundError(err));
         }
@@ -601,13 +596,14 @@ class Session {
 
         log.verbose('Session.disconnect:', `Session ${this.name}:`,
                     `stage: ${stage.origin}:`,
-                    (error ? `Error: ${error.message}` : 'Reason: unknown'));
+                    (error ? `${error.message}:` : 'Reason: unknown'),
+                    (error && error.content ? error.content : ''));
 
         this.events.push({ event: 'DISCONNECT',
                            timestamp: new Date().toISOString(),
                            message: `Session.disconnect: Stage: ${stage.origin}: `+
-                           (error ? `Error: ${error.message}` : 'Reason: unknown'),
-                           content: error,
+                           (error ? `Error: ${error.message}:` : 'Reason: unknown'),
+                           content: error && error.content ? error.content : ''
                          });
 
         if(stage.status !== 'READY'){
@@ -620,6 +616,7 @@ class Session {
         }
 
         stage.status = 'DISCONNECTED';
+        stage.endpoint = null;
         this.active_streams--;
 
         if(this.status === 'CONNECTED')
@@ -657,7 +654,7 @@ class Session {
                     this.connected();
             } catch(err){
                 log.info('Session.disconnect:', `Could not reconnect session "${this.name}":`,
-                         `${err.message}` + (err.content ? `: ${err.content}`: ""));
+                         (`${err.message}` + (err.content ? `: ${err.content}`: "")));
                 this.error(err);
             }
 
@@ -765,7 +762,7 @@ class Session {
         this.events.push({ event: 'ERROR',
                            timestamp: new Date().toISOString(),
                            message: err.message,
-                           content: err});
+                           content: err && err.content ? err.content : ''});
 
         this.status = 'FINALIZING';
         if(this.priv && this.priv.error){
@@ -780,8 +777,8 @@ class Session {
                   (err && err.message) ? err.message : '');
         this.events.push({ event: 'END',
                            timestamp: new Date().toISOString(),
-                           message: err ? err.message : 'Normal end'
-                         });
+                           message: err ? err.message : 'Normal end',
+                           content: err && err.content ? err.content : ''});
 
         this.status = 'FINALIZING';
         this.emit('end', err);

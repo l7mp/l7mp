@@ -75,9 +75,9 @@ class TrivialLoadBalancer extends LoadBalancer {
     constructor(l){ super(l); }
     apply(s) {
         if(this.es.length === 0){
-            let err = 'TrivialLoadBalancer.apply: No endpoint in cluster'
-            log.warn(err);
-            throw new Error(err);
+            let err = 'No endpoint in cluster';
+            log.info('TrivialLoadBalancer.apply:', err);
+            throw new NotFoundError(err);
         }
         return this.es[0];
     }
@@ -119,9 +119,9 @@ class HashRingLoadBalancer extends LoadBalancer {
         log.silly('HashRingLoadBalancer.apply:', `Session: ${s.name}`);
 
         if(Object.keys(this.keys).length === 0){
-            let err = 'HashRingLoadBalancer.apply: No endpoint in cluster';
-            log.warn(err);
-            throw new GeneralError(err);
+            let err = 'No endpoint in cluster';
+            log.info('HashRingLoadBalancer.apply:' , err);
+            throw new NotFoundError(err);
         }
 
         let key;
@@ -384,7 +384,7 @@ class JSONSocketEndPoint extends EndPoint {
     }
 
     connect(s){
-        log.silly('JSONSocketEndpoint.connect:', dumper(s));
+        log.silly('JSONSocketEndpoint.connect:', dumper(s, 2));
         return this.transport_endpoint.connect(s);
     }
 
@@ -442,7 +442,7 @@ class Cluster {
     }
 
     addEndPoint(e){
-        log.silly('Cluster.addEndPoint:', dumper(e));
+        log.silly('Cluster.addEndPoint:', `cluster: ${this.name}:`, dumper(e, 2));
         let ep = EndPoint.create(this, e);
         this.endpoints.push(ep);
         this.loadbalancer.update(this.endpoints);
@@ -454,7 +454,7 @@ class Cluster {
     }
 
     deleteEndPoint(n){
-        log.silly('Cluster.deleteEndPoint: name:', n);
+        log.silly('Cluster.deleteEndPoint:', `cluster: ${this.name}:`, 'name:', n);
 
         var i = this.endpoints.findIndex( ({name}) => name === n );
         if(i < 0){
@@ -485,8 +485,11 @@ class TestCluster extends Cluster {
     }
 
     async stream(s){
-        log.silly('TestCluster.stream');
-        var e = this.endpoints[0];
+        log.silly('TestCluster.stream', dumper(s, 1));
+
+        // can throw: will automatically upgrade to a rejected promise
+        let e = this.loadbalancer.apply(s);
+
         return pEvent(e.connect(s), 'test-open', {
             rejectionEvents: ['test-error'],
             multiArgs: true, timeout: s.route.retry.timeout
@@ -508,9 +511,8 @@ class WebSocketCluster extends Cluster {
         log.silly('WebSocketCluster.stream:',  `Protocol: ${this.protocol}`,
                   `Session: ${s.name}`);
 
-        var e = this.loadbalancer.apply(s);
-        if(typeof e === 'undefined')
-            return Promise.reject(new NotFoundError('Could not find suitable endpoint'));
+        // can throw: will automatically upgrade to a rejected promise
+        let e = this.loadbalancer.apply(s);
 
         // Promisifies endpoint events: cancels the event listeners on
         // reject!
@@ -540,9 +542,8 @@ class NetSocketCluster extends Cluster {
     async stream(s){
         log.silly('NetSocketCluster.stream:', `Session: ${s.name}`);
 
-        var e = this.loadbalancer.apply(s);
-        if(typeof e === 'undefined')
-            return Promise.reject(new NotFoundError('Could not find suitable endpoint'));
+        // can throw: will automatically upgrade to a rejected promise
+        let e = this.loadbalancer.apply(s);
 
         return pEvent(e.connect(s), 'open', {
             rejectionEvents: ['close', 'end', 'error', 'timeout'],
@@ -564,9 +565,8 @@ class UDPCluster extends Cluster {
     async stream(s){
         log.silly('UDPCluster.stream', `Session: ${s.name}`);
 
-        var e = this.loadbalancer.apply(s);
-        if(typeof e === 'undefined')
-            return Promise.reject(new NotFoundError('Could not find suitable endpoint'));
+        // can throw: will automatically upgrade to a rejected promise
+        let e = this.loadbalancer.apply(s);
 
         return pEvent(e.connect(s), 'open', {
             rejectionEvents: ['close', 'error'],
@@ -613,7 +613,7 @@ class JSONSocketCluster extends Cluster {
     
     // 2. add JSONSocket fields to metadata and send as header
     // 4. wait for a valid response header from server and return stream to caller
-    stream(s){
+    async stream(s){
         log.silly('JSONSocketCluster.stream:', `Session: ${s.name}`);
         return this.transport.stream(s).then( async (x) => {
             let endpoint = x.endpoint;
@@ -748,7 +748,7 @@ class L7mpControllerCluster extends Cluster {
         return l7mp.openapi ? Promise.resolve() : this.openapi.init();
     }
 
-    stream(s){
+    async stream(s){
         log.silly('L7mpControllerCluster.stream', `Session: "${s.name}"`);
 
         // the writable part is in objectMode: result is status/message
@@ -778,7 +778,7 @@ class StdioCluster extends Cluster {
         this.virtual   = true;
     }
 
-    stream(s){
+    async stream(s){
         log.silly('StdioCluster.stream', `Session: "${s.name}"`);
         // flush stdout
         process.stdout.clearLine();
@@ -799,7 +799,7 @@ class EchoCluster extends Cluster {
         this.virtual   = true;
     }
 
-    stream(s){
+    async stream(s){
         log.silly('EchoCluster.stream', `Session: "${s.name}"`);
         return Promise.resolve({stream: new stream.PassThrough({readableObjectMode: true}),
                                 endpoint: this.virtualEndPoint()});
@@ -817,7 +817,7 @@ class DiscardCluster extends Cluster {
         this.virtual   = true;
     }
 
-    stream(s){
+    async stream(s){
         log.silly('DiscardCluster.stream', `Session: ${s.name}`);
         return Promise.resolve({
             stream: miss.through.obj( (arg, enc, cb) => cb() ),
@@ -841,7 +841,7 @@ class LoggerCluster extends Cluster {
         this.virtual   = true;
     }
 
-    stream(s){
+    async stream(s){
         log.silly('LoggerCluster.stream',
                   `Session: ${s.name}, File: ${this.spec.log_file}`);
 
@@ -883,7 +883,7 @@ class JSONEncapCluster extends Cluster {
         this.virtual   = true;
     }
 
-    stream(s){
+    async stream(s){
         log.silly('JSONEncapCluster.stream', `Session: ${s.name}`);
         return Promise.resolve({
             stream: miss.through.obj( // objectMode=true
@@ -915,7 +915,7 @@ class JSONDecapCluster extends Cluster {
         this.virtual   = true;
     }
 
-    stream(s){
+    async stream(s){
         log.silly('JSONDecapCluster.stream', `Session: ${s.name}`);
         return Promise.resolve({
             stream: miss.through.obj(  // objectMode=true
@@ -959,7 +959,7 @@ class SyncCluster extends Cluster {
         this.virtual   = true;
     }
 
-    stream(s){
+    async stream(s){
         log.silly('SyncCluster.stream', `Session: "${s.name}"`);
 
         let label = Rule.getAtPath(s.metadata, this.spec.query);

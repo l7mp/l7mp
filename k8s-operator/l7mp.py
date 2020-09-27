@@ -525,7 +525,8 @@ async def exec_delete_rule(s, pod, action, _new, logger):
     rulelist = action['spec']['rulelist']
     rule_name = fqn
     try:
-        l7mp_instance.delete_rule_from_rule_list(rulelist, rule_name)
+        l7mp_instance.delete_rule_from_rule_list(
+            rulelist, rule_name, recursive="true")
     except l7mp_client.exceptions.ApiException as e:
         content = json.loads(e.body).get('content', '')
         not_found = 'Cannot delete rule: Unknown rule'

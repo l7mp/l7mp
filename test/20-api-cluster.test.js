@@ -36,8 +36,8 @@ const net         = require('net');
 const http        = require('http');
 const querystring = require('querystring');
 
-Object.defineProperty(log, 'heading',
-                      { get: () => { return new Date().toISOString() } });
+// Object.defineProperty(log, 'heading',
+//                       { get: () => { return new Date().toISOString() } });
 
 let static_config = {
     admin: {

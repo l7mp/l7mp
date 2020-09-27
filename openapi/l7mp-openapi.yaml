@@ -1512,6 +1512,16 @@ paths:
           schema:
             type: string
           description: The name of the EndPoint to delete.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: >
+            With recursive mode enabled, deleting the endpoint will disconnect
+            all sessions routed through the endpoint. This allows room for the
+            sessions whose retry policy allows it ("retry_on=disconnect" or
+            "retry_on=always") to reconnect if the cluster still has
+            functional endpoints. Otherwise, the session will fail.
       responses:
         '200':
           description: Status
@@ -1573,11 +1583,15 @@ paths:
                 $ref: '#/components/schemas/io.l7mp.api.v1.Status'
     post:
       description: >
-        Add a Rule to a RuleList. Note that a Rule specification may either
-        contain a set of implicitly defined sub-objects (routes, clusters,
-        etc.) or it may refer to other named objects. In the former case the
-        corresponding objects are automatically generated (and possibly
-        automatically named too), while in the latter case the named
+        Add a Rule to a RuleList. The Rule itself may be given as a string in
+        which case it is considered as the name of an existing Rule and a
+        reference to this Rule (by name) is inserted into the
+        RuleList. Otherwise, a complete Rule specification must be given; in
+        this case the Rule is created as new.  Note that a Rule specification
+        may either contain a set of implicitly defined sub-objects (routes,
+        clusters, etc.) or it may refer to other named objects. In the former
+        case the corresponding objects are automatically generated (and
+        possibly automatically named too), while in the latter case the named
         sub-objects referred to the Rule are assumed to be explicitly defined
         using the corresponding APIs (the Route API, the Cluster API, etc.).
       operationId: addRuleToRuleList
@@ -1619,9 +1633,12 @@ paths:
         Remove a Rule from a RuleList either by position (if the "position"
         parameter is an integer) or by name (if the "position" parameter is a
         string and it refers to the name of a rule existing in the
-        rulelist). Note that the Rule itself will not be deleted, just removed
-        from this rulelist; to actually delete the Rule, use the delete
-        operation of the Rule API (deleteRule).
+        rulelist). Unless recursive mode is switched on (recursive=false) the
+        Rule itself will not be deleted, just removed from this rulelist; to
+        actually delete the Rule use the delete operation of the Rule API
+        (deleteRule). In recursive mode (recursive=true), deletes the Rule as
+        well (also in recursive mode); note that this will make the rule
+        unavailable to all rulelists that refer to it.
       operationId: deleteRuleFromRuleList
       parameters:
         - name: name
@@ -1638,6 +1655,12 @@ paths:
               - type: integer
               - type: string
           description: Position or name of the Rule to delete.
+        - name: recursive
+          in: query
+          schema:
+            type: boolean
+          description: >
+            Also delete the Rule recursively.
       responses:
         '200':
           description: Status.
