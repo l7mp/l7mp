@@ -45,6 +45,7 @@
         "format-json": "^1.0.3",
         "git-repo-version": "^1.0.2",
         "hashring": "^3.2.0",
+        "ipaddr.js": "^2.0.0",
         "json-predicate": "^0.9.5",
         "lodash": "^4.17.20",
         "minimist": "^1.2.5",
