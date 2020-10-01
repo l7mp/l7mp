@@ -140,7 +140,7 @@ class Protocol {
 
         result = Buffer.alloc(size);
 
-        for (i in results) {
+        for (let i in results) {
             var buf = results[i];
             buf.copy(result, pos);
             pos = pos + buf.length;

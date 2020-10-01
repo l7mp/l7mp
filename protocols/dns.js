@@ -361,6 +361,10 @@ class DNSProtocol extends Protocol {
     }
 }
 
+//     error(id, rcode){
+//         return { header: { id: id, flags: { qr: false, opcode: 'query', aa: false, tc: false, rd: true, ra: false, z: false, ad: false, cd: false, rcode: 0 }, qdCount: 1, anCount: 0, nsCount: 0, srCount: 0 }, question: {}, answer: {});
+// }
+
 Object.defineProperty(DNSProtocol, 'constants', {
     value: {
         classes: {

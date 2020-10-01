@@ -50,6 +50,7 @@ const Rule          = require('./rule.js').Rule;
 const monitoring    = require('./monitoring.js').Monitoring
 const clusterMetricRegistry = require('./monitoring').clusterMetricRegistry;
 const metricClusterMetricRegistry = require('./monitoring').metricClusterMetricRegistry;
+const DNSProtocol   = require('./protocols/dns.js').DNSProtocol;
 
 const {L7mpError, Ok, InternalError, BadRequestError, NotFoundError, GeneralError} = require('./error.js');
 
@@ -395,6 +396,18 @@ class JSONSocketEndPoint extends EndPoint {
     // }
 };
 
+class L7ProtocolEndPoint extends EndPoint {
+    constructor(c, e) {
+        super(c, e);
+        this.transport_endpoint = this.cluster.transport.addEndPoint(e);
+    }
+
+    connect(s){
+        log.silly('L7ProtocolEndpoint.connect:', dumper(s, 1));
+        return this.transport_endpoint.connect(s);
+    }
+};
+
 EndPoint.create = (c, e) => {
     log.silly('EndPoint.create:', `Protocol: ${c.protocol}` );
     switch(c.protocol){
@@ -405,6 +418,7 @@ EndPoint.create = (c, e) => {
     case 'UnixDomainSocket': return new NetSocketEndPoint(c, e);
     case 'Test':             return new TestEndPoint(c, e);
     case 'JSONSocket':       return new JSONSocketEndPoint(c, e);
+    case 'L7Protocol':       return new L7ProtocolEndPoint(c, e);
     default:
         let err = `Adding an endpoint to a cluster of type "${c.protocol}" is not supported`;
         log.warn('EndPoint.create:', err);
@@ -623,7 +637,7 @@ class JSONSocketCluster extends Cluster {
         log.info('JSONSocketCluster:', `${this.name} initialized, using transport:`,
                  dumper(this.transport, 2));
     }
-    
+
     // 2. add JSONSocket fields to metadata and send as header
     // 4. wait for a valid response header from server and return stream to caller
     async _stream(s){
@@ -732,6 +746,106 @@ class JSONSocketCluster extends Cluster {
             }
 
             log.silly('JSONSocketCluster:', `${this.name}:`, `Connected`);
+
+            return { stream: stream, endpoint: endpoint};
+        });
+    }
+};
+
+class L7ProtocolCluster extends Cluster {
+    constructor(c) {
+        super(c);
+
+        let cu = {
+            name: c.name + '-transport-cluster',
+            spec: c.spec.transport_spec || c.spec.transport,
+            loadbalancer: c.loadbalancer || { policy: 'Trivial' },
+        };
+        if(!cu.spec){
+            let e = 'L7ProtocolCluster: No transport specified';
+            log.warn(e);
+            throw new Error(e);
+        }
+        this.transport    = Cluster.create(cu);
+        this.type         = this.transport.type;
+        this.header       = c.spec.header || [];
+        this.loadbalancer = this.transport.loadbalancer;
+
+        switch(this.protocol){
+        case 'DNS':
+            this.l7_proto = new DNSProtocol;
+            break;
+        default:
+            log.info('L7ProtocolListener:', `protocol: ${this.protocol}:`, `${this.name}:`,
+                     `Unknown protocol ${this.protocol}`);
+            return null; // will break soon
+        }
+
+        log.info('L7ProtocolCluster:', `protocol: ${this.protocol}: ${this.name} initialized,`,
+                 `using transport:`, dumper(this.transport, 2));
+    }
+
+    // must specialcase
+    addEndPoint(e){
+        log.silly('L7ProtocolCluster.addEndPoint:', `protocol: ${this.protocol}:`,
+                  `cluster: ${this.name}:`, dumper(e, 2));
+        let c = {... this};
+        c.protocol = 'L7Protocol';
+        let ep = EndPoint.create(c, e);
+        this.endpoints.push(ep);
+        this.loadbalancer.update(this.endpoints);
+        return ep;
+    }
+
+    async stream(s){
+        log.silly('L7ProtocolCluster.stream:', `protocol: ${this.protocol}:`, `Session: ${s.name}`);
+        return this.transport.stream(s).then( async (x) => {
+            let endpoint = x.endpoint;
+            let stream = x.stream;
+            if(!(stream.readableObjectMode || stream.writableObjectMode))
+                log.warn('L7ProtocolCluster.stream:', `${this.name}:`,
+                         `Transport is not message-based, ${this.protocol} headers may be fragmented`);
+
+            if(typeof s.metadata[this.protocol] === 'undefined'){
+                let err = `No metadata for protocol ${this.protocol}, cannot generate L7 protocol message`;
+                log.warn('L7ProtocolCluster:', `protocol: ${this.protocol}:`, `${this.name}:`, err);
+                stream.destroy();
+                return Promise.reject(new GeneralError(err));
+            }
+
+            try {
+                var msg = this.l7_proto.encode(s.metadata[this.protocol], 'queryMessage');
+            } catch(e){
+                dump(e, 10);
+                let err = `Failed to encode metadata for protocol ${this.protocol}: ` + e.message;
+                log.warn('L7ProtocolCluster:', `protocol: ${this.protocol}:`, `${this.name}:`, err);
+                stream.destroy();
+                return Promise.reject(new GeneralError(err));
+            }
+
+            stream.write(msg);
+
+            try {
+                var data = await pEvent(stream, 'data', {
+                    rejectionEvents: ['close', 'error'],
+                    multiArgs: false, timeout: s.route.retry.timeout,
+                });
+            } catch(e){
+                let err = `Failed to receive ${this.protocol} response in `+
+                    `${s.route.retry.timeout} msecs: ` + e.message;
+                log.warn('L7ProtocolCluster:', `protocol: ${this.protocol}:`, `${this.name}:`, err);
+                stream.destroy();
+                return Promise.reject(new GeneralError(err));
+            }
+
+            log.silly('L7ProtocolCluster:', `${this.name}:`,
+                      `Received ${this.protocol} message of length ${data.length} bytes`);
+
+            // setImmediate(() => stream.end(data));
+            setImmediate(() => {
+                stream.emit('data', data);
+                stream.destroy();
+            });
 
             return { stream: stream, endpoint: endpoint};
         });
@@ -1068,6 +1182,7 @@ Cluster.create = (c) => {
     case 'TCP':              return new NetSocketCluster(c);
     case 'UnixDomainSocket': return new NetSocketCluster(c);
     case 'JSONSocket':       return new JSONSocketCluster(c);
+    case 'DNS':              return new L7ProtocolCluster(c);
     case 'Stdio':            return new StdioCluster(c);
     case 'Echo':             return new EchoCluster(c);
     case 'Discard':          return new DiscardCluster(c);
