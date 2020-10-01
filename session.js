@@ -24,7 +24,7 @@
 
 const log          = require('npmlog');
 const EventEmitter = require('events').EventEmitter;
-const eventDebug   = require('event-debug')
+const eventDebug   = require('event-debug');
 const util         = require('util');
 const miss         = require('mississippi');
 const delay        = require('delay');
@@ -568,7 +568,7 @@ class Session {
     }
 
     pipeline_dump(){
-        this.get_stages()
+        this.get_stages();
         this.source.dump('source/listener');
         for(let dir of ['ingress', 'egress']){
             let i = 0;

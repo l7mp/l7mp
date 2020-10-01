@@ -93,7 +93,7 @@ class TestListener extends Listener {
     }
     run(){ }
     close(){ }
-    emitSession(m, s, p){ this.emit('emit', this.getSession(m,s,p))}
+    emitSession(m, s, p){ this.emit('emit', this.getSession(m,s,p)); }
 }
 
 class HTTPListener extends Listener {
@@ -115,7 +115,7 @@ class HTTPListener extends Listener {
             this.server.listen(this.spec.port, () => {
                 log.info('HTTPListener.new',
                          `"${this.name}" running on port`,
-                         `${this.spec.port}`)
+                         `${this.spec.port}`);
             });
         } catch(e){
             log.warn('HTTPListener.listen: Error:', e);
@@ -485,7 +485,7 @@ class UDPListener extends Listener {
         this.onConn = this.onConnectServer.bind(this);
         this.sessions = {};
         this.socket.on('message', (msg, rinfo) => {
-            this.onConn(msg, rinfo).catch( (e) => { log.warn(e.message) });
+            this.onConn(msg, rinfo).catch( (e) => { log.warn(e.message); });
         });
     }
 
@@ -511,7 +511,7 @@ class UDPListener extends Listener {
             log.silly('UDPListener:onConnectServer: Received message for a known peer:',
                       `${remote}: re-emitting message`);
             s[remote].emit('message', msg, rinfo);
-            return;
+            return Promise.resolve();
         }
 
         // handle half-connected listeners
