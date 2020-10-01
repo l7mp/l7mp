@@ -253,9 +253,6 @@ class DNSProtocol extends Protocol {
                 decoder: function(v, p) {
                     let type = v.readUInt16BE(p);
 
-                    dump(type, 1);
-                    dump(this, 5);
-
                     if(typeof DNSProtocol.constants.queryTypes[type] === 'undefined')
                         throw new TypeError(`no such type ${type}`);
                     return { val: DNSProtocol.constants.queryTypes[type], len: 2 };
