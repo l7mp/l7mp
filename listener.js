@@ -392,8 +392,9 @@ class UDPListener extends Listener {
             }
         }
 
-        this.local_address  = this.spec.address || '0.0.0.0';
-        this.local_port     = this.spec.port || -1;
+        this.local_address = this.spec.address || '0.0.0.0';
+        // this.local_address = this.spec.address || '::';
+        this.local_port    = this.spec.port || -1;
 
     }
 
@@ -408,12 +409,13 @@ class UDPListener extends Listener {
                                address: this.local_address });
             await pEvent(this.socket, 'listening',
                          { rejectionEvents: ['close', 'error'] });
-        } catch(e){
-            throw new Error(`UDPListener.run: "${this.name}": `+
-                            `Could not bind to `+
-                            `${this.local_address}:${this.local_port}`);
+        } catch(err){
+            throw new Error(`UDPListener.run: "${this.name}": Could not bind to `+
+                            `${this.local_address}:${this.local_port}: `+ err.message);
         }
 
+        this.local_address = this.socket.address().address;
+        this.local_port =    this.socket.address().port;
         log.info('UDPListener:run:', `"${this.name}:"`,
                  `bound to ${this.local_address}:${this.local_port}`);
 
@@ -752,11 +754,16 @@ class JSONSocketListener extends Listener {
                  dumper(this.transport.spec, 2));
     }
 
-    run(){
+    async run(){
         log.info('JSONSocketListener.run');
         // this.transport.on('emit', this.onSession.bind(this));
         this.transport.emitter = this.onSession.bind(this);
-        this.transport.run();
+        try {
+            await this.transport.run();
+        } catch(err){
+            log.info(`JSONSocketListener.run: Cannot add transport: ${err.message}`);
+            throw err;
+        }
         // eventDebug(socket);
     }
 
