@@ -177,7 +177,8 @@ class DNSProtocol extends Protocol {
                         cd:     (( flags & 0x0010 )) ? true : false,
                         rcode:  (( flags & 0x000F ))
                     };
-                    if(typeof DNSProtocol.constants.opcodes[f.opcode] !== undefined)
+
+                    if(typeof DNSProtocol.constants.opcodes[f.opcode] !== 'undefined')
                         f.opcode = DNSProtocol.constants.opcodes[f.opcode];
 
                     return { val: f, len: 2 };

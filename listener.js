@@ -945,11 +945,16 @@ class L7ProtocolListener extends Listener {
                  `using transport:`, dumper(this.transport.spec, 2));
     }
 
-    run(){
+    async run(){
         log.info('L7ProtocolListener.run');
         // this.transport.on('emit', this.onSession.bind(this));
         this.transport.emitter = this.onSession.bind(this);
-        this.transport.run();
+        try {
+            await this.transport.run();
+        } catch(err){
+            log.info(`L7ProtocolListener.run: Cannot add transport: ${err.message}`);
+            throw err;
+        }
         // eventDebug(socket);
     }
 
