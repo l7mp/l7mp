@@ -44,7 +44,7 @@ class L7mpError extends Error {
         if(this.content && this.content.toJSON)
             json.content = this.content.toJSON();
         if(log.level === 'silly')
-            json.stacktrace = this.stack
+            json.stacktrace = this.stack;
         return json;
     }
 }

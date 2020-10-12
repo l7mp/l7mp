@@ -242,10 +242,10 @@ class DuplexPassthrough {
         this.right = duplex3(this.lower, this.upper);
     }
 
-    upper() { return this.upper }
-    lower() { return this.lower }
-    left()  { return this.left }
-    right() { return this.right }
+    upper() { return this.upper; }
+    lower() { return this.lower; }
+    left()  { return this.left; }
+    right() { return this.right; }
 
     destroy(e) { this.upper.destroy(e); this.lower.destroy(e); };
     end(d,e,c) { this.upper.end(d,e,c); this.lower.end(d,e,c); };
@@ -256,31 +256,31 @@ class DuplexPassthrough {
 // we want to keep it around so that later we can add new writers
 var MergeStream = function (/*streams...*/) {
     var sources = []
-    var output  = new PassThrough({objectMode: true})
+    var output  = new PassThrough({objectMode: true});
 
-    output.setMaxListeners(0)
+    output.setMaxListeners(0);
 
-    output.add = add
-    output.isEmpty = isEmpty
+    output.add = add;
+    output.isEmpty = isEmpty;
 
-    output.on('unpipe', remove)
+    output.on('unpipe', remove);
 
-    Array.prototype.slice.call(arguments).forEach(add)
+    Array.prototype.slice.call(arguments).forEach(add);
 
-    return output
+    return output;
 
     function add (source) {
         log.silly('MergeStream.add');
         if (Array.isArray(source)) {
-            source.forEach(add)
-            return this
+            source.forEach(add);
+            return this;
         }
 
         sources.push(source);
-        source.once('end', remove.bind(null, source))
-        source.once('error', output.emit.bind(output, 'error'))
-        source.pipe(output, {end: false})
-        return this
+        source.once('end', remove.bind(null, source));
+        source.once('error', output.emit.bind(output, 'error'));
+        source.pipe(output, {end: false});
+        return this;
     }
 
     function isEmpty () {
@@ -289,7 +289,7 @@ var MergeStream = function (/*streams...*/) {
 
     function remove (source) {
         log.silly('MergeStream.remove');
-        sources = sources.filter(function (it) { return it !== source })
+        sources = sources.filter(function (it) { return it !== source });
         // if (!sources.length && output.readable) { output.end() }
     }
 }

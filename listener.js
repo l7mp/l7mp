@@ -111,7 +111,7 @@ class TestListener extends Listener {
     }
     run(){ }
     close(){ }
-    emitSession(m, s, p){ this.emit('emit', this.getSession(m,s,p))}
+    emitSession(m, s, p){ this.emit('emit', this.getSession(m,s,p)); }
 }
 
 class HTTPListener extends Listener {
@@ -133,7 +133,7 @@ class HTTPListener extends Listener {
             this.server.listen(this.spec.port, () => {
                 log.info('HTTPListener.new',
                          `"${this.name}" running on port`,
-                         `${this.spec.port}`)
+                         `${this.spec.port}`);
             });
         } catch(e){
             log.warn('HTTPListener.listen: Error:', e);
@@ -410,8 +410,9 @@ class UDPListener extends Listener {
             }
         }
 
-        this.local_address  = this.spec.address || '0.0.0.0';
-        this.local_port     = this.spec.port || -1;
+        this.local_address = this.spec.address || '0.0.0.0';
+        // this.local_address = this.spec.address || '::';
+        this.local_port    = this.spec.port || -1;
 
     }
 
@@ -426,12 +427,13 @@ class UDPListener extends Listener {
                                address: this.local_address });
             await pEvent(this.socket, 'listening',
                          { rejectionEvents: ['close', 'error'] });
-        } catch(e){
-            throw new Error(`UDPListener.run: "${this.name}": `+
-                            `Could not bind to `+
-                            `${this.local_address}:${this.local_port}`);
+        } catch(err){
+            throw new Error(`UDPListener.run: "${this.name}": Could not bind to `+
+                            `${this.local_address}:${this.local_port}: `+ err.message);
         }
 
+        this.local_address = this.socket.address().address;
+        this.local_port =    this.socket.address().port;
         log.info('UDPListener:run:', `"${this.name}:"`,
                  `bound to ${this.local_address}:${this.local_port}`);
 
@@ -503,7 +505,7 @@ class UDPListener extends Listener {
         this.onConn = this.onConnectServer.bind(this);
         this.sessions = {};
         this.socket.on('message', (msg, rinfo) => {
-            this.onConn(msg, rinfo).catch( (e) => { log.warn(e.message) });
+            this.onConn(msg, rinfo).catch( (e) => { log.warn(e.message); });
         });
     }
 
@@ -529,7 +531,7 @@ class UDPListener extends Listener {
             log.silly('UDPListener:onConnectServer: Received message for a known peer:',
                       `${remote}: re-emitting message`);
             s[remote].emit('message', msg, rinfo);
-            return;
+            return Promise.resolve();
         }
 
         // handle half-connected listeners
@@ -770,11 +772,16 @@ class JSONSocketListener extends Listener {
                  dumper(this.transport.spec, 2));
     }
 
-    run(){
+    async run(){
         log.info('JSONSocketListener.run');
         // this.transport.on('emit', this.onSession.bind(this));
         this.transport.emitter = this.onSession.bind(this);
-        this.transport.run();
+        try {
+            await this.transport.run();
+        } catch(err){
+            log.info(`JSONSocketListener.run: Cannot add transport: ${err.message}`);
+            throw err;
+        }
         // eventDebug(socket);
     }
 

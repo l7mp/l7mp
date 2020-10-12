@@ -478,7 +478,7 @@ class L7mpOpenAPI {
                         status: res.status.status,
                         message: 'Internal Server Error: Response validation failed',
                         content: res.status.content,
-                    }
+                    };
                 }
             }
 
@@ -576,7 +576,7 @@ class L7mpOpenAPI {
             setImmediate(() => s.end());
         } else {
             // error path, will set the status automatically
-            s.error(res.response)
+            s.error(res.response);
         }
 
         return;

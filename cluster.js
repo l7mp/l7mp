@@ -35,7 +35,7 @@ const pEvent        = require('p-event');
 const HashRing      = require('hashring');
 const stream        = require('stream');
 const miss          = require('mississippi');
-const jsonPredicate = require("json-predicate")
+const jsonPredicate = require("json-predicate");
 const eventDebug    = require('event-debug');
 const _             = require('lodash');
 
@@ -61,7 +61,7 @@ const {L7mpError, Ok, InternalError, BadRequestError, NotFoundError, GeneralErro
 //------------------------------------
 class LoadBalancer {
     constructor(l){ this.policy = l.policy || 'None'; this.es = [];}
-    update(es)    { this.es = es }
+    update(es)    { this.es = es };
     apply(es)     { log.error('LoadBalancer.apply:', 'Base class called');
                     console.trace(); }
     toJSON(){
@@ -321,7 +321,7 @@ class UDPEndPoint extends EndPoint {
 
             log.silly('UDPCluster:',
                       `"${this.name}" bound to ${local_address}:` +
-                      `${local_port}`)
+                      `${local_port}`);
 
             socket.on('connect', () => {
                 const remote = socket.remoteAddress();
@@ -494,8 +494,8 @@ class TestCluster extends Cluster {
             rejectionEvents: ['test-error'],
             multiArgs: true, timeout: s.route.retry.timeout
         }).then(
-            (args) => { return { stream: args[0], endpoint: e} },
-            (err)  => { return Promise.reject(new GeneralError(500, err.message)) }
+            (args) => { return { stream: args[0], endpoint: e}; },
+            (err)  => { return Promise.reject(new GeneralError(500, err.message)); }
         );
     }
 };
@@ -528,7 +528,7 @@ class WebSocketCluster extends Cluster {
                 // eventDebug(_stream);
                 return { stream: _stream, endpoint: e};
             },
-            (err)  => { return Promise.reject(new GeneralError(err.message)) }
+            (err)  => { return Promise.reject(new GeneralError(err.message)); }
         );
     }
 };
@@ -549,8 +549,8 @@ class NetSocketCluster extends Cluster {
             rejectionEvents: ['close', 'end', 'error', 'timeout'],
             multiArgs: true, timeout: s.route.retry.timeout
         }).then(
-            (args) => { return { stream: args[0], endpoint: e} },
-            (err)  => { return Promise.reject(new GeneralError(e.message)) }
+            (args) => { return { stream: args[0], endpoint: e}; },
+            (err)  => { return Promise.reject(new GeneralError(e.message)); }
         );
     }
 };
@@ -581,9 +581,9 @@ class UDPCluster extends Cluster {
                 let _stream = new utils.DatagramStream(socket);
                 // eventDebug(_stream);
 
-                return { stream: _stream, endpoint: e}
+                return { stream: _stream, endpoint: e};
             },
-            (err)  => { return Promise.reject(new GeneralError(err.message)) }
+            (err)  => { return Promise.reject(new GeneralError(err.message)); }
         );
     }
 };
@@ -758,7 +758,7 @@ class L7mpControllerCluster extends Cluster {
         // eventDebug(stream);
         var body = '';
         stream.on('data', (chunk) => { body += chunk; });
-        stream.on('end', () => { this.openapi.handleRequest(s, body, stream) } );
+        stream.on('end', () => { this.openapi.handleRequest(s, body, stream); });
 
         return Promise.resolve({stream: passthrough.left,
                                 endpoint: this.virtualEndPoint() });
@@ -933,7 +933,7 @@ class JSONDecapCluster extends Cluster {
                     }
                     cb(null, ret);
                 },
-                (cb) => { cb(null, '') }
+                (cb) => { cb(null, ''); }
             ),
             endpoint: this.virtualEndPoint()
         });

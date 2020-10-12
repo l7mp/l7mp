@@ -885,7 +885,7 @@ class L7mp {
             ingress:     r.ingress,
             egress:      r.egress,
             retry:       r.retry,
-        }
+        };
 
         if(options.recursive){
             let dest = this.getCluster(r.destination);

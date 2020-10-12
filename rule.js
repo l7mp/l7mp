@@ -24,7 +24,7 @@
 
 const log = require('npmlog');
 const _   = require('lodash');
-const jsonPredicate = require("json-predicate")
+const jsonPredicate = require("json-predicate");
 
 // use json-predicate.dataAtPath to query metadata
 // see doc at https://tools.ietf.org/html/draft-snell-json-test-07
