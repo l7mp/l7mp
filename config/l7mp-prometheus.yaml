@@ -9,9 +9,7 @@ listeners:
     rules:
       - action:
           route:
-            destination:
-              name: l7mp-controller
-              spec: { protocol: L7mpController }
+            destination: l7mp-controller
   - name: prometheus_listener
     spec: { protocol: HTTP, port: 1235 }
     rules:
@@ -19,6 +17,9 @@ listeners:
         match: {op: starts, path: '/HTTP/url/path', value: '/prometheus'}
         action:
           route:
-            destination:
-              name: prometheus-cluster
-              spec: { protocol: Prometheus }
+            destination: prometheus-cluster
+clusters:
+  - name: l7mp-controller
+    spec: { protocol: L7mpController }
+  - name: prometheus-cluster
+    spec: { protocol: Prometheus }
