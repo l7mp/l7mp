@@ -91,8 +91,6 @@ class Listener {
                                stream: s }};
         if(p) sess.priv = p
         this.stats.listener_requests_total.inc({listenerName: `${this.name}`});
-        // console.log(listenerMetricRegistry.metrics());
-        //TODO it does work now, next task should be to test if i could connect the promcluster to a http listener
 
         return this.emitter(sess);
     }
