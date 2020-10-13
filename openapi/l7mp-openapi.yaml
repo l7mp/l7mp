@@ -374,6 +374,7 @@ components:
             - $ref: '#/components/schemas/io.l7mp.api.v1.JSONEncapClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.JSONDecapClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.PrometheusClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.MetricClusterSpec'
           discriminator:
             propertyName: protocol
             mapping:
@@ -391,6 +392,7 @@ components:
               JSONEncap: '#/components/schemas/io.l7mp.api.v1.JSONEncapClusterSpec'
               JSONDecap: '#/components/schemas/io.l7mp.api.v1.JSONDecapClusterSpec'
               Prometheus: '#/components/schemas/io.l7mp.api.v1.PrometheusClusterSpec'
+              Metric: '#/components/schemas/io.l7mp.api.v1.MetricClusterSpec'
         endpoints:
           description: The number of endpoints or a list of EndPoints.
           anyOf:
@@ -402,7 +404,9 @@ components:
             $ref: '#/components/schemas/io.l7mp.api.v1.LoadBalancer'
         options:
           description: Optional features.
-          type: object
+          anyOf:
+            -  type: object
+            -  type: array
 
     io.l7mp.api.v1.PrometheusClusterSpec:
       description: >
@@ -416,6 +420,25 @@ components:
           type: string
           enum:  # fixed value
             - Prometheus
+
+    io.l7mp.api.v1.MetricClusterSpec:
+      description: >
+        A Metric cluster specification that counts bytes and packets that flows trough its stream.
+      type: object
+      required:
+        - protocol
+      properties:
+        protocol:
+          description: The protocol, must be "Metric".
+          type: string
+          enum:  # fixed value
+            - Metric
+        byteCounterName:
+          description: The name of the byte counter, must match the regex [a-zA-Z_][a-zA-Z0-9_]* . A Prometheus metric name.
+          type: string
+        packetCounterName:
+          description: The name of the packet counter, must match the regex [a-zA-Z_][a-zA-Z0-9_]* . A Prometheus metric name.
+          type: string
 
     io.l7mp.api.v1.WebSocketClusterSpec:
       description: >
