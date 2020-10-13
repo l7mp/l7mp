@@ -27,5 +27,26 @@ const client        = require('prom-client');
 
 //list of metrics registries for monitoring
 const listenerMetricRegistry      = new client.Registry();
+const clusterMetricRegistry      = new client.Registry();
+const endpointMetricRegistry      = new client.Registry();
+const metricClusterMetricRegistry = new client.Registry();
 
+class Monitoring {
+
+//Exposing every registry listed below on the same endpoint
+   static mergeRegistries() {
+      return client.Registry.merge([
+         listenerMetricRegistry,
+         clusterMetricRegistry,
+         endpointMetricRegistry,
+         metricClusterMetricRegistry,
+         client.register
+      ]);
+   }
+}
+
+module.exports.Monitoring = Monitoring;
 module.exports.listenerMetricRegistry   = listenerMetricRegistry;
+module.exports.clusterMetricRegistry   = clusterMetricRegistry;
+module.exports.endpointMetricRegistry   = endpointMetricRegistry;
+module.exports.metricClusterMetricRegistry   = metricClusterMetricRegistry;
