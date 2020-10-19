@@ -10,14 +10,20 @@ listeners:
       - action:
           route:
             destination: l7mp-controller
+  - name: udp-listener
+    spec: { protocol: UDP, port: 15000 }
+    rules:
+      - action:
+          route:
+            destination:
+              spec: { protocol: UDP, port: 16000 }
+              endpoints:
+                - name: receiver
+                  spec: { address:  "127.0.0.1"}
             ingress:
-              - l7mp-controller-ingress-counter
-#            egress:
-#              - spec:
-#                  name: l7mp-controller-egress-counter
-#                  protocol: Metric
-#                  byteCounterName: l7mp_controller_egress_counter
-#                  packetCounterName: l7mp_controller_egress_counter
+              - udp-ingress-metric-counter
+            egress:
+              - udp-egress-metric-counter
   - name: prometheus_listener
     spec: { protocol: HTTP, port: 8080 }
     rules:
@@ -31,5 +37,7 @@ clusters:
     spec: { protocol: L7mpController }
   - name: prometheus-cluster
     spec: { protocol: Prometheus }
-  - name: l7mp-controller-ingress-counter
-    spec: { protocol: Metric, byteCounterName: l7mp_controller_ingress_counter, packetCounterName: l7mp_controller_ingress_counter }
+  - name: udp-ingress-metric-counter
+    spec: { protocol: Metric }
+  - name: udp-egress-metric-counter
+    spec: { protocol: Metric }
