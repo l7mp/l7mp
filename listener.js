@@ -44,7 +44,7 @@ const Rule          = require('./rule.js').Rule;
 
 // for Prometheus monitoring and metrics
 const client        = require('prom-client');
-const listenerMetricRegistry      = require('./monitoring').listenerMetricRegistry;
+const listener_requests_total     = require('./monitoring').listener_requests_total;
 
 class Listener {
     constructor(l){
@@ -62,16 +62,9 @@ class Listener {
             counter: new StreamCounter(),
             //Counter metric for total number of requests of the listeners
             //can separate by dimensions(labels)
-            listener_requests_total: new client.Counter({
-                name: `${this.name}_requests_total`,
-                help: 'Total number of requests',
-                labelNames: ['listenerName'],
-                registers: [listenerMetricRegistry]
-            })
+            listener_requests_total: listener_requests_total
         };
         this.options = l.options || {track: 0};
-        //manually register
-        // listenerMetricRegistry.registerMetric(this.stats.listener_requests_total);
     }
 
     getNewSessionId() { return this.sessionId++; }
@@ -90,7 +83,7 @@ class Listener {
                      source: { origin: this.name,
                                stream: s }};
         if(p) sess.priv = p
-        this.stats.listener_requests_total.inc({listenerName: `${this.name}`});
+        this.stats.listener_requests_total.inc({listenerName: `${this.name}`, protocol: `${this.protocol}`});
 
         return this.emitter(sess);
     }
