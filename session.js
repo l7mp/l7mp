@@ -118,7 +118,7 @@ class Stage {
             return cluster.stream(this.session).then(
                 (ret) => {
                     log.verbose("Stage.connect:", `Session: ${this.session.name}:`,
-                                `stage "${this.origin}" connected to endoint`,
+                                `stage "${this.origin}" connected to endpoint`,
                                 ret.endpoint.name);
                     this.stream = ret.stream;
                     this.endpoint = ret.endpoint;
