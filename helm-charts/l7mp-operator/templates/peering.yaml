@@ -1,0 +1,5 @@
+apiVersion: zalando.org/v1
+kind: KopfPeering
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: operator.l7mp.io

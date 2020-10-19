@@ -1,0 +1,17 @@
+#                                                        -*- coding: utf-8 -*-
+apiVersion: v2
+name: l7mp-ingress
+description: Ingress gateways for the l7mp service mesh
+type: application
+version: 0.1.2
+
+# TODO: Write github actions to automatically sync it with the releases.
+#appVersion: latest
+
+home: https://l7mp.io
+sources:
+  - https://github.com/l7mp/l7mp
+maintainers:
+  - name: Felicián Németh
+    email: nemethf@tmit.bme.hu
+icon: https://l7mp.io/assets/brand/logo.svg
