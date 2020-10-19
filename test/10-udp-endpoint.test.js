@@ -55,11 +55,6 @@ describe('UDPEndPoint', ()  => {
                     {name: 'UDP', spec: {address: '127.0.0.1'}}), Error, 'UDPEndPoint: No remote addr:port pair defined')
             
             })
-            it('Already-connecte', () => {
-                assert.throws(() => EndPoint.create(
-                    {protocol: 'UDP', spec: {protocol: 'UDP' ,port: 16000, bind: {address: "127.0.0.1", port: 16001}}}, 
-                    {name: 'UDP', spec: {address: '127.0.0.1'}}), Error, 'UDPEndPoint: No remote addr:port pair defined')
-            })
         })
     });
 
