@@ -22,14 +22,45 @@
 
 'use strict';
 
-//for prometheus
+//prometheus
 const client        = require('prom-client');
 
-//list of metrics registries for monitoring
+//list of metric registries for monitoring
 const listenerMetricRegistry      = new client.Registry();
 const clusterMetricRegistry      = new client.Registry();
 const endpointMetricRegistry      = new client.Registry();
 const metricClusterMetricRegistry = new client.Registry();
+
+//list of metrics
+
+//This metric is used for counting requests on a LISTENER
+const listener_requests_total       = new client.Counter({
+   name: `listener_requests_total`,
+   help: 'Total number of requests',
+   labelNames: ['listenerName', 'protocol'],
+   registers: [listenerMetricRegistry]
+})
+//This metric is used for counting requests on a CLUSTER
+const cluster_requests_total       = new client.Counter({
+   name: `cluster_requests_total`,
+   help: 'Total number of requests',
+   labelNames: ['clusterName', 'protocol'],
+   registers: [clusterMetricRegistry]
+})
+//This metric is used for counting BYTES on a session
+const session_byte_counter_total =  new client.Counter({
+   name: `session_byte_counter_total`,
+   help: 'Total number of bytes that flows trough the cluster',
+   labelNames: ['sessionName', 'clusterName'],
+   registers: [metricClusterMetricRegistry]
+});
+//This metric is used for counting SESSION on a session
+const session_packet_counter_total =  new client.Counter({
+   name: `session_packet_counter_total`,
+   help: 'Total number of packets that flows trough the cluster',
+   labelNames: ['sessionName', 'clusterName'],
+   registers: [metricClusterMetricRegistry]
+})
 
 class Monitoring {
 
@@ -46,7 +77,15 @@ class Monitoring {
 }
 
 module.exports.Monitoring = Monitoring;
-module.exports.listenerMetricRegistry   = listenerMetricRegistry;
-module.exports.clusterMetricRegistry   = clusterMetricRegistry;
-module.exports.endpointMetricRegistry   = endpointMetricRegistry;
-module.exports.metricClusterMetricRegistry   = metricClusterMetricRegistry;
+
+//metric registries
+// module.exports.listenerMetricRegistry        = listenerMetricRegistry;
+// module.exports.clusterMetricRegistry         = clusterMetricRegistry;
+// module.exports.endpointMetricRegistry        = endpointMetricRegistry;
+// module.exports.metricClusterMetricRegistry   = metricClusterMetricRegistry;
+
+//metrics
+module.exports.listener_requests_total       = listener_requests_total;
+module.exports.cluster_requests_total       = cluster_requests_total;
+module.exports.session_byte_counter_total    = session_byte_counter_total;
+module.exports.session_packet_counter_total    = session_packet_counter_total;
