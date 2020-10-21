@@ -67,6 +67,7 @@ describe('TestCluster', ()  => {
         it('get-instanceOf',      () => { let n = c.getEndPoint('Test'); assert.instanceOf(n, EndPoint); });
         it('get-name',            () => { let n = c.getEndPoint('Test'); assert.equal(n.name, 'Test'); });
         it('get-fail',            () => { let n = c.getEndPoint('Never'); assert.isUndefined(n); });
+        it('fail-delete',         () => { c.deleteEndPoint('None'); assert.lengthOf(c.endpoints, 1)})
         it('delete',              () => { c.deleteEndPoint('Test'); assert.lengthOf(c.endpoints, 0); });
         it('get-fail',            () => { let n = c.getEndPoint('Test'); assert.isUndefined(n); });
         it('re-add',              () => { e = c.addEndPoint({name: 'Test', spec: {}}); assert.isOk(e); });
