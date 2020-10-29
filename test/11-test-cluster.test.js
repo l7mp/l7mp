@@ -35,6 +35,12 @@ describe('TestCluster', ()  => {
         l7mp.run();
     });
 
+    context('Default', () => {
+        it('Non-exist-cluster', () => {
+            assert.throws(() => Cluster.create({spec: {protocol: 'None'}}), 'Cluster.create: TODO: Protocol "None" unimplemented');
+        });
+    });
+
     context('create', () => {
         it('runs',    async () => {
             c = Cluster.create({
