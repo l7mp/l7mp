@@ -60,8 +60,6 @@ describe('PrometheusCluster', ()  => {
                 while (null !== (chunk =  s.stream.read())) {
                     data += chunk;
                 }
-                // assert.equal(data, 'test');
-                console.log(data);
                 assert.isTrue(data.includes("# HELP"));
                 assert.isTrue(data.includes("# TYPE"));
                 done();
