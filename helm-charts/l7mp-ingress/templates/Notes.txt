@@ -1,0 +1,17 @@
+Welcome to your new l7mp ingress gateway reference deployment. 
+
+The deployment consists of a set of l7mp proxies configured to be run
+as ingress gateways and an l7mp operator acting as a control plane for
+the ingress gateways. Here is the short summary of the next steps to
+make use of your new l7mp service mesh.
+
+1. To get a simple dashboard showing the overall summary of the
+   system:
+
+   watch "kubectl get pod,svc,vsvc,target,rule -o wide -n {{.Release.Namespace }} --show-labels"
+
+2. Check that that the l7mp control plane was successfully initialized
+   by verifying the status of the l7mp-operator deployment and service
+   in the default namespace. Furthermore, check that the l7mp ingress
+   gateways are also operational by checking the status if the
+   l7mp-ingress daemonset.

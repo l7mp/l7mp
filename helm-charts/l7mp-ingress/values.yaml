@@ -1,0 +1,11 @@
+# Default values for l7mp-operator.
+
+l7mpProxyImage:
+  repository: ""
+  name: l7mp/l7mp
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: latest
+
+l7mpProxy:
+  logLevel: info

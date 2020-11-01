@@ -187,7 +187,7 @@ def get_actions(s, logger):
 
     return actions
 
-async def update(s_old, s_new, logger=None, started=None, **kw):
+async def update(s_old, s_new, logger=None, **kw):
     a_old = get_actions(s_old, logger)
     a_new = get_actions(s, logger)
 
@@ -222,9 +222,7 @@ async def update(s_old, s_new, logger=None, started=None, **kw):
             else:
                 raise kopf.PermanentError('???')
             if cmd:
-                # Necessary to append {started} probably because of
-                # https://github.com/zalando-incubator/kopf/issues/384
-                id = f'{pod_fqn}/{a_type}/{a_name}/{started}'
+                id = f'{pod_fqn}/{a_type}/{a_name}'
                 fns[id] = functools.partial(call,
                                             fn_name=f'exec_{cmd}_{a_type}',
                                             s=s_new,
