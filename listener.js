@@ -42,6 +42,9 @@ const {L7mpError, Ok, InternalError, BadRequestError, NotFoundError, GeneralErro
 // for get/setAtPath()
 const Rule          = require('./rule.js').Rule;
 
+// for Prometheus monitoring and metrics
+const listenerMetricRegistry = require('./monitoring').listenerMetricRegistry;
+
 class Listener {
     constructor(l){
         this.protocol      = l.spec.protocol;
@@ -55,7 +58,11 @@ class Listener {
         this.stats         = {
             active_sessions:   0,
             accepted_sessions: 0,
-            counter: new StreamCounter()
+            counter: new StreamCounter(),
+            //Counter metric for total number of requests of the listeners
+            //can separate by dimensions(labels)
+            // listener_requests_total: listener_requests_total
+            listenerMetricRegistry: listenerMetricRegistry
         };
         this.options = l.options || {track: 0};
     }
@@ -76,6 +83,8 @@ class Listener {
                      source: { origin: this.name,
                                stream: s }};
         if(p) sess.priv = p
+        this.stats.listenerMetricRegistry.getSingleMetric('listener_requests_total').inc({listenerName: `${this.name}`, protocol: `${this.protocol}`});
+
         return this.emitter(sess);
     }
 }
