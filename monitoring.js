@@ -54,7 +54,7 @@ const session_byte_counter_total =  new client.Counter({
    labelNames: ['sessionName', 'clusterName'],
    registers: [metricClusterMetricRegistry]
 });
-//This metric is used for counting SESSION on a session
+//This metric is used for counting PACKETS on a session
 const session_packet_counter_total =  new client.Counter({
    name: `session_packet_counter_total`,
    help: 'Total number of packets that flows trough the cluster',
@@ -79,10 +79,10 @@ class Monitoring {
 module.exports.Monitoring = Monitoring;
 
 //metric registries
-// module.exports.listenerMetricRegistry        = listenerMetricRegistry;
-// module.exports.clusterMetricRegistry         = clusterMetricRegistry;
-// module.exports.endpointMetricRegistry        = endpointMetricRegistry;
-// module.exports.metricClusterMetricRegistry   = metricClusterMetricRegistry;
+module.exports.listenerMetricRegistry        = listenerMetricRegistry;
+module.exports.clusterMetricRegistry         = clusterMetricRegistry;
+module.exports.endpointMetricRegistry        = endpointMetricRegistry;
+module.exports.metricClusterMetricRegistry   = metricClusterMetricRegistry;
 
 //metrics
 module.exports.listener_requests_total       = listener_requests_total;
