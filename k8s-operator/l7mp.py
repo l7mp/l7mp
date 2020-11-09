@@ -117,7 +117,7 @@ def get_endpoint_groups(s, target, logger):
     try:
         endpoints = target['spec']['cluster']['endpoints']
     except KeyError:
-        return {}
+        return ([], {})
     dynamic_eps = {}
     static_eps = []
     for ep in endpoints:
