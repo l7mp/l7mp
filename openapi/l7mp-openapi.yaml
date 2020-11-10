@@ -407,6 +407,7 @@ components:
           anyOf:
             -  type: object
             -  type: array
+               items: {}
 
     io.l7mp.api.v1.PrometheusClusterSpec:
       description: >
