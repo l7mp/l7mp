@@ -25,9 +25,4 @@ data:
               route:
                 destination:
                   spec: { protocol: Prometheus }
-    clusters:
-      - name: ingress-metric-counter
-        spec: { protocol: Metric }
-      - name: egress-metric-counter
-        spec: { protocol: Metric }
 {{- end }}
