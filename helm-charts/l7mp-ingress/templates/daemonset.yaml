@@ -15,6 +15,9 @@ spec:
     metadata:
       labels:
         app: l7mp-ingress
+{{- if eq .Values.l7mpProxy.prometheus "enable"}}
+        prometheus: enable
+{{- end }}
     spec:
       volumes:
         - name: l7mp-ingress-config
