@@ -3,14 +3,14 @@ apiVersion: v2
 name: l7mp-ingress
 description: Ingress gateways for the l7mp service mesh
 type: application
-version: 0.1.3
+version: 0.1.4
 
 # TODO: Write github actions to automatically sync it with the releases.
 #appVersion: latest
 
 dependencies:
   - name: l7mp-operator
-    version: 0.1.3
+    version: 0.1.4
     repository: https://l7mp.io/charts
 
 home: https://l7mp.io
