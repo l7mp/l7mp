@@ -1,7 +1,7 @@
 {
     "name": "@l7mp/l7mp",
     "description": "A programmable L7 multiprotocol proxy and service mesh",
-    "version": "0.5.4",
+    "version": "0.5.5",
     "main": "l7mp.js",
     "files": [
         "cluster.js",
