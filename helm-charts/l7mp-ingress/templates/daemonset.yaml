@@ -30,6 +30,11 @@ spec:
         # args: ["-c", "while true; do echo hello; sleep 10;done"]
         ports:
         - containerPort: 1234
+          protocol: TCP
+{{- if eq .Values.l7mpProxy.prometheus "enable"}}
+        - containerPort: 8080
+          protocol: TCP
+{{- end }}
         volumeMounts:
           - name: l7mp-ingress-config
             mountPath: /app/config
