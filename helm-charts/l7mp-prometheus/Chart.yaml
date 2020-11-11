@@ -1,5 +1,5 @@
 apiVersion: v2
-name: l7mp-prometheus-helm-v1
+name: l7mp-prometheus
 description: A Helm chart for monitoring L7MP, a multiprotocol servicemesh
 
 # A chart can be either an 'application' or a 'library' chart.

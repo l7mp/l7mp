@@ -22,4 +22,5 @@
 *.tmproj
 .vscode/
 # README
-.md
+*.md
+
