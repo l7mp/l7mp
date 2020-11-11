@@ -1,0 +1,25 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: prometheus-operator
+  labels:
+    metrics: l7mp
+  namespace: {{ .Values.namespace }}
+spec:
+  podMetricsEndpoints:
+  - honorLabels: True
+    interval: 5s
+    #port:8080
+    port: {{ .Values.endpointPorts.prometheus.name }}
+    targetPort: {{ .Values.endpointPorts.prometheus.name }}
+  selector:
+    matchExpressions:
+    -  {key: app, operator: Exists}
+    #-  {key: app, operator: Exists}
+      #metrics: kube-state-metrics
+      #metrics: node-exporter
+  namespaceSelector:
+    matchNames: 
+      - default
+      - {{ .Values.namespace }}

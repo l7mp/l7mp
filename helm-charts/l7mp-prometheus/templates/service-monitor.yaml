@@ -1,0 +1,18 @@
+#---
+#apiVersion: monitoring.coreos.com/v1
+#kind: ServiceMonitor
+#metadata:
+  #name: prometheus-operator
+  #labels:
+    #metrics: l7mp
+  #namespace: default
+#spec:
+  #endpoints:
+  #- honorLabels: true
+    ##port: 8080
+    #port: {{ .Values.endpointPorts.prometheus.name }}
+  #selector:
+    #matchExpressions:
+      ##app: l7mp-operator
+    #-  {key: app, operator: Exists}
+
