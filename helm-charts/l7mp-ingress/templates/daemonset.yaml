@@ -4,6 +4,9 @@ metadata:
   name: l7mp-ingress
   labels:
     apps: l7mp-ingress
+{{- if eq .Values.l7mpProxy.prometheus "enable"}}
+    prometheus: enable
+{{- end }}
 spec:
   selector:
     matchLabels:

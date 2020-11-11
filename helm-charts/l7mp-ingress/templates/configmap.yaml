@@ -16,3 +16,13 @@ data:
               route:
                 destination:
                   spec: { protocol: L7mpController }
+{{- if eq .Values.l7mpProxy.prometheus "enable"}}
+      - name: prometheus_listener
+        spec: { protocol: HTTP, port: 8080 }
+        rules:
+          - match: {op: starts, path: '/HTTP/url/path', value: '/metrics'}
+            action:
+              route:
+                destination:
+                  spec: { protocol: Prometheus }
+{{- end }}
