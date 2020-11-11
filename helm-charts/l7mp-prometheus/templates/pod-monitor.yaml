@@ -15,7 +15,7 @@ spec:
     targetPort: {{ .Values.endpointPorts.prometheus.name }}
   selector:
     matchExpressions:
-    -  {key: app, operator: Exists}
+    -  {key: prometheus, operator: In, value: enable}
     #-  {key: app, operator: Exists}
       #metrics: kube-state-metrics
       #metrics: node-exporter
