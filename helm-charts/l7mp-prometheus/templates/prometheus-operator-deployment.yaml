@@ -1,0 +1,48 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: {{ .Values.selectorLabels.component }}
+    app.kubernetes.io/name: {{ .Values.selectorLabels.name }}
+    app.kubernetes.io/version: {{ .Values.selectorLabels.version }}
+  name: prometheus-operator
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: {{ .Values.selectorLabels.component }}
+      app.kubernetes.io/name: {{ .Values.selectorLabels.name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: {{ .Values.selectorLabels.component }}
+        app.kubernetes.io/name: {{ .Values.selectorLabels.name }}
+        app.kubernetes.io/version: {{ .Values.selectorLabels.version }}
+    spec:
+      containers:
+      - args:
+        - --kubelet-service=kube-system/kubelet
+        - --logtostderr=true
+        - --prometheus-config-reloader=quay.io/prometheus-operator/prometheus-config-reloader:v0.43.0
+        image: quay.io/prometheus-operator/prometheus-operator:v0.43.0
+        name: prometheus-operator
+        ports:
+        - containerPort: {{ .Values.endpointPorts.prometheus.prometheusScrape }}
+          name: {{ .Values.endpointPorts.prometheus.name }}
+        resources:
+          limits:
+            cpu: 200m
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+      nodeSelector:
+        beta.kubernetes.io/os: linux
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+      serviceAccountName: {{ .Values.serviceAccount.name }}
