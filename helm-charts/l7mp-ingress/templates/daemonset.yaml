@@ -36,6 +36,7 @@ spec:
           protocol: TCP
 {{- if eq .Values.l7mpProxy.prometheus "enable"}}
         - containerPort: 8080
+          name: web
           protocol: TCP
 {{- end }}
         volumeMounts:
