@@ -1019,14 +1019,14 @@ class PrometheusCluster extends Cluster{
     }
 
     async handleRequest(s,body,stream){
-        log.silly('PrometheusCluster.handleRequest:', dumper(s.metadata, 10))
+        log.silly('PrometheusCluster.handleRequest:', dumper(s.metadata, 10));
 
         let merged = monitoring.mergeRegistries();
         let exposedMetrics = await merged.metrics();
         log.silly('PrometheusCluster.handleRequest:', 'expose custom metrics:', dumper(exposedMetrics,100));
         stream.end(exposedMetrics);
+        setImmediate(() => s.end());
     }
-
 }
 
 class MetricCluster extends Cluster {
