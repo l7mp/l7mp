@@ -22,3 +22,14 @@ cp ./index.yaml *.tgz ~/src/l7mp.io/charts
 ```
 
 And then push the changes in the l7mp.io repo.
+
+# Warning: Security hazard
+
+This helm chart will (1) deploy the l7mp proxy in the host namespace of all your Kubernetes nodes
+and (2) open up two HTTP ports (the controller port 1234 and the Prometheus scraping port 8080) for
+unrestricted external access on each of your nodes. If your nodes are available externally, this
+will allow unauthorized access to the ingress gateways of your cluster.
+
+Before installing this helm chart, make sure that you filter port 1234 and 8080 on your cloud
+cloud load-balancer. Use this chart only for testing, never deploy in production unless you know
+the potential security implications.
