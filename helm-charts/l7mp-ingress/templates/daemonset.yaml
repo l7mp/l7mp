@@ -42,5 +42,8 @@ spec:
         volumeMounts:
           - name: l7mp-ingress-config
             mountPath: /app/config
+      {{- with .Values.extraContainers }}
+        {{ tpl . $ | nindent 6 }}
+      {{- end }}
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet

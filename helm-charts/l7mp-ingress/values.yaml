@@ -22,3 +22,5 @@ l7mpProxyImage:
 l7mpProxy:
   logLevel: info
   prometheus: enable
+
+extraContainers: []
