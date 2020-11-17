@@ -1052,13 +1052,13 @@ components:
             linkedVirtualService:
               type: string
               description: >
-                Define the cluster and the selector of the Target from the
-                linked virtual service.
+                Derive the cluster of the Target from the linked virtual
+                service.
       oneOf:
         - required: [cluster]
           not: {required: [linkedVirtualService]}
         - required: [linkedVirtualService]
-          not: {required: [cluster, selector]}
+          not: {required: [cluster]}
 
     CrdRule:
       type: object
