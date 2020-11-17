@@ -308,9 +308,9 @@ curl -iX DELETE http://localhost:1234/api/v1/clusters/ws-cluster?recursive=true
 
 You can avoid this by not using embedded defs or, if this is too inconvenient, explicitly naming all embedded objects and then using the specific APIs (the RuleList API, Rule API, etc.) to clean up each object selectively.
 
-### Status
+### Multiprotocol Support
 
-Below is a summary of the protocols supported by l7mp and the current status of the implementations.
+The main feature l7mp intends to get right is multiprotocol support. While l7mp is optimized for persistent, long-lived UDP-based media and tunneling protocol streams, and hence the support for the usual HTTP protocol suite is incomplete as of now, it should already be pretty capable as a general purpose multiprotocol proxy and service mesh, supporting lots of built-in transport and application-layer protocols. Below is a summary of the protocols supported by l7mp and the current status of the implementations.
 
 | Type      | Protocol         | Session ID               | Type            | Role  | Mode             | Re/Lb   | Status  |
 | :-------: | :--------------: | :----------------------: | :-------------: | :---: | :--------------: | :-----: | :-----: |
@@ -338,7 +338,7 @@ Furthermore, there is a set of custom pseudo-protocols included in the l7mp prox
 
 There are two *types* of streams supported by L7mp: a "byte-stream" (like TCP or Unix Domain Sockets in SOCK_STREAM mode) is a bidirectional stream that ignores segmentation/message boundaries, while "datagram-stream" is the same but it prefers segmentation/message boundaries whenever possible (e.g., UDP or WebSocket). The l7mp proxy warns if a datagram-stream type stream is routed to a byte-stream protocol, because this would lead to a loss of message segmentation. In addition, protocols may support any or both of the following two modes: a "singleton" mode protocol accepts only a single connection (e.g., a fully connected UDP listener will emit only a single session) while a "server" mode listener may accept multiple client connections, emitting a separate session for each connection received  (e.g., a TCP or a HTTP listener).
 
-A protocol is marked with a flag `l` if it has a listener implementation in l7mp, acting as a server-side protocol "plug" that listens to incoming connections and emits new sessions, and with flag `c` if it implements the cluster side, i.e., the client-side of the protocol that can route a connection to an upstream service and load-balance across a set of remote endpoints, `Re` means that the protocol supports *retries* and `Lb` indicates that *load-balancing* support is also available for the protocol.
+A protocol is marked with a flag `l` if it has a listener implementation in l7mp, acting as a server-side protocol "plug" that listens to incoming connections from downstream peers and emits new sessions, and with flag `c` if it implements the cluster side, i.e., the client-side of the protocol that can route a connection to an upstream service and load-balance across a set of remote endpoints, `Re` means that the protocol supports *retries* and `Lb` indicates that *load-balancing* support is also available for the protocol.
 
 
 # The l7mp service mesh
