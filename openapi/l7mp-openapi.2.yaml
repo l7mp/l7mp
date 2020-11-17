@@ -1049,6 +1049,16 @@ components:
               $ref: '#/components/schemas/Cluster'
             selector:
               $ref: '#/components/schemas/Selector'
+            linkedVirtualService:
+              type: string
+              description: >
+                Define the cluster and the selector of the Target from the
+                linked virtual service.
+      oneOf:
+        - required: [cluster]
+          not: {required: [linkedVirtualService]}
+        - required: [linkedVirtualService]
+          not: {required: [cluster, selector]}
 
     CrdRule:
       type: object
