@@ -38,6 +38,145 @@ The l7mp distribution contains a Kubernetes operator that makes it possible to d
 
 Currently there are two ways to deploy l7mp: either the l7mp proxy is deployed in a standalone mode (e.g., as a gateway or a sidecar proxy) in which case each distinct l7mp proxy instance needs to be configured (using a static config file of via the l7mp proxy REST API), or it is used in conjunction with the l7mp service mesh operator for Kubernetes, which makes it possible to manage possibly large numbers of l7mp proxy instances enjoying the convenience of a high-level Kubernetes API.
 
+# The l7mp service mesh
+
+In this short introduction we use Minikube to demonstrate the installation of the l7mp service mesh. Of course, using the below `helm` charts will make it possible to deploy l7mp in any Kubernetes cluster.
+
+### Set up l7mp inside a Minikube cluster
+
+First, install `kubectl` and `helm`:
+
+- For installing `kubectl` and minikube please follow this guide: [Install Tools](https://kubernetes.io/docs/tasks/tools/)
+- For installing `helm` please follow this guide: [Installing Helm](https://helm.sh/docs/intro/install/). Note that with Helm 2 the below commands may take a bit different form. 
+
+Then, bootstrap your `minikube` cluster and deploy the `l7mp-ingress` helm chart.
+
+``` sh
+minikube start
+helm repo add l7mp https://l7mp.io/charts
+helm repo update
+helm install l7mp l7mp/l7mp-ingress
+```
+
+**WARNING:** the `l7mp-ingress` chart will automatically (1) deploy the l7mp proxy in the host network namespace of all your Kubernetes nodes and (2) open up two HTTP ports (the controller port 1234 and the Prometheus scraping port 8080) for unrestricted external access on each of your nodes. If your nodes are available externally on these ports, this will allow unauthorized access to the ingress gateways of your cluster. Before installing this helm chart, make sure that you filter port 1234 and 8080 on your cloud load-balancer. Use this chart only for testing, never deploy in production unless you know the potential security implications.
+
+This configuration will deploy the following components into the `default` namespace:
+- `l7mp-ingress`: an l7mp proxy pod at each node (a `DaemonSet`) sharing the network namespace of the host (`hostNetwork=true`), plus a Kubernetes service called `l7mp-ingress`. The proxies make up the data-plane of the l7mp service mesh.
+- `l7mp-operator`: a control plane pod that takes a high-level mesh configuration as a set of Kubernetes Custom Resource objects (i.e., VitualServices, Targets, etc.) as input and creates the appropriate data-plane configuration, i.e., a series of REST calls to the l7mp proxies, to map the high-level intent to the data plane.
+
+In order to add the l7mp Prometheus toolchain into the `monitoring` namespace for automatically surfacing data-plane metrics from the l7mp proxies, install the `l7mp-prometheus` chart:
+
+``` sh
+helm install l7mp-prometheus l7mp/l7mp-prometheus
+```
+
+After the installation finishes, your Prometheus instance will be available on the NodePort 30900.
+
+You can check the status of your l7mp deployment as usual:
+
+``` sh
+kubectl get pod,svc,vsvc,target,rule -o wide -n default -n monitoring
+```
+
+You should see an output like:
+
+```
+NAME                                      READY   STATUS    RESTARTS   AGE     IP              NODE       NOMINATED NODE   READINESS GATES
+pod/alertmanager-alertmanager-0           2/2     Running   0          2m34s   172.17.0.8      minikube   <none>           <none>
+pod/grafana-86b84774bb-7s7kq              1/1     Running   0          3m10s   172.17.0.5      minikube   <none>           <none>
+pod/kube-state-metrics-7df77cbbd6-x27x5   3/3     Running   0          3m10s   172.17.0.4      minikube   <none>           <none>
+pod/node-exporter-j59fj                   2/2     Running   0          3m10s   192.168.39.45   minikube   <none>           <none>
+pod/prometheus-operator-9db5cb44b-hf7cq   1/1     Running   0          3m10s   172.17.0.6      minikube   <none>           <none>
+pod/prometheus-prometheus-0               2/2     Running   1          2m33s   172.17.0.9      minikube   <none>           <none>
+pod/prometheus-prometheus-1               2/2     Running   1          2m33s   172.17.0.10     minikube   <none>           <none>
+
+NAME                            TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                      AGE     SELECTOR
+service/alertmanager            NodePort    10.102.201.47    <none>        9093:30903/TCP               3m10s   alertmanager=alertmanager
+service/alertmanager-operated   ClusterIP   None             <none>        9093/TCP,9094/TCP,9094/UDP   2m34s   app=alertmanager
+service/grafana                 NodePort    10.104.212.103   <none>        80:30901/TCP                 3m10s   app=grafana
+service/kube-state-metrics      ClusterIP   None             <none>        8443/TCP,9443/TCP            3m10s   app.kubernetes.io/name=kube-state-metrics
+service/node-exporter           ClusterIP   None             <none>        9100/TCP                     3m10s   app.kubernetes.io/name=node-exporter
+service/prometheus              NodePort    10.104.58.199    <none>        9090:30900/TCP               3m10s   app=prometheus
+service/prometheus-operated     ClusterIP   None             <none>        9090/TCP                     2m34s   app=prometheus
+service/prometheus-operator     ClusterIP   None             <none>        8080/TCP                     3m10s   app.kubernetes.io/component=controller,app.kubernetes.io/name=prometheus-operator
+```
+
+You are ready to go! Enjoy using l7mp. 
+
+### Query configuration and manage sessions
+
+At any point in time you can directly read the configuration of the l7mp proxies using the l7mp REST API. By default, the l7mp proxy HTTP REST API port is opened at port 1234 *on all proxy pods*. This is extremely useful to check your mesh configuration for debuging purposes, but as mentioned above it also opens a considerable security hole if the port is reachable from outside your cluster. 
+
+The below call returns the whole configuration of the ingress gateway l7mp proxy:
+
+``` sh
+curl http://$(minikube ip):1234/api/v1/config
+```
+
+To query the directory of active connections through the data plane and delete the session named `session-name`, you can use the below REST API calls:
+
+``` sh
+curl http://$(minikube ip):1234/api/v1/sessions
+curl -iX DELETE http://$(minikube ip):1234/api/v1/sessions/<session-name>
+```
+
+### Usage example: 
+
+Applying the below configuration will expose the `kube-dns` Kubernetes system DNS service through the l7mp ingress gateway on port 5053. Note that, depending on the type of DNS service deployed, the below may or may not work in your own cluster.
+
+``` sh
+kubectl apply -f - <<EOF
+apiVersion: l7mp.io/v1
+kind: VirtualService
+metadata:
+  name: kube-dns-vsvc
+spec:
+  selector:
+    matchLabels:
+      app: l7mp-ingress
+  listener:
+    spec:
+      UDP:
+        port: 5053
+    rules:
+      - action:
+          route:
+            destination:
+              spec:
+                UDP:
+                  port: 53
+              endpoints:
+                - spec: { address:  "kube-dns.kube-system.svc.cluster.local" }
+EOF
+```
+
+In an on itself, this configuration does not make anything fancier than exposing the service using a NodePort. The additional features provided by l7mp, inclusing routing, timeouts/retries, load-balancing, and monitoring, can be enabled with customizing this VirtualService spec. For more information on the use of the l7mp service mesh, consult the Tasks section in the documentation.
+
+
+### Test
+
+Administer a DNS query to your Kubernetes cluster:
+
+```
+dig @$(minikube ip) +timeout=1 +notcp +short kube-dns.kube-system.svc.cluster.local -p 5053
+10.96.0.10
+```
+
+The above call will send a DNS query to the minikube cluster, which the l7mp ingress gateway will properly route to the `kube-dns` service (after querying the same DNS service for the ClusterIP corresponding to `kube-dns`) and deliver the result back to the sender.
+
+### Clean up
+
+Delete the VirtualService we created above:
+
+``` sh
+kubectl delete virtualservice kube-dns-vsvc
+```
+
+To delete the entire l7mp service mesh, Simply delete with `helm`. Note that this will not remove the Custom Resource Definitions installed by the l7mp helm chart, you will need to do that manually:
+
+``` sh
+helm delete l7mp
+```
 
 # The l7mp proxy
 
