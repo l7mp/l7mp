@@ -150,7 +150,7 @@ spec:
 EOF
 ```
 
-In an on itself, this configuration does not make anything fancier than exposing the service using a NodePort. The additional features provided by l7mp, inclusing routing, timeouts/retries, load-balancing, and monitoring, can be enabled with customizing this VirtualService spec. For more information on the use of the l7mp service mesh, consult the Tasks section in the documentation.
+In an on itself, this configuration does not make anything fancier than exposing the `kube-dns` service using a NodePort. The additional features provided by l7mp, including routing, timeouts/retries, load-balancing and monitoring, can be enabled by customizing this VirtualService spec. For more information on the use of the l7mp service mesh, consult the Tasks section in the documentation.
 
 
 ### Test
