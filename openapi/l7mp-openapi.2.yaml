@@ -1054,11 +1054,11 @@ components:
               description: >
                 Derive the cluster of the Target from the linked virtual
                 service.
-      oneOf:
-        - required: [cluster]
-          not: {required: [linkedVirtualService]}
-        - required: [linkedVirtualService]
-          not: {required: [cluster]}
+          oneOf:
+            - required: [cluster]
+              not: {required: [linkedVirtualService]}
+            - required: [linkedVirtualService]
+              not: {required: [cluster]}
 
     CrdRule:
       type: object
