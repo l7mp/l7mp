@@ -82,8 +82,8 @@ for (i in decode_samples) {
 }
 
 
-describe('basic', ()  => {
-    context('decode', () => {
+describe('DNS-basic', ()  => {
+    context('DNS-decode', () => {
         for (let i in decode_samples) {
             var sample = decode_samples[i];
             it('protocol decode: ' + sample.description, () => {
@@ -94,7 +94,7 @@ describe('basic', ()  => {
         }
     });
 
-    context('encode', () => {
+    context('DNS-encode', () => {
         for (let i in decode_samples) {
             var sample = decode_samples[i];
             it('protocol encode: ' + sample.description, () => {
