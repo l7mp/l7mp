@@ -25,7 +25,6 @@
 const log = require('npmlog');
 const _   = require('lodash');
 
-const ipaddr   = require('../ipaddr.js').ipaddr;
 const Protocol = require('../protocol.js').Protocol;
 
 /*
@@ -187,7 +186,7 @@ class DNSProtocol extends Protocol {
             '_nsIP4': {
                 encoder: function(v) {
                     var a, b;
-                    a = ipaddr.parseIPv4(v);
+                    a = ipaddr.parse(v);
                     b = Buffer.alloc(4);
                     b.writeUInt32BE(a, 0);
                     return b;
@@ -196,7 +195,7 @@ class DNSProtocol extends Protocol {
             '_nsIP6': {
                 encoder: function(v) {
                     var a, b, i = 0;
-                    a = ipaddr.parseIPv6(v);
+                    a = ipaddr.parse(v);
                     b = Buffer.alloc(16);
                     for (var i=0; i<8; i++) {
                         b.writeUInt16BE(a[i], i * 2);

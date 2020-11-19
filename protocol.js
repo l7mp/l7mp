@@ -23,9 +23,9 @@
 'use strict';
 
 const log    = require('npmlog');
-const ipaddr = require('./ipaddr.js');
 const net    = require('net');
 const _      = require('lodash');
+const ipaddr = require('ipaddr.js');
 
 class Protocol {
     constructor(opts){
