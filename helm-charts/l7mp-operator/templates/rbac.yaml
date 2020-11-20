@@ -1,0 +1,46 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  namespace: "{{ .Release.Namespace }}"
+  name: l7mp-role-namespaced-{{ .Release.Name }}
+
+rules:
+
+  # Framework: knowing which other operators are running (i.e. peering).
+  - apiGroups: [zalando.org]
+    resources: [kopfpeerings]
+    verbs: [list, watch, patch, get]
+
+  # Framework: posting the events about the handlers progress/errors.
+  - apiGroups: [events.k8s.io]
+    resources: [events]
+    verbs: [create]
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create]
+
+  # Application: watching & handling for the custom resource we declare.
+  - apiGroups: [l7mp.io]
+    resources: [virtualservices, targets, rules]
+    verbs: [list, watch, patch]
+
+  # Application: other resources it produces and manipulates.
+  - apiGroups: [""]
+    resources: [pods, pods/status, endpoints]
+    verbs: [list, watch, patch, status]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  namespace: "{{ .Release.Namespace  }}"
+  name: l7mp-rolebinding-namespaced-{{ .Release.Name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: l7mp-role-namespaced-{{ .Release.Name }}
+subjects:
+  - kind: ServiceAccount
+    name: l7mp-account-{{ .Release.Name }}
+{{- end }}

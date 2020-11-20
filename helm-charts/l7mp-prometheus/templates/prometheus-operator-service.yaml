@@ -1,0 +1,19 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: {{ .Values.selectorLabels.component }}
+    app.kubernetes.io/name: {{ .Values.selectorLabels.name }}
+    app.kubernetes.io/version: {{ .Values.selectorLabels.version }}
+  name: prometheus-operator
+  namespace: {{ .Values.namespace }}
+spec:
+  clusterIP: None
+  ports:
+  - name: {{ .Values.endpointPorts.prometheus.name }}
+    port: {{ .Values.endpointPorts.prometheus.prometheusScrape }}
+    targetPort: {{ .Values.endpointPorts.prometheus.name }}
+  selector:
+    app.kubernetes.io/component: {{ .Values.selectorLabels.component }}
+    app.kubernetes.io/name: {{ .Values.selectorLabels.name }}

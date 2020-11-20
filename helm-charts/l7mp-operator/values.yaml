@@ -1,0 +1,18 @@
+# Default values for l7mp-operator.
+
+image:
+  repository: ""
+  pullPolicy: Always
+  name: l7mp/l7mp-operator
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: latest
+
+rbac:
+  # Specifies whether RBAC resources should be created
+  create: true  
+
+serviceAccount:
+  create: true
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""

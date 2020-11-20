@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: l7mp-ingress
+{{- if eq .Values.l7mpProxy.prometheus "enable"}}
+    prometheus: enable
+{{- end }}
+  name: l7mp-ingress
+spec:
+  ports:
+  - name: controller-port
+    port: 1234
+    protocol: TCP
+    targetPort: 1234
+{{- if eq .Values.l7mpProxy.prometheus "enable"}}
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+{{- end }}
+  selector:
+    app: l7mp-ingress

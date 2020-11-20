@@ -1,0 +1,26 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: prometheus
+  namespace: {{ .Values.namespace }}
+  labels:
+    prometheus: prometheus
+spec:
+  replicas: 2
+  serviceAccountName: {{ .Values.serviceAccount.name }}
+  serviceMonitorSelector:
+    matchExpressions:
+    - {key: metrics, operator: Exists }
+  podMonitorSelector:
+    matchExpressions:
+    - {key: metrics, operator: Exists }  
+  alerting:
+    alertmanagers:
+    - namespace: {{ .Values.namespace}}
+      name: alertmanager
+      port: 9093
+  ruleSelector:
+    matchLabels:
+      role: alert-rules
+      prometheus: prometheus

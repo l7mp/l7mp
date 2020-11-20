@@ -355,6 +355,8 @@ components:
             Sync: {$ref: '#/components/schemas/SyncClusterSpec'}
             JSONEncap: {$ref: '#/components/schemas/JSONEncapClusterSpec'}
             JSONDecap: {$ref: '#/components/schemas/JSONDecapClusterSpec'}
+            Prometheus: {$ref: '#/components/schemas/PrometheusClusterSpec'}
+            Metric: {$ref: '#/components/schemas/MetricClusterSpec'}
           minProperties: 1
           maxProperties: 1
           x-l7mp-old-property: protocol
@@ -548,6 +550,31 @@ components:
         and everything else is dropped.
       type: object
       maxProperties: 0
+
+    PrometheusClusterSpec:
+      description: >
+        A Prometheus cluster specification that queries metrics from the
+        proxy.
+      type: object
+      maxProperties: 0
+
+    MetricClusterSpec:
+      description: >
+        A Metric cluster specification that counts bytes and packets that
+        flows trough its stream.
+      type: object
+      required: [byteCounterName, packetCounterName]
+      properties:
+        byteCounterName:
+          description: >
+            The name of the byte counter, must match the regex
+            [a-zA-Z_][a-zA-Z0-9_]* . A Prometheus metric name.
+          type: string
+        packetCounterName:
+          description: >
+            The name of the packet counter, must match the regex
+            [a-zA-Z_][a-zA-Z0-9_]* . A Prometheus metric name.
+          type: string
 
     EndPoint:
       description: >
@@ -1022,6 +1049,16 @@ components:
               $ref: '#/components/schemas/Cluster'
             selector:
               $ref: '#/components/schemas/Selector'
+            linkedVirtualService:
+              type: string
+              description: >
+                Derive the cluster of the Target from the linked virtual
+                service.
+          oneOf:
+            - required: [cluster]
+              not: {required: [linkedVirtualService]}
+            - required: [linkedVirtualService]
+              not: {required: [cluster]}
 
     CrdRule:
       type: object
@@ -1062,55 +1099,60 @@ components:
           description: >
             matchExpressions is a list of label selector requirements. The
             requirements are ANDed.
-          type: object
-          properties:
-            key:
-              description: key is the label key that the selector applies to.
-              type: string
-            operator:
-              description: >
-                "operator represents a key's relationship to a set of
-                values. Valid operators are In, NotIn, Exists and
-                DoesNotExist."
-              type: string
-              enum: [In, NotIn, Exists, DoesNotexist]
-            values:
-              description: >
-                values is an array of string values. If the operator is In
-                or NotIn, the values array must be non-empty. If the
-                operator is Exists or DoesNotExist, the values array must be
-                empty. This array is replaced during a strategic merge
-                patch.
-              type: array
-              items:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                description: key is the label key that the selector applies to.
                 type: string
+              operator:
+                description: >
+                  "operator represents a key's relationship to a set of
+                  values. Valid operators are In, NotIn, Exists and
+                  DoesNotExist."
+                type: string
+                enum: [In, NotIn, Exists, DoesNotexist]
+              values:
+                description: >
+                  values is an array of string values. If the operator is In
+                  or NotIn, the values array must be non-empty. If the
+                  operator is Exists or DoesNotExist, the values array must be
+                  empty. This array is replaced during a strategic merge
+                  patch.
+                type: array
+                items:
+                  type: string
 
         matchFields:
           description: >
             A list of node selector requirements by node's fields.
-          type: object
-          properties:
-            operator:
-              description: >
-                Represents a key's relationship to a set of values. Valid
-                operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
-              type: string
-              enum: [In, NotIn, Exists, DoesNotExist, Gt, Lt]
-            key:
-              type: string
-              description: >
-                The label key that the selector applies to
-            values:
-              type: array
-              description: >
-                An array of string values. If the operator is In or NotIn, the
-                values array must be non-empty. If the operator is Exists or
-                DoesNotExist, the values array must be empty. If the operator
-                is Gt or Lt, the values array must have a single element,
-                which will be interpreted as an integer. This array is
-                replaced during a strategic merge patch.
-              items:
+          type: array
+          items:
+            type: object
+            properties:
+              operator:
+                description: >
+                  Represents a key's relationship to a set of values. Valid
+                  operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
                 type: string
+                enum: [In, NotIn, Exists, DoesNotExist, Gt, Lt]
+              key:
+                type: string
+                description: >
+                  The label key that the selector applies to
+              values:
+                type: array
+                description: >
+                  An array of string values. If the operator is In or NotIn,
+                  the values array must be non-empty. If the operator is
+                  Exists or DoesNotExist, the values array must be empty. If
+                  the operator is Gt or Lt, the values array must have a
+                  single element, which will be interpreted as an
+                  integer. This array is replaced during a strategic merge
+                  patch.
+                items:
+                  type: string
 
         matchNamespace:
           description:

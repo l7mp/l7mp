@@ -1,0 +1,42 @@
+# Default values for l7mp-prometheus.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+namespace: monitoring
+
+selectorLabels:
+  component: controller
+  name: prometheus-operator
+  version: v0.43.0
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: prometheus-operator
+
+service:
+  type: ClusterIP
+  port: 80
+
+rbac:
+  create: true
+
+nodePorts:
+  prometheus: 30900
+  alertmanager: 30903
+  grafana: 30901
+    
+endpointPorts:
+  prometheus:
+    name: web
+    prometheusScrape: 8080
+
+#address of the node     
+address: 172.17.0.3
+
+version:
+  kubestatemetrics: v1.9.7

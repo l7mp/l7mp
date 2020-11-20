@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  creationTimestamp: null
+  labels:
+    prometheus: prometheus
+    role: alert-rules
+  name: prometheus-rules
+  namespace: {{ .Values.namespace }}
+spec:
+  groups:
+  #few alert rules example
+  - name: ./example.rules
+    rules:
+    #this one fires immediately
+    - alert: ExampleAlert
+      expr: vector(1)
+  - name: ./ctrlr_list.rules
+    rules:
+    #if more then five requests came trough, fires
+    - alert: listener-over-five-requests
+      expr: listener_requests_total > 5

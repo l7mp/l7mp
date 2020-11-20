@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: l7mp-ingress
+data:
+  l7mp-ingress.yaml: |
+    admin:
+      log_level: info
+      log_file: stdout
+      access_log_path: /tmp/admin_access.log
+    listeners:
+      - name: controller-listener
+        spec: { protocol: HTTP, port: 1234 }
+        rules:
+          - action:
+              route:
+                destination:
+                  spec: { protocol: L7mpController }
+{{- if eq .Values.l7mpProxy.prometheus "enable"}}
+      - name: prometheus_listener
+        spec: { protocol: HTTP, port: 8080 }
+        rules:
+          - match: {op: starts, path: '/HTTP/url/path', value: '/metrics'}
+            action:
+              route:
+                destination:
+                  spec: { protocol: Prometheus }
+{{- end }}

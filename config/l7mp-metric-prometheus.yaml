@@ -1,0 +1,54 @@
+# Controller listening on 1234, plus some useful debug clusters
+admin:
+  log_level: info
+  log_file: stdout
+  access_log_path: /tmp/admin_access.log
+listeners:
+  - name: controller-listener
+    spec: { protocol: HTTP, port: 1234 }
+    rules:
+      - action:
+          route:
+            destination: l7mp-controller
+  - name: udp-listener-1
+    spec: { protocol: UDP, port: 15000 }
+    rules:
+      - action:
+          route:
+            destination:
+              spec: { protocol: UDP, port: 16000 }
+              endpoints:
+                - spec: { address:  "127.0.0.1"}
+            ingress:
+              - ingress-metric-counter
+            egress:
+              - egress-metric-counter
+  - name: udp-listener-2
+    spec: { protocol: UDP, port: 15001 }
+    rules:
+      - action:
+          route:
+            destination:
+              spec: { protocol: UDP, port: 16001 }
+              endpoints:
+                - spec: { address:  "127.0.0.1"}
+            ingress:
+              - ingress-metric-counter
+            egress:
+              - egress-metric-counter
+  - name: prometheus_listener
+    spec: { protocol: HTTP, port: 8080 }
+    rules:
+      - match: {op: starts, path: '/HTTP/url/path', value: '/metrics'}
+        action:
+          route:
+            destination: prometheus-cluster
+clusters:
+  - name: l7mp-controller
+    spec: { protocol: L7mpController }
+  - name: prometheus-cluster
+    spec: { protocol: Prometheus }
+  - name: ingress-metric-counter
+    spec: { protocol: Metric }
+  - name: egress-metric-counter
+    spec: { protocol: Metric }

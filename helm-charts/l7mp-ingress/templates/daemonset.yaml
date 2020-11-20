@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: l7mp-ingress
+  labels:
+    apps: l7mp-ingress
+{{- if eq .Values.l7mpProxy.prometheus "enable"}}
+    prometheus: enable
+{{- end }}
+spec:
+  selector:
+    matchLabels:
+      app: l7mp-ingress
+  template:
+    metadata:
+      labels:
+        app: l7mp-ingress
+{{- if eq .Values.l7mpProxy.prometheus "enable"}}
+        prometheus: enable
+{{- end }}
+    spec:
+      volumes:
+        - name: l7mp-ingress-config
+          configMap:
+            name: l7mp-ingress
+      containers:
+      - name: l7mp
+        image: "{{ .Values.l7mpProxyImage.repository }}{{ .Values.l7mpProxyImage.name }}:{{ .Values.l7mpProxyImage.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.l7mpProxyImage.pullPolicy }}
+        command: [ "node" ]
+        args: [ "l7mp-proxy.js", "-c", "config/l7mp-ingress.yaml", "-s", "-l", "{{ .Values.l7mpProxy.logLevel }}" ]
+        # command: ["/bin/sh"]
+        # args: ["-c", "while true; do echo hello; sleep 10;done"]
+        ports:
+        - containerPort: 1234
+          protocol: TCP
+{{- if eq .Values.l7mpProxy.prometheus "enable"}}
+        - containerPort: 8080
+          name: web
+          protocol: TCP
+{{- end }}
+        volumeMounts:
+          - name: l7mp-ingress-config
+            mountPath: /app/config
+      {{- with .Values.extraContainers }}
+        {{ tpl . $ | nindent 6 }}
+      {{- end }}
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet

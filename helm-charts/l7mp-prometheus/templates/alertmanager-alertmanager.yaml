@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alertmanager-alertmanager
+  namespace: {{ .Values.namespace }}
+stringData:
+  alertmanager.yaml: |-
+    "global":
+      "resolve_timeout": "5m"
+    "route":
+      "group_by": ['job']
+      "group_wait": "30s"
+      "group_interval": "5m"    
+      "repeat_interval": "12h"
+      "receiver": "slack-notifications"
+    "receivers":
+    - "name": "slack-notifications"
+      "webhook_configs":
+      - "url": "https://hooks.slack.com/services/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"
+        "send_resolved": true
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Alertmanager
+metadata:
+  name: alertmanager
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: {{ .Values.namespace }}
+spec:
+  type: NodePort
+  ports:
+  - name: web
+    nodePort: 30903
+    port: 9093
+    protocol: TCP
+    targetPort: web
+  selector:
+    alertmanager: alertmanager

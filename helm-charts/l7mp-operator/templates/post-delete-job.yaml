@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "{{ .Release.Name }}-post-delete-account"
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-delete
+    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-weight": "1"
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: "{{ .Release.Name }}-post-delete-role"
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-delete
+    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-weight": "2"
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["list", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: "{{ .Release.Name }}-post-delete-binding"
+  annotations:
+    "helm.sh/hook": post-delete
+    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-weight": "3"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: "{{ .Release.Name }}-post-delete-role"
+subjects:
+  - kind: ServiceAccount
+    name: "{{ .Release.Name }}-post-delete-account"
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ .Release.Name }}-post-delete-config"
+  annotations:
+    "helm.sh/hook": post-delete
+    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-weight": "4"
+data:
+  delete.py: |
+    import os
+    import pykube
+    import time    
+    api = pykube.HTTPClient(pykube.KubeConfig.from_env())
+    finalizer = os.environ.get('FINALIZER', 'operator.l7mp.io/kopf-finalizer')
+    namespace = os.environ.get('NAMESPACE', '{{ .Release.Namespace }}')
+    while True:
+        pods = pykube.Pod.objects(api).filter(
+            namespace=namespace,
+        )
+        found = 0
+        for pod in pods.iterator():
+            print(pod.obj['metadata'].get('finalizers'))
+            if finalizer in pod.obj['metadata'].get('finalizers', []):
+                found += 1
+                pod.obj['metadata']['finalizers'].remove(finalizer)
+            pod.update(False)
+        if not found:
+            break
+        time.sleep(2)
+        print('--')
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ .Release.Name }}"
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    {{if .Chart.AppVersion }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    {{end}}
+    helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+  annotations:
+    # This is what defines this resource as a hook. Without this line, the
+    # job is considered part of the release.
+    "helm.sh/hook": post-delete
+    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-weight": "5"
+spec:
+  template:
+    metadata:
+      name: "{{ .Release.Name }}"
+      labels:
+        app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+        app.kubernetes.io/instance: {{ .Release.Name | quote }}
+        helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    spec:
+      serviceAccountName: "{{ .Release.Name }}-post-delete-account"
+      volumes:
+        - name: delete-volume
+          configMap:
+            name: "{{ .Release.Name }}-post-delete-config"
+      restartPolicy: Never
+      containers:
+      - name: post-delete-job
+        image: "{{ .Values.image.repository }}{{ .Values.image.name }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["python", "/app/delete.py"]
+        volumeMounts:
+          - name: delete-volume
+            mountPath: /app
