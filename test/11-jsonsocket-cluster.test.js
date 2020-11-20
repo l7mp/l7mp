@@ -20,8 +20,11 @@
 // ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+const { doesNotMatch } = require('assert');
 const udp          = require('dgram');
 const Stream       = require('stream');
+const { GeneralError } = require('../error.js');
+const { DatagramStream } = require('../stream.js');
 const assert       = require('chai').assert;
 const L7mp         = require('../l7mp.js').L7mp;
 const EndPoint     = require('../cluster.js').EndPoint;
@@ -58,6 +61,15 @@ describe('JSONSocketCluster', ()  => {
         it('has-protocol',  () => { assert.propertyVal(c, 'protocol', 'JSONSocket'); });
         it('load-balancer', () => { assert.property(c, 'loadbalancer'); });
         it('load-balancer-instanceof', () => { assert.instanceOf(c.loadbalancer, LoadBalancer); });
+        it('fail-to-create', () => { assert.throws(() => Cluster.create(
+            {
+                name: 'JSONSocket',
+                spec: {
+                    protocol: 'JSONSocket'
+                }
+            }
+            ), Error, 'JSONSocketCluster: No transport specified')
+        });
     });
 
     context('endpoins', () => {
@@ -359,7 +371,63 @@ describe('JSONSocketCluster', ()  => {
             s_ok = await c.stream(session);
             s_ok.stream.end();
         });
-
+        it('stream-metadata-18', async () => {
+            c.header = [ { test: 'test'} ];
+            s_ok = await c.stream(session).catch( 
+                (err) => {
+                    assert.instanceOf(err, GeneralError); 
+                });
+        });
+        it('stream-metadata-19', async () => {
+            c.header = [ {path: { from: '/some' , to: '/some'}} ];
+            s.on('message', (msg, rinfo) => {
+                s.send('{JSONSocketVersion: "1,JSONSocketStatus: 200,JSONSocketMessage: "OK"}', rinfo.port, rinfo.address);
+            });
+            s_ok = await c.stream(session).catch( 
+                (err) => {
+                    assert.instanceOf(err, GeneralError); 
+                });
+        });
+        it('stream-metadata-20', async () => {
+            c.header = [ {path: { from: '/some' , to: '/some'}} ];
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: undefined,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+            });
+            s_ok = await c.stream(session).catch( 
+                (err) => {
+                    assert.instanceOf(err, GeneralError); 
+                });
+        });
+        it('stream-metadata-21', async () => {
+            c.header = [ {path: { from: '/some' , to: '/some'}} ];
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: "1",JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+            });
+            s_ok = await c.stream(session).catch( 
+                (err) => {
+                    assert.instanceOf(err, GeneralError); 
+                });
+        });
+        it('stream-metadata-22', async () => {
+            c.header = [ {path: { from: '/some' , to: '/some'}} ];
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 2,JSONSocketStatus: 200,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+            });
+            s_ok = await c.stream(session).catch( 
+                (err) => {
+                    assert.instanceOf(err, GeneralError); 
+                });
+        });
+        it('stream-metadata-22', async () => {
+            c.header = [ {path: { from: '/some' , to: '/some'}} ];
+            s.on('message', (msg, rinfo) => {
+                s.send(JSON.stringify({JSONSocketVersion: 1,JSONSocketStatus: 199,JSONSocketMessage: "OK"}), rinfo.port, rinfo.address);
+            });
+            s_ok = await c.stream(session).catch( 
+                (err) => {
+                    assert.instanceOf(err, GeneralError); 
+                });
+        });
     });
 
     // we no longer support inline clusters

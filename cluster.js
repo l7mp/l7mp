@@ -668,6 +668,7 @@ class JSONSocketCluster extends Cluster {
                               `Adding "${h.set.key}: ${dumper(h.set.value,4)} to the header`);
                     req_header = Rule.setAtPath(req_header, h.set.key, h.set.value);
                 } else {
+                    stream.destroy() // Close the created stream in case of error
                     return Promise.reject(new GeneralError(
                         'Unknown JSONSocket header spec: '+ dumper(h, 4)));
                 }
@@ -699,6 +700,7 @@ class JSONSocketCluster extends Cluster {
             } catch(e){
                 let err = `Invalid JSON response header:` + e.message;
                 log.warn('JSONSocketCluster:', `${this.name}:`, err);
+                stream.destroy();
                 return Promise.reject(new GeneralError(e.message));
             }
 
@@ -706,6 +708,7 @@ class JSONSocketCluster extends Cluster {
                 let err = `No JSONSocket version info in reponse header: `+
                     dumper(header,5);
                 log.warn('JSONSocketCluster:', `${this.name}:`, err);
+                stream.destroy();
                 return Promise.reject(new GeneralError(err));
             }
 
@@ -715,12 +718,14 @@ class JSONSocketCluster extends Cluster {
                 let err = `JSONSocket version info is not numeric in response header: `+
                     dumper(header,5);
                 log.warn('JSONSocketCluster:', `${this.name}:`, err);
+                stream.destroy();
                 return Promise.reject(new GeneralError(err));
             }
 
             if(version < 0 || version > 1) {
                 let err = `Unsupported JSONSocket version "${version}" in header, dropping connection`;
                 log.warn('JSONSocketCluster:', `${this.name}:`, err);
+                stream.destroy();
                 return Promise.reject(new GeneralError(err));
             }
 
@@ -728,6 +733,7 @@ class JSONSocketCluster extends Cluster {
                 let err = `Server sent invalid status "${header['JSONSocketStatus']}" in `+
                     `response header, dropping connection`;
                 log.warn('JSONSocketCluster:', `${this.name}:`, err);
+                stream.destroy();
                 return Promise.reject(new GeneralError(err));
             }
 

@@ -43,6 +43,19 @@ describe('UDPEndPoint', ()  => {
         it('has-name',     () => { assert.property(e, 'name'); });
         it('has-spec',     () => { assert.property(e, 'spec'); });
         it('has-protocol', () => { assert.propertyVal(e, 'protocol', 'UDP'); });
+        context('With-wrong-parameters', () => {
+            it('No-remote-address', () => {
+                assert.throws(() => EndPoint.create(
+                    {protocol: 'UDP', spec: {protocol: 'UDP' ,port: 16000, bind: {address: "127.0.0.1", port: 16001}}}, 
+                    {name: 'UDP', spec: {address: undefined}}), Error, 'UDPEndPoint: No remote addr:port pair defined')    
+            })
+            it('No-remote-port', () => {
+                assert.throws(() => EndPoint.create(
+                    {protocol: 'UDP', spec: {protocol: 'UDP' ,port: undefined, bind: {address: "127.0.0.1", port: 16001}}}, 
+                    {name: 'UDP', spec: {address: '127.0.0.1'}}), Error, 'UDPEndPoint: No remote addr:port pair defined')
+            
+            })
+        })
     });
 
     context('#connect()', () => {
