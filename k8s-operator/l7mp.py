@@ -108,7 +108,7 @@ def get_target_extended_spec(s, target, logger):
         spec['cluster'].update({'endpoints': eps})
 
     # 3.
-    spec['cluster']['spec'] = vsvc['spec']['listener']
+    spec['cluster']['spec'] = vsvc['spec']['listener'].get('spec', {})
 
     # 4.
     return spec
@@ -327,7 +327,7 @@ async def exec_add_vsvc(s, pod, _old, action, logger):
         spec=vsvc_spec.get('listener', {}).get('spec'),
         rules=vsvc_spec.get('listener', {}).get('rules'))
     request = l7mp_client.IoL7mpApiV1ListenerRequest(listener=listener)
-    logger.warning(f'request: {request}')
+    logger.debug(f'request: {request}')
     try:
         l7mp_instance.add_listener(request)
     except l7mp_client.exceptions.ApiException as e:
