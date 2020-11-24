@@ -21,7 +21,7 @@
     "scripts": {
         "test": "mocha",
         "lint": "eslint .",
-        "test:coveralls": "nyc npm test && nyc report --reporter=text-lcov | coveralls"
+        "test:coveralls": "nyc --reporter=lcov npm test"
     },
     "bin": {
         "l7mp": "l7mp-proxy.js"
