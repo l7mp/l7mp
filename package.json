@@ -10,6 +10,7 @@
         "l7mp.js",
         "l7mp-openapi.js",
         "listener.js",
+        "monitoring.js",
         "route.js",
         "rule.js",
         "session.js",
