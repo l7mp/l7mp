@@ -74,7 +74,9 @@ class DatagramStream extends Duplex {
         // connected
 
         socket.on('error', (e) => {
-            log.silly('DatagramStream.onerror:',
+            log.silly('DatagramStream.onerror: on socket',
+                      `${this.socket.address().address}:${this.socket.address().port} ->`,
+                      `${this.remote.address}:${this.remote.port}: `,
                       e.message || dumper(e));
             this.emit('error', e);
         });
