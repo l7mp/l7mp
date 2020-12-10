@@ -97,7 +97,7 @@ class Stage {
             if(typeof s === 'undefined'){
                 log.info('Stage.connect:', `Session: ${this.session.name}`,
                          'removed while retrying at attempt: ', attempt);
-                this.status = END;
+                this.status = 'END';
             }
 
             switch(this.status){
