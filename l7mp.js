@@ -1083,7 +1083,7 @@ class L7mp {
         let e = validate(s, schema);
         if(e){
             log.warn('L7mp.addSession:', `Cannot add sesson: ${e}`);
-            return;
+            return null;
         }
 
         s.metadata.name = this.newName(s.metadata.name, this.getSession);
@@ -1114,7 +1114,9 @@ class L7mp {
         // immediate end
         s.on('destroy', () => {
             log.info(`Session "${s.name}": destroyed`);
-            setImmediate(() => this.deleteSession(s.name));
+            // may throw if session has already been killed (e.g., when a retrying stage is killed
+            // from the API)
+            setImmediate(() => { try{this.deleteSession(s.name);}catch(e){/* dummy */}; });
         });
 
         let status = await s.router();

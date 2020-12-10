@@ -91,9 +91,14 @@ class Stage {
 
             // do not retry a session that has been deleted from the API
             let s = l7mp.getSession(this.session.name);
-            if(typeof s === 'undefined')
-                fail(new InternalError('Internal error: Session removed while retrying'),
-                                       attempt);
+            // if(typeof s === 'undefined')
+            //     fail(new InternalError('Internal error: Session removed while retrying'),
+            //                            attempt);
+            if(typeof s === 'undefined'){
+                log.info('Stage.connect:', `Session: ${this.session.name}`,
+                         'removed while retrying at attempt: ', attempt);
+                this.status = END;
+            }
 
             switch(this.status){
             case 'CONNECTED':
