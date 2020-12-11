@@ -960,4 +960,28 @@ describe('Retry', ()  => {
             }, 50);
         });
     });
+
+    context('10-retry-disconnect-fails-after-retrying-unknown-cluster', () => {
+        var du = new DuplexPassthrough();
+        it('route', (done) => {
+            r = Route.create({
+                name: 'Test-r',
+                destination: 'dummy',
+                retry: {
+                    retry_on: 'always',
+                    num_retries: 10,
+                    timeout: 100,
+                }
+            });
+            l7mp.routes.push(r);
+            let x = { metadata: {name: 'Test-s'},
+                      source: { origin: l.name, stream: du.right }};
+            s = new Session(x);
+            l7mp.sessions.push(s);
+            s.create();
+            e.mode = ['ok', 'ok']; e.round = 0; e.timeout=0;
+            s.on('error', () => { assert.isOk(true); done();});
+            s.router();
+        });
+    });
 });

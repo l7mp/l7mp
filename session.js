@@ -95,9 +95,9 @@ class Stage {
             //     fail(new InternalError('Internal error: Session removed while retrying'),
             //                            attempt);
             if(typeof s === 'undefined'){
-                log.info('Stage.connect:', `Session: ${this.session.name}`,
-                         'removed while retrying at attempt: ', attempt);
                 this.status = 'END';
+                fail(new Ok(`Session: ${this.session.name} removed while retrying,`,
+                            `giving up on retry`), attempt);
             }
 
             switch(this.status){
