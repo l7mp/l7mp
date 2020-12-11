@@ -31,7 +31,8 @@ describe('TestCluster', ()  => {
     var e, c, s_ok;
     before( () => {
         l7mp = new L7mp();
-        l7mp.applyAdmin({ log_level: 'warn' });
+        l7mp.applyAdmin({ log_level: 'error' });
+        // l7mp.applyAdmin({ log_level: 'warn' });
         l7mp.run();
     });
 

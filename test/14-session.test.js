@@ -413,10 +413,10 @@ describe('Session', () => {
         after( () => {
             remove();
         });
-        it('router',      async () => { s = await sess.router(); assert.isOk(s); });
-        it('number-of-streams', () => { assert.property(s, 'num_streams'); });
-        it('active_streams',    () => { assert.property(s, 'active_streams'); });
-        it('equal',             () => { assert.equal(s.num_streams, s.active_streams); });
+        it('router',      async () => { s = await sess.router(); assert.equal(s.status, 200); });
+        it('number-of-streams', () => { assert.property(sess, 'num_streams'); });
+        it('active_streams',    () => { assert.property(sess, 'active_streams'); });
+        it('equal',             () => { assert.equal(sess.num_streams, sess.active_streams); });
     });
 
     context('Lookup', () => {
@@ -777,7 +777,7 @@ describe('Session', () => {
         after( () => {
             remove();
         });
-        it('pipeline', async () => { sess = await sess.pipeline(); assert.isOk(sess); });
+        it('pipeline', async () => { s = await sess.pipeline(); assert.equal(s.status, 200); });
         it('has-num-stresms', () => { assert.property(sess, 'num_streams'); });
         it('has-active_streams',    () => { assert.property(sess, 'active_streams'); });
         it('source-has-on_disc', () => { assert.property(sess.source, 'on_disc'); });
@@ -1016,7 +1016,7 @@ describe('Session', () => {
         after( () => {
             remove();
         });
-        it('router',          async () => { sess = await sess.router(); assert.isOk(sess); });
+        it('router',          async () => { s = await sess.router(); assert.equal(s.status, 200); });
         it('status',                () => { assert.propertyVal(sess.source, 'status', 'READY'); });
         it('session-status',        () => {
             // eventDebug(sess);

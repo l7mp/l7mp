@@ -81,8 +81,9 @@ describe('UDPListener', ()  => {
             it('can-listen',   () => { ls.emitter=(x) =>{
                 l7mp.sessions.push(x);
                 if(!s2){
-                    !s1 ? s1 = x : s2 = x ;
+                    !s1 ? s1 = x : s2 = x;
                 }
+                return { status: { status: 200 }};
             }});
         });
 
@@ -300,14 +301,15 @@ describe('UDPListener', ()  => {
             it('has-spec',     () => { assert.property(ls, 'spec'); });
             it('has-protocol', () => { assert.nestedPropertyVal(ls, 'spec.protocol', 'UDP'); });
             it('has-port',     () => { assert.nestedPropertyVal(ls, 'spec.port', 16000); });
-            it('has-connect',  () => { assert.nestedProperty(ls, 'spec.connect')});
-            it('has-connect-port',  () => { assert.nestedProperty(ls, 'spec.connect.port', 16001)});
-            it('has-connect-address',  () => { assert.nestedProperty(ls, 'spec.connect.address', '127.0.0.1')});
-            it('has-options',  () => { assert.nestedPropertyVal(ls, 'spec.options.mode', 'server')});
+            it('has-connect',  () => { assert.nestedProperty(ls, 'spec.connect'); });
+            it('has-connect-port',  () => { assert.nestedProperty(ls, 'spec.connect.port', 16001); });
+            it('has-connect-address',  () => { assert.nestedProperty(ls, 'spec.connect.address', '127.0.0.1'); });
+            it('has-options',  () => { assert.nestedPropertyVal(ls, 'spec.options.mode', 'server'); });
             it('can-listen',   () => { ls.emitter=(x) =>{
                 l7mp.sessions.push(x);
                 if(!s1){s1 = x}
                 assert.isOk(true);
+                return { status: { status: 200 }};                
             }});
         });
 
@@ -524,9 +526,10 @@ describe('UDPListener', ()  => {
             it('can-listen',   () => { l.emitter=(x) =>{
                 l7mp.sessions.push(x);
                 if(!s2){
-                    !s1 ? s1 = x : s2 = x ;
+                    !s1 ? s1 = x : s2 = x;
                 }
                 assert.isOk(true);
+                return { status: { status: 200 }};
             }});
         });
 
@@ -743,9 +746,10 @@ describe('UDPListener', ()  => {
             it('can-listen',   () => { l.emitter=(x) =>{
                 l7mp.sessions.push(x);
                 if(!s2){
-                    !s1 ? s1 = x : s2 = x ;
+                    !s1 ? s1 = x : s2 = x;
                 }
                 assert.isOk(true);
+                return { status: { status: 200 }};
             }});
         });
 

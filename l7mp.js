@@ -1083,7 +1083,7 @@ class L7mp {
         let e = validate(s, schema);
         if(e){
             log.warn('L7mp.addSession:', `Cannot add sesson: ${e}`);
-            return null;
+            return {status: new ValidationError(e), session: null };
         }
 
         s.metadata.name = this.newName(s.metadata.name, this.getSession);
@@ -1122,7 +1122,7 @@ class L7mp {
         let status = await s.router();
         log.silly(`Session "${s.name}": router finished, status:`, status.status);
 
-        return s;
+        return { session: s, status: status };
     }
 
     deleteSession(n){

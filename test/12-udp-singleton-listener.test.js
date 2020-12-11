@@ -81,7 +81,7 @@ describe('UDPListener', ()  => {
             it('has-spec',     () => { assert.property(l, 'spec'); });
             it('has-protocol', () => { assert.nestedPropertyVal(l, 'spec.protocol', 'UDP'); });
             it('has-port',     () => { assert.nestedPropertyVal(l, 'spec.port', 16000); });
-            it('can-listen',   () => { l.emitter=(x) =>{ s = x }; assert.isOk(true); });
+            it('can-listen',   () => { l.emitter=(x) =>{ s = x; return {status: {status:200}};}; assert.isOk(true); });
         });
 
 

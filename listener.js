@@ -82,8 +82,9 @@ class Listener {
         let sess = { metadata: m,
                      source: { origin: this.name,
                                stream: s }};
-        if(p) sess.priv = p
-        this.stats.listenerMetricRegistry.getSingleMetric('listener_requests_total').inc({listenerName: `${this.name}`, protocol: `${this.protocol}`});
+        if(p) sess.priv = p;
+        this.stats.listenerMetricRegistry.getSingleMetric('listener_requests_total')
+            .inc({listenerName: `${this.name}`, protocol: `${this.protocol}`});
 
         return this.emitter(sess);
     }
@@ -187,35 +188,8 @@ class HTTPListener extends Listener {
             },
         };
 
-        // this.emit('emit', this.getSession(
-        //     metadata, stream,
-        //     { req: req, res: res, setResponseHeader: this.end }));
-
         await this.emitSession(
             metadata, stream, { req: req, res: res, error: this.error });
-
-        // this.router({
-        //     metadata: metadata,
-        //     listener: { origin: this.name, stream: stream },
-        //     priv: { req: req, res: res, end: this.end },
-        // }).then((res) => {
-        //     // should only ever get here with an Ok status
-        //     if(!(res instanceof Ok))
-        //         log.warn('HTTPListener.onReq: Router returned non-Ok status '+
-        //                  'on the resolve path');
-        //     let json = this.json(res);
-        //     s.priv.res.writeHead(res.status, {
-        //         'Content-Length': Buffer.byteLength(json),
-        //         'Content-Type': 'application/json'})
-        //         .end(json);
-        // },
-        //         (err) => {
-        //             let json = this.json(res);
-        //             s.priv.res.writeHead(res.status, {
-        //                 'Content-Length': Buffer.byteLength(json),
-        //                 'Content-Type': 'application/json'})
-        //                 .end(json);
-        //         });
     }
 
     error(priv, err){
@@ -618,34 +592,21 @@ class UDPListener extends Listener {
             for(let msg of conn.queue)
                 conn.stream.socket.emit('message', msg.msg, msg.rinfo);
 
-        let session = await this.emitSession(metadata, conn.stream);
-
-        let remote = `${conn.remote_address}:${conn.remote_port}`;
-        // if(this.sessions && this.sessions[remote]){
-        //     delete this.sessions[remote].conn;
-        //     this.sessions[remote].session = session;
-        //     conn.stream.on('close', () => {
-        //         log.silly('UDPListener.onRequest: server mode: received close event,',
-        //                  `removing remote ${remote} from session pool`);
-        //         delete this.sessions[remote];
-        //     });
-        //     conn.stream.on('error', () => {
-        //         log.silly('UDPListener.onRequest: server mode: received error event,',
-        //                   `removing remote ${remote} from session pool`);
-        //         delete this.sessions[remote];
-        //     });
-        // }
-        if(this.sessions && this.sessions[remote]){
-            this.sessions[remote].on('close', () => {
-                log.silly('UDPListener.onRequest: server mode: received close event,',
-                          `removing remote ${remote} from session pool`);
-                delete this.sessions[remote];
-            });
-            this.sessions[remote].on('error', () => {
-                log.silly('UDPListener.onRequest: server mode: received error event,',
-                          `removing remote ${remote} from session pool`);
-                delete this.sessions[remote];
-            });
+        let res = await this.emitSession(metadata, conn.stream);
+        if(res.status.status === 200){
+            let remote = `${conn.remote_address}:${conn.remote_port}`;
+            if(this.sessions && this.sessions[remote]){
+                this.sessions[remote].on('close', () => {
+                    log.silly('UDPListener.onRequest: server mode: received close event,',
+                              `removing remote ${remote} from session pool`);
+                    delete this.sessions[remote];
+                });
+                this.sessions[remote].on('error', () => {
+                    log.silly('UDPListener.onRequest: server mode: received error event,',
+                              `removing remote ${remote} from session pool`);
+                    delete this.sessions[remote];
+                });
+            }
         }
     }
 
@@ -724,11 +685,6 @@ class NetServerListener extends Listener {
             };
 
         await this.emitSession(metadata, socket);
-        // this.emit('emit', this.getSession(metadata, socket));
-        // await this.router({
-        //     metadata: metadata,
-        //     listener: { origin: this.name, stream: socket },
-        // });
     }
 
     close(){
@@ -765,7 +721,6 @@ class JSONSocketListener extends Listener {
 
     async run(){
         log.info('JSONSocketListener.run');
-        // this.transport.on('emit', this.onSession.bind(this));
         this.transport.emitter = this.onSession.bind(this);
         try {
             await this.transport.run();
@@ -807,51 +762,51 @@ class JSONSocketListener extends Listener {
         try {
             var header = JSON.parse(data);
         } catch(e){
-            log.info('JSONSocketListener:', `${this.name}:`,
-                     `Invalid JSON header`);
+            let err = `Invalid JSON header`;
+            log.info('JSONSocketListener:', `${this.name}:`, err);
             l.stream.end(JSON.stringify({
                 JSONSocketVersion: 1,
                 JSONSocketStatus: 400,
-                JSONSocketMessage: "Bad Request: Invalid JSON request header",
+                JSONSocketMessage: `Bad Request: ${err}`,
             }));
-            return;
+            return { status: new BadRequestError(err) };
         }
 
         // 3. if not a proper JSONSocket header, drop
         if(typeof header['JSONSocketVersion'] === 'undefined'){
-            log.info('JSONSocketListener:', `${this.name}:`,
-                     `No JSONSocket version info in header:`, dumper(header,5));
+            let err = `No JSONSocket version info in header: `+ dumper(header,5); 
+            log.info('JSONSocketListener:', `${this.name}:`, err);
             l.stream.end(JSON.stringify({
                 JSONSocketVersion: 1,
                 JSONSocketStatus: 400,
-                JSONSocketMessage: "Bad Request: No JSONSocket version in request header",
+                JSONSocketMessage: `Bad Request: err`,
             }));
-            return;
+            return { status: new BadRequestError(err) };
         }
         let version = header['JSONSocketVersion'];
 
         if(typeof version != "number" || !Number.isInteger(version)) {
-            log.info('JSONSocketListener:', `${this.name}:`,
-                     `JSONSocket version info is not numeric/integer in header:`,
-                     dumper(header,5));
+            let err = `JSONSocket version info is not numeric/integer in header: `+
+                dumper(header,5);
+            log.info('JSONSocketListener:', `${this.name}:`, err);
             l.stream.end(JSON.stringify({
                 JSONSocketVersion: 1,
                 JSONSocketStatus: 400,
-                JSONSocketMessage: "Bad Request: Invalid JSONSocket version",
+                JSONSocketMessage: `Bad Request: ${err}`,
                 }));
-            return;
+            return { status: new BadRequestError(err) };
         }
 
         if(version < 0 || version > 1) {
-            log.info('JSONSocketListener:', `${this.name}:`,
-                     `Unsupported JSONSocket version in header:`,
-                     dumper(header,5));
+            let err = `Unsupported JSONSocket version in header: `+
+                dumper(header,5); 
+            log.info('JSONSocketListener:', `${this.name}:`, err);
             l.stream.end(JSON.stringify({
                 JSONSocketVersion: 1,
                 JSONSocketStatus: 505,
-                JSONSocketMessage: "JSONSocket Version Not Supported",
+                JSONSocketMessage: `Bad Request: ${err}`,
             }));
-            return;
+            return { status: new BadRequestError(err) };                     
         }
 
         log.info('JSONSocketListener:', `${this.name}:`,
@@ -867,16 +822,17 @@ class JSONSocketListener extends Listener {
         m['JSONSocket'] = header;
         l.origin = this.name;
 
-        let session = await this.emitSession(m, l.stream, {res: l.stream, error: this.error});
+        let res = await this.emitSession(m, l.stream, {res: l.stream, error: this.error});
+        // ack (the error path is handled by the error() method)
+        if(res.status.status == 200){
+            l.stream.write(JSON.stringify({
+                JSONSocketVersion: 1,
+                JSONSocketStatus: 200,
+                JSONSocketMessage: "OK",
+            }));
+        }
 
-        // ack
-        l.stream.write(JSON.stringify({
-            JSONSocketVersion: 1,
-            JSONSocketStatus: 200,
-            JSONSocketMessage: "OK",
-        }));
-
-        return session;
+        return res;
     }
 
     error(priv, err){

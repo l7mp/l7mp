@@ -34,6 +34,7 @@ describe('HTTPListener', () => {
     before( () => {
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'error' });
+        // l7mp.applyAdmin({ log_level: 'silly' });
         l7mp.run();
     });
 
@@ -46,7 +47,7 @@ describe('HTTPListener', () => {
         it('has-spec',     () => { assert.property(l, 'spec'); });
         it('has-protocol', () => { assert.nestedPropertyVal(l, 'spec.protocol', 'HTTP'); });
         it('has-port',     () => { assert.nestedPropertyVal(l, 'spec.port', 12345); });
-        it('can-listen',   () => { l.emitter = (x) => { s = x }; assert.isOk(true); });
+        it('can-listen',   () => { l.emitter = (x) => {s = x;}; assert.isOk(true); });
     });
 
     context('#run', () => {
@@ -57,7 +58,7 @@ describe('HTTPListener', () => {
     });
 
     context('#connect', () => {
-        it('connect',    (done) => { c = new net.connect({port: 12345}, () => { assert.isOk(true); done(); }) });
+        it('connect',    (done) => { c = new net.connect({port: 12345}, () => { assert.isOk(true); done(); }); });
         it('address',        () => { assert.equal(c.localAddress, '127.0.0.1'); });
         it('remote-address', () => { assert.equal(c.remoteAddress, '127.0.0.1'); });
         it('remote-port',    () => { assert.equal(c.remotePort, 12345); });

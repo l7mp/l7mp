@@ -74,7 +74,7 @@ describe('JSONSocketListener', ()  => {
         it('has-transport-spec-spec', () => { assert.nestedProperty(l, 'transport.spec'); });
         it('has-transport-protocol',  () => { assert.nestedPropertyVal(l, 'transport.spec.protocol', 'UDP'); });
         it('has-transport-port',      () => { assert.nestedPropertyVal(l, 'transport.spec.port', 54321); });
-        it('can-listen',              () => { l.on('emit', (x) => { s = x }); assert.isOk(true); });
+        it('can-listen',              () => { l.on('emit', (x) => { s = x; }); assert.isOk(true); });
     });
 
     context('#run', () => {
@@ -82,7 +82,7 @@ describe('JSONSocketListener', ()  => {
     });
 
     context('#connect', () => {
-        beforeEach(() => { c = new udp.createSocket('udp4')});
+        beforeEach(() => { c = new udp.createSocket('udp4'); });
         afterEach(() => { c.unref(); });
 
         it('close-on-invalid-jsonheader-invalid-json', (done) => {
@@ -141,7 +141,7 @@ describe('JSONSocketListener', ()  => {
             c.connect(54321, 'localhost');
         });
         it('connect-ok', (done) => {
-            l.emitter = (x) => { s = x; assert.isOk(true); done() };
+            l.emitter = (x) => { s = x; assert.isOk(true); done(); return {status: { status: 200}};};
             c.on('connect', () => { c.send(JSON.stringify({JSONSocketVersion: 1, some:{nested:{meta:'data'}}}));});
             c.on('error', (e) => { assert.fail(); });
             c.on('close', () => { assert.fail(); });
@@ -190,7 +190,7 @@ describe('JSONSocketListener', ()  => {
     context('I/O', () => {
         beforeEach((done) => {
             l.removeAllListeners();
-            l.emitter = (x) => { s = x; done();};
+            l.emitter = (x) => { s = x; done(); return {status: { status: 200}};};
             c = new udp.createSocket('udp4');
             c.on('connect', () => { c.send(JSON.stringify({JSONSocketVersion: 1}));});
             c.connect(54321, 'localhost');

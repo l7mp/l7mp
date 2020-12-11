@@ -516,7 +516,7 @@ class Session {
         this.connected();
         // this.pipeline_dump();
 
-        return this;
+        return new Ok();
     }
 
     pipeline_init(){

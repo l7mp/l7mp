@@ -59,7 +59,7 @@ describe('UDSListener', ()  => {
         it('has-spec',     () => { assert.property(l, 'spec'); });
         it('has-protocol', () => { assert.nestedPropertyVal(l, 'spec.protocol', 'UnixDomainSocket'); });
         it('has-port',     () => { assert.nestedPropertyVal(l, 'spec.filename', '/tmp/unixSocket.sock'); });
-        it('can-listen',   () => { l.emitter=(x) =>{ s = x }; assert.isOk(true); });
+        it('can-listen',   () => { l.emitter=(x) =>{ s = x; }; assert.isOk(true); });
     });
 
     context('#run', () => {
