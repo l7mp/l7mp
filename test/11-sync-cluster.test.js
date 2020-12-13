@@ -27,6 +27,7 @@ const EndPoint     = require('../cluster.js').EndPoint;
 const Cluster      = require('../cluster.js').Cluster;
 const LoadBalancer = require('../cluster.js').LoadBalancer;
 const UDP          = require('dgram');
+const { GeneralError } = require('../error.js');
 
 describe('SyncCluster', () => {
     before( () => {
@@ -117,6 +118,12 @@ describe('SyncCluster', () => {
                 done();
             });
             s.stream.end();
+        });
+        it('Not-matching-label', async () => {
+            s = await c.stream({metadata: '' }).catch( 
+                (err) => {
+                    assert.instanceOf(err, GeneralError); 
+                });
         });
     });
 });

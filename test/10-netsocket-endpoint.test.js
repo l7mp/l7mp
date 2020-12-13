@@ -67,6 +67,11 @@ describe('NetSocketEndPoint', ()  => {
         it('instanceOf', () => {
             assert.instanceOf(s, net.Socket);
         });
+        it('on-error', (done) => {
+            s = e.connect({})
+            s.once('error', () => {assert.isOk(true); s.destroy(); done()})
+            s.emit('error', {code: 'test', address: '0.0.0.0', port: 15000})
+        })
         it('ready', (done) => {
             s = e.connect({});
             s.on('ready', () => {

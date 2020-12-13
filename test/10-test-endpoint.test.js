@@ -33,6 +33,12 @@ describe('TestEndPoint', ()  => {
         l7mp.run(); // should return
     });
 
+    context('Default', () => {
+        it('No-matching-endpoint', () => {
+            assert.throws(() => EndPoint.create({protocol: 'None'}, {}), Error, 'Adding an endpoint to a cluster of type "None" is not supported')
+        })
+    })
+
     context('create', () => {
         it('runs',         () => { assert.exists(e = EndPoint.create({protocol: 'Test'}, {name: 'Test', spec: {}})); });
         it('object',       () => { assert.isObject(e); });

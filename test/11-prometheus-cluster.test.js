@@ -48,7 +48,7 @@ describe('PrometheusCluster', ()  => {
 
     context('stream()', () => {
         it('runs', async   () => { await c.run(); assert.isOk(c);});
-        it('stream', async () => { s = await c.stream({route:{retry:{timeout:1000}}})});
+        it('stream', async () => { s = await c.stream({route:{retry:{timeout:1000}}, end: () => {}})});
         it('returns ok',   () => { assert.isOk(s.stream); });
         it('isa stream',   () => { assert.instanceOf(s.stream, Stream); });
         it('readable',     () => { assert.isOk(s.stream.readable); });
@@ -64,10 +64,7 @@ describe('PrometheusCluster', ()  => {
                 assert.isTrue(data.includes("# TYPE"));
                 done();
             });
-            //does not matter what is written on the stream
-            //because it will and should response a prometheus string
-            s.stream.write('test');
-            s.stream.end();
+            s.stream.end('test');
         });
     });
 });
