@@ -24,8 +24,8 @@ const Stream  = require('stream');
 const assert  = require('chai').assert;
 const L7mp    = require('../l7mp.js').L7mp;
 const Cluster = require('../cluster.js').Cluster;
-const session_byte_counter_total = require('../monitoring').session_byte_counter_total;
-const session_packet_counter_total = require('../monitoring').session_packet_counter_total;
+const session_byte_counter_total = require('../monitoring').Monitoring.session_byte_counter_total;
+const session_packet_counter_total = require('../monitoring').Monitoring.session_packet_counter_total;
 
 describe('MetricCluster', ()  => {
     let s, c, e;
@@ -48,7 +48,7 @@ describe('MetricCluster', ()  => {
 
     context('stream()', () => {
         it('runs', async   () => { await c.run(); assert.isOk(c);});
-        it('stream', async () => { s = await c.stream({name:'metric',route:{retry:{timeout:1000}}})});
+        it('stream', async () => { s = await c.stream({name:'metric',route:{retry:{timeout:1000}}, stats:{metricLabels:{}} })});
         it('returns ok',   () => { assert.isOk(s.stream); });
         it('isa stream',   () => { assert.instanceOf(s.stream, Stream); });
         it('readable',     () => { assert.isOk(s.stream.readable); });
