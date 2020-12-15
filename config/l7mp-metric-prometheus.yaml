@@ -49,6 +49,24 @@ clusters:
   - name: prometheus-cluster
     spec: { protocol: Prometheus }
   - name: ingress-metric-counter
-    spec: { protocol: Metric }
+    spec:
+      protocol: Metric
+      labels:
+        - name: call_id
+          key: session_id
+        - name: clusterName
+          key: clusterName
+        - name: srcAddr
+          key: srcAddr
+        - name: dstAddr
+          key: dstAddr
+        - name: dstCluster
+          key: dstcluster
+        - name: direction
+          value: ingress
+        - name: endpointPort
+          key: endpointPort
+        - name: endpointAddr
+          key: endpointAddr
   - name: egress-metric-counter
     spec: { protocol: Metric }
