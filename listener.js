@@ -43,7 +43,7 @@ const {L7mpError, Ok, InternalError, BadRequestError, NotFoundError, GeneralErro
 const Rule          = require('./rule.js').Rule;
 
 // for Prometheus monitoring and metrics
-const listenerMetricRegistry = require('./monitoring').listenerMetricRegistry;
+const listenerMetricRegistry = require('./monitoring').Monitoring.listenerMetricRegistry;
 
 class Listener {
     constructor(l){
