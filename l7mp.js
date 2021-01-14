@@ -41,6 +41,9 @@ const L7mpOpenAPI= require('./l7mp-openapi.js').L7mpOpenAPI;
 
 const {L7mpError, Ok, InternalError, BadRequestError, NotFoundError, ValidationError, GeneralError} = require('./error.js');
 
+//monitoring
+const listenerMetricRegistry = require('./monitoring').Monitoring.listenerMetricRegistry;
+
 const MAX_NAME_ATTEMPTS = 20;
 
 // WARNING: these dumpers are needed for development and testing only,
@@ -1091,30 +1094,37 @@ class L7mp {
         this.sessions.push(s);
 
         s.on('init', () => log.silly(`Session "${s.name}: initializing"`));
-        s.on('connect', () => log.info(`Session "${s.name}: successfully (re)connected"`,
-                                       dumper(s.metadata, 10)));
+        s.on('connect', () => {
+            log.info(`Session "${s.name}: successfully (re)connected"`,
+                dumper(s.metadata, 10))
+            listenerMetricRegistry.getSingleMetric('active_sessions_total').set(l7mp.sessions.length);
+        });
 
         s.on('disconnect', (origin, error) => {
             log.info(`Session "${s.name}":`,
                      `temporarily disconnected at stage "${origin}":`,
                      `reason: ${error ? error.message : 'unknown'}`);
+            listenerMetricRegistry.getSingleMetric('active_sessions_total').set(l7mp.sessions.length);
         });
 
         s.on('error', (err) => {
             // if(log.level === 'silly') dump(e);
             log.warn(`Session "${s.name}": fatal error: ${err.message}` +
                      (err.content ? `: ${err.content}`: ""));
+            listenerMetricRegistry.getSingleMetric('active_sessions_total').set(l7mp.sessions.length);
         });
 
         // normal end
         s.on('end', (err) => {
             log.info(`Session "${s.name}":`, err ? err.message : `Ending normally`);
+            listenerMetricRegistry.getSingleMetric('active_sessions_total').set(l7mp.sessions.length);
         });
 
         // immediate end
         s.on('destroy', () => {
             log.info(`Session "${s.name}": destroyed`);
             setImmediate(() => this.deleteSession(s.name));
+            listenerMetricRegistry.getSingleMetric('active_sessions_total').set(l7mp.sessions.length);
         });
 
         let status = await s.router();
