@@ -1,0 +1,24 @@
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+#    apiVersion: apps/v1
+#    kind: Deployment
+#    name: transcoder
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Object
+      object:
+        metric:
+          name: active_sessions_total
+        describedObject:
+          kind: Namespace
+          name: default
+        target:
+          type: Value
+          value: 100
+---
