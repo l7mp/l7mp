@@ -7,6 +7,9 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: latest
 
+# For example: --verbose, --debug, or --quiet
+extraKopfArgs: ""
+
 rbac:
   # Specifies whether RBAC resources should be created
   create: true  

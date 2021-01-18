@@ -20,3 +20,8 @@ spec:
       - name: the-only-one
         image: "{{ .Values.image.repository }}{{ .Values.image.name }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+      {{- with .Values.extraKopfArgs }}
+        env:
+        - name: KOPF_ARGS
+          value: {{ . }}
+      {{- end }}
