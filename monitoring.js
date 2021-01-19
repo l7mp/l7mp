@@ -25,67 +25,118 @@
 //prometheus
 const client        = require('prom-client');
 
-//list of metric registries for monitoring
-const listenerMetricRegistry      = new client.Registry();
-const clusterMetricRegistry      = new client.Registry();
-const endpointMetricRegistry      = new client.Registry();
-const metricClusterMetricRegistry = new client.Registry();
-
-//list of metrics
-
-//This metric is used for counting requests on a LISTENER
-const listener_requests_total       = new client.Counter({
-   name: `listener_requests_total`,
-   help: 'Total number of requests',
-   labelNames: ['listenerName', 'protocol'],
-   registers: [listenerMetricRegistry]
-})
-//This metric is used for counting requests on a CLUSTER
-const cluster_requests_total       = new client.Counter({
-   name: `cluster_requests_total`,
-   help: 'Total number of requests',
-   labelNames: ['clusterName', 'protocol'],
-   registers: [clusterMetricRegistry]
-})
-//This metric is used for counting BYTES on a session
-const session_byte_counter_total =  new client.Counter({
-   name: `session_byte_counter_total`,
-   help: 'Total number of bytes that flows trough the cluster',
-   labelNames: ['sessionName', 'clusterName'],
-   registers: [metricClusterMetricRegistry]
-});
-//This metric is used for counting PACKETS on a session
-const session_packet_counter_total =  new client.Counter({
-   name: `session_packet_counter_total`,
-   help: 'Total number of packets that flows trough the cluster',
-   labelNames: ['sessionName', 'clusterName'],
-   registers: [metricClusterMetricRegistry]
-})
-
 class Monitoring {
 
-//Exposing every registry listed below on the same endpoint
-   static mergeRegistries() {
+   constructor() {
+      //list of metric registries for monitoring
+      this.listenerMetricRegistry      = new client.Registry();
+      this.clusterMetricRegistry      = new client.Registry();
+      this.metricClusterMetricRegistry = new client.Registry();
+      this.endpointMetricRegistry      = new client.Registry();
+
+      //list of metrics
+
+      //This metric is used for counting requests on a LISTENER
+      this.listener_requests_total       = new client.Counter({
+         name: `listener_requests_total`,
+         help: 'Total number of requests',
+         labelNames: ['listenerName', 'protocol'],
+         registers: [this.listenerMetricRegistry]
+      })
+
+      //This metric is used for counting requests on a LISTENER
+      //REMINDER: this metric shows number of actual active sessions plus one, because it counts prometheus query session in
+      this.active_sessions_total      = new client.Gauge({
+         name: `active_sessions_total`,
+         help: 'Number of active sessions(active_num+1(prom query))',
+         labelNames: [],
+         registers: [this.listenerMetricRegistry]
+      })
+
+      //This metric is used for counting requests on a CLUSTER
+      this.cluster_requests_total       = new client.Counter({
+         name: `cluster_requests_total`,
+         help: 'Total number of requests',
+         labelNames: ['clusterName', 'protocol'],
+         registers: [this.clusterMetricRegistry]
+      })
+
+      //This metric is used for counting BYTES on a session
+      this.session_byte_counter_total =  new client.Counter({
+         name: `session_byte_counter_total`,
+         help: 'Total number of bytes that flows trough the cluster',
+         labelNames: ['call_id', 'clusterName', 'dstCluster','srcAddr', 'dstAddr', 'srcPort', 'dstPort', 'endpointProto' ,'endpointAddr', 'endpointPort','direction'],
+         registers: [this.metricClusterMetricRegistry]
+      });
+
+      //This metric is used for counting PACKETS on a session
+      this.session_packet_counter_total =  new client.Counter({
+         name: `session_packet_counter_total`,
+         help: 'Total number of packets that flows trough the cluster',
+         labelNames: ['call_id', 'clusterName', 'dstCluster', 'srcAddr', 'dstAddr', 'srcPort', 'dstPort', 'endpointProto' ,'endpointAddr', 'endpointPort','direction'],
+         registers: [this.metricClusterMetricRegistry]
+      });
+   }
+
+   //Exposing every registry listed below on the same endpoint
+   mergeRegistries() {
       return client.Registry.merge([
-         listenerMetricRegistry,
-         clusterMetricRegistry,
-         endpointMetricRegistry,
-         metricClusterMetricRegistry,
+         this.listenerMetricRegistry,
+         this.clusterMetricRegistry,
+         this.endpointMetricRegistry,
+         this.metricClusterMetricRegistry,
          client.register
       ]);
    }
+
+   /*
+      Creates a labels object for MetricCluster
+      s parameter is the session
+    */
+
+   getLabelsObject(s, cluster){
+      let labels={};
+      cluster.labels.sessionValues.forEach(label => {
+         switch(label.value){
+            case 'session_id':
+            case 'call-id':
+            case 'sessionname':
+            case 'sessionName':
+               labels[label.key] = s.metadata.name;
+               break;
+            case 'clustername':
+            case 'clusterName':
+               labels[label.key] = cluster.name;
+               break;
+            case 'dstCluster':
+            case 'dstcluster':
+               labels[label.key] = s.route.destination;
+               break;
+            case 'srcaddr':
+            case 'srcAddr':
+               labels[label.key] = s.metadata.IP.src_addr;
+               break;
+            case 'dstaddr':
+            case 'dstAddr':
+               labels[label.key] = s.metadata.IP.dst_addr;
+               break;
+            case 'endpointaddr':
+            case 'endpointAddr':
+               labels[label.key] = s.destination.endpoint.remote_address;
+               break;
+            case 'endpointport':
+            case 'endpointPort':
+               labels[label.key] = s.destination.endpoint.remote_port;
+               break;
+            default:
+               break;
+         }
+      })
+      cluster.labels.directValues.forEach(label => {
+         labels[label.key] = label.value;
+      })
+      return labels;
+   }
 }
 
-module.exports.Monitoring = Monitoring;
-
-//metric registries
-module.exports.listenerMetricRegistry        = listenerMetricRegistry;
-module.exports.clusterMetricRegistry         = clusterMetricRegistry;
-module.exports.endpointMetricRegistry        = endpointMetricRegistry;
-module.exports.metricClusterMetricRegistry   = metricClusterMetricRegistry;
-
-//metrics
-module.exports.listener_requests_total       = listener_requests_total;
-module.exports.cluster_requests_total       = cluster_requests_total;
-module.exports.session_byte_counter_total    = session_byte_counter_total;
-module.exports.session_packet_counter_total    = session_packet_counter_total;
+module.exports.Monitoring = new Monitoring();
