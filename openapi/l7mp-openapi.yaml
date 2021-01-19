@@ -434,12 +434,43 @@ components:
           type: string
           enum:  # fixed value
             - Metric
-        byteCounterName:
-          description: The name of the byte counter, must match the regex [a-zA-Z_][a-zA-Z0-9_]* . A Prometheus metric name.
-          type: string
-        packetCounterName:
-          description: The name of the packet counter, must match the regex [a-zA-Z_][a-zA-Z0-9_]* . A Prometheus metric name.
-          type: string
+        labels:
+          description: List of labels that should be added to the cluster's metrics
+          type: array
+          items:
+            anyOf:
+              - type: object
+                required:
+                  - name
+                  - key
+                properties:
+                  name:
+                    description: Name of the label's key
+                    type: string
+                  key:
+                    description: Key in the session metadata for the label's value
+                    type: string
+                    enum: [session_id, call_id,
+                           sessionname, sessionName,
+                           clusterName, clustername,
+                           dstCluster, dstcluster,
+                           srcAddr, srcaddr,
+                           dstAddr, dstaddr,
+                           srcPort, srcport,
+                           dstPort, dstport,
+                           endpointAddr, endpointaddr,
+                           endpointPort, endpointport]
+              - type: object
+                required:
+                  - name
+                  - value
+                properties:
+                  name:
+                    description: Name of the label's key
+                    type: string
+                  value:
+                    description: Given value for the label
+                    type: string
 
     io.l7mp.api.v1.WebSocketClusterSpec:
       description: >
