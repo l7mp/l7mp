@@ -44,15 +44,6 @@ class Monitoring {
          registers: [this.listenerMetricRegistry]
       })
 
-      //This metric is used for counting requests on a LISTENER
-      //REMINDER: this metric shows number of actual active sessions plus one, because it counts prometheus query session in
-      this.active_sessions_total      = new client.Gauge({
-         name: `active_sessions_total`,
-         help: 'Number of active sessions(active_num+1(prom query))',
-         labelNames: [],
-         registers: [this.listenerMetricRegistry]
-      })
-
       //This metric is used for counting requests on a CLUSTER
       this.cluster_requests_total       = new client.Counter({
          name: `cluster_requests_total`,
