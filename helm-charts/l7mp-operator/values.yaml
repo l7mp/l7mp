@@ -7,6 +7,10 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: latest
 
+# List of namespaces in which the operator watches resources.
+# If empty, then it watches the namespace in which it runs
+namespaces: []
+
 # For example: --verbose, --debug, or --quiet
 extraKopfArgs: ""
 

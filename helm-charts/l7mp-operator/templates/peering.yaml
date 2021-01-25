@@ -1,5 +1,8 @@
+{{- range (default (tuple .Release.Namespace) .Values.namespaces) }}
 apiVersion: zalando.org/v1
 kind: KopfPeering
 metadata:
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ . }}
   name: operator.l7mp.io
+---
+{{- end }}
