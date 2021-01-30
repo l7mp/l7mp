@@ -249,10 +249,11 @@ async def set_owner_status(s, o_type, fqn, logger):
         return
     for owner in metadata.get('ownerReferences', []):
         # "Cross-namespace owner references are disallowed by design."
-        resource = kopf.structs.resources.Resource(
+        resource = kopf.structs.references.Resource(
             group=owner['apiVersion'].split('/')[0],
             version=owner['apiVersion'].split('/', 1)[1],
             plural=owner['kind'].lower() + 's', # ?
+            namespaced=True,
         )
         await kopf.clients.patching.patch_obj(
             resource=resource,
@@ -569,7 +570,7 @@ def startup_fn(settings: kopf.OperatorSettings, logger, **kw):
     settings.persistence.progress_storage = kopf.AnnotationsProgressStorage(
         prefix='operator.l7mp.io')
     settings.persistence.diffbase_storage = kopf.AnnotationsDiffBaseStorage(
-        name='operator.l7mp.io/last-handled-configuration',
+        prefix='operator.l7mp.io',
     )
 
 @kopf.on.field('', 'v1', 'pods', field='status.containerStatuses')
@@ -605,7 +606,7 @@ async def pod_status_fn(new, body, logger, **kw):
 @kopf.on.create('l7mp.io', 'v1', 'rules')
 @kopf.on.resume('l7mp.io', 'v1', 'rules')
 async def create_fn(body, **kw):
-    o_type = kw.get('cause').resource.plural # Object type
+    o_type = kw.get('resource').plural # Object type
     fail_if_pod_not_ready(o_type, body, **kw)
     s_old = deepcopy(s)
     s[o_type][get_fqn(body)] = body
@@ -622,7 +623,7 @@ async def create_fn(body, **kw):
 @kopf.on.delete('l7mp.io', 'v1', 'targets')
 @kopf.on.delete('l7mp.io', 'v1', 'rules')
 async def delete_fn(body, old, **kw):
-    o_type = kw.get('cause').resource.plural # Object type
+    o_type = kw.get('resource').plural # Object type
     s_old = deepcopy(s)
     try:
         del s[o_type][get_fqn(body)]
@@ -639,7 +640,7 @@ async def delete_fn(body, old, **kw):
 @kopf.on.update('l7mp.io', 'v1', 'targets')
 @kopf.on.update('l7mp.io', 'v1', 'rules')
 async def update_fn(body, old, **kw):
-    o_type = kw.get('cause').resource.plural # Object type
+    o_type = kw.get('resource').plural # Object type
     fail_if_pod_not_ready(o_type, body, **kw)
     fqn = get_fqn(body)
     s_old = deepcopy(s)

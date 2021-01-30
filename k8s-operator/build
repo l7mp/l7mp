@@ -1,6 +1,8 @@
 #!/bin/bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+BUILD_ARGS=$@
+
 set -x
 cd "$DIR"
 version=$(sed -ns '1,30s/.*version: \(.*\)/\1/p' l7mp.py)
@@ -13,4 +15,10 @@ name=l7mp/l7mp-operator
 cp -r ../python-client/out/l7mp_client .
 cp ../python-client/out/requirements.txt .
 
-docker build . -t $name:$version -t $name:latest
+cat <<EOF >>requirements.txt
+pyyaml
+kubernetes
+pykube-ng
+EOF
+
+docker build $BUILD_ARGS . -t $name:$version -t $name:latest

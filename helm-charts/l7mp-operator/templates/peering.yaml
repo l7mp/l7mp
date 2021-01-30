@@ -1,5 +1,5 @@
 {{- range (default (tuple .Release.Namespace) .Values.namespaces) }}
-apiVersion: zalando.org/v1
+apiVersion: kopf.dev/v1
 kind: KopfPeering
 metadata:
   namespace: {{ . }}
