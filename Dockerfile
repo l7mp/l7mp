@@ -86,7 +86,8 @@ COPY --from=builder /node_modules /app/node_modules
 RUN chmod 755 /app/node_modules/*
 
 # copy bpf object
-COPY --from=builder /kernel-offload /app/kernel-offload
+RUN mkdir /app/kernel-offload/
+COPY --from=builder /kernel-offload/*.o /app/kernel-offload/
 
 # copy package.json
 COPY --from=builder package*.json /app/
