@@ -254,6 +254,7 @@ async def set_owner_status(s, o_type, fqn, logger):
             version=owner['apiVersion'].split('/', 1)[1],
             plural=owner['kind'].lower() + 's', # ?
             namespaced=True,
+            subresources=['status'],
         )
         await kopf.clients.patching.patch_obj(
             resource=resource,
