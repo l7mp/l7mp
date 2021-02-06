@@ -10,7 +10,7 @@ const bpf = require("bpf");
 const REDIRMAP_PATH = "/sys/fs/bpf/tc/globals/sidecar_redirects";
 const STATMAP_PATH = "/sys/fs/bpf/tc/globals/sidecar_statistics";
 
-const BPF_OBJ_FILE = "kernel-offload/l7mp-uko.o";
+const BPF_OBJ_FILE = "kernel-offload/udp_kernel_offload.o";
 
 var redirMap;
 var statisticsMap;

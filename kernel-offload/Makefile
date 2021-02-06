@@ -14,14 +14,14 @@ deps-clone:
 	git clone --depth 1 https://github.com/libbpf/libbpf.git || true
 
 format:
-	$(CLANG_FORMAT) -i --style=file l7mp-uko.c
+	$(CLANG_FORMAT) -i --style=file udp_kernel_offload.c
 
 build: deps-clone
-	$(CLANG) $(CCFLAGS) -target bpf -O2 -emit-llvm -c l7mp-uko.c -o - | \
-	$(LLC) -march=bpf -mcpu=probe -filetype=obj -o l7mp-uko.o
+	$(CLANG) $(CCFLAGS) -target bpf -O2 -emit-llvm -c udp_kernel_offload.c -o - | \
+	$(LLC) -march=bpf -mcpu=probe -filetype=obj -o udp_kernel_offload.o
 
 clean:
-	rm -vf l7mp-uko.o
+	rm -vf udp_kernel_offload.o
 
 purge: clean
 	rm -rf libbpf
