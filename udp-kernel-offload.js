@@ -72,7 +72,13 @@ function convertBufferToFlowStat(buf) {
 
 
 
-function loadBpf(ifName, bpfObjFile="sidecar-kern.o") {
+function loadBpf(ifName, bpfObjFile="udp_kernel_offload.o") {
+    // Check if BPF object file exists
+    if (!fs.existsSync(bpfObjFile)) {
+	throw new Error("Error during checking BPF object." +
+			bpfObjFile + " does not exists.");
+    }
+
     // Load bpf object with 'tc'
 
     // Check if clsact is available..
@@ -82,7 +88,7 @@ function loadBpf(ifName, bpfObjFile="sidecar-kern.o") {
     const clsactIsLoaded = qdiscInfoCmd.stdout.includes("clsact");
 
     // ..Add clsact if not
-    if (clsactIsLoaded === false) {
+    if (!clsactIsLoaded) {
         const qdiscAddCmdArgs = ["qdisc", "add", "dev", ifName, "clsact"];
         const qdiscAddCmd = child_process.spawnSync("tc", qdiscAddCmdArgs,
                                                     { encoding: "utf-8" });
