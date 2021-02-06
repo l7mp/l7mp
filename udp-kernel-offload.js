@@ -75,8 +75,8 @@ function convertBufferToFlowStat(buf) {
 function loadBpf(ifName, bpfObjFile="udp_kernel_offload.o") {
     // Check if BPF object file exists
     if (!fs.existsSync(bpfObjFile)) {
-	throw new Error("Error during checking BPF object. " +
-			"The object file '" + bpfObjFile + "' does not exist.");
+        throw new Error("Error during checking BPF object. " +
+                        "The object file '" + bpfObjFile + "' does not exist.");
     }
 
     // Load bpf object with 'tc'
