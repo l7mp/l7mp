@@ -12,11 +12,6 @@ const STATMAP_PATH = "/sys/fs/bpf/tc/globals/sidecar_statistics";
 
 const BPF_OBJ_FILE = "kernel-offload/udp_kernel_offload.o";
 
-var redirMap;
-var statisticsMap;
-
-var statistics = {};
-
 
 class Flow {
     constructor(src_ip4=0, src_port=0, dst_ip4=0, dst_port=0, proto=0) {
@@ -126,7 +121,7 @@ function unloadBpf(ifName) {
 function initOffloadEngine() {
     //  Create maps and objs
 
-    // const redirectsMap = bpf.createMap({  // TODO
+    // const redirectsMap = bpf.createMap({  // TODO?
     //     type: bpf.MapType.LRU_HASH,
     //     name: "sidecar_redirects",
     //     keySize: 16,
@@ -141,10 +136,6 @@ function initOffloadEngine() {
     //     valueSize: 24,
     //     maxEntries: 10240
     // });
-
-    // console.log(redirectsMap, "\nfd: ", redirectsMap.fd, "\n");
-    // console.log(statisticsMap, "\nfd: ", statisticsMap.fd, "\n");
-
 
     //  Load BPF object on all interfaces
     for (const ifName of Object.keys(os.networkInterfaces())) {
@@ -195,8 +186,7 @@ function requestOffload(inFlow, redirFlow, action, metrics=null) {
 
 function getStat(inFlow) {
     const statBuf = global.statisticsMap.get(inFlow.toBuffer());
-    statistics[inFlow] = new FlowStat().fromBuffer(statBuf);
-    return statistics[inFlow];
+    return new FlowStat().fromBuffer(statBuf);
 }
 
 
