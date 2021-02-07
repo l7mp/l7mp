@@ -13,13 +13,18 @@ const STATMAP_PATH = "/sys/fs/bpf/tc/globals/sidecar_statistics";
 const BPF_OBJ_FILE = "kernel-offload/udp_kernel_offload.o";
 
 
+var flows = [];
+
 class Flow {
-    constructor(src_ip4=0, src_port=0, dst_ip4=0, dst_port=0, proto=0) {
+    constructor(src_ip4=0, src_port=0, dst_ip4=0, dst_port=0, proto=0,
+                metrics=["pkts", "bytes"])
+    {
         this.src_ip4 = src_ip4;
         this.src_port = src_port;
         this.dst_ip4 = dst_ip4;
         this.dst_port = dst_port;
         this.proto = proto;
+        this.metrics=metrics;
     }
     toBuffer(buffer_size=16) {
         var buf = Buffer.alloc(buffer_size);
@@ -170,6 +175,12 @@ function requestOffload(inFlow, redirFlow, action, metrics=null) {
         const zeroStatBuf = Buffer.alloc(global.statisticsMap.ref.valueSize, 0);
         global.statisticsMap.set(inFlowBuf, zeroStatBuf);
         global.redirectsMap.set(inFlowBuf, redirFlow.toBuffer());
+        //  Register metrics
+        if (metrics !== null) {
+            inFlow.metrics = metrics;
+        }
+        // Store flow
+        flows.push(inFlow);
         break;
     case "remove":
         // Delete 5-tuple from both redirects and statistics maps
@@ -179,14 +190,16 @@ function requestOffload(inFlow, redirFlow, action, metrics=null) {
     default:
         throw new Error("Invalid action for requestOffload");
     }
-
-    //  Store requested metrics
-    // TODO
 }
 
 function getStat(inFlow) {
     const statBuf = global.statisticsMap.get(inFlow.toBuffer());
-    return new FlowStat().fromBuffer(statBuf);
+    const flowStat = new FlowStat().fromBuffer(statBuf);
+    var ret = {}
+    for (const metric of inFlow.metrics) {
+        ret[metric] = flowStat[metric];
+    }
+    return ret;
 }
 
 
