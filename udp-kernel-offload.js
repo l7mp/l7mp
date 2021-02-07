@@ -12,6 +12,8 @@ const STATMAP_PATH = "/sys/fs/bpf/tc/globals/sidecar_statistics";
 
 const BPF_OBJ_FILE = "kernel-offload/udp_kernel_offload.o";
 
+var redirectsMap;
+var statisticsMap;
 
 var flows = new Set();
 
@@ -148,10 +150,10 @@ function initOffloadEngine() {
     }
 
     // Connect maps
-    global.redirectsMap = new bpf.RawMap(
+    redirectsMap = new bpf.RawMap(
         bpf.createMapRef(bpf.objGet(REDIRMAP_PATH), { transfer: true })
     );
-    global.statisticsMap = new bpf.RawMap(
+    statisticsMap = new bpf.RawMap(
         bpf.createMapRef(bpf.objGet(STATMAP_PATH), { transfer: true })
     );
 }
@@ -172,9 +174,9 @@ function requestOffload(inFlow, redirFlow, action, metrics=null) {
     switch (action) {
     case "create":
         //  Register 5-tuple to statistics and redirects map
-        const zeroStatBuf = Buffer.alloc(global.statisticsMap.ref.valueSize, 0);
-        global.statisticsMap.set(inFlowBuf, zeroStatBuf);
-        global.redirectsMap.set(inFlowBuf, redirFlow.toBuffer());
+        const zeroStatBuf = Buffer.alloc(statisticsMap.ref.valueSize, 0);
+        statisticsMap.set(inFlowBuf, zeroStatBuf);
+        redirectsMap.set(inFlowBuf, redirFlow.toBuffer());
         //  Register metrics
         if (metrics !== null) {
             inFlow.metrics = metrics;
@@ -184,18 +186,18 @@ function requestOffload(inFlow, redirFlow, action, metrics=null) {
         break;
     case "remove":
         // Delete 5-tuple from both redirects and statistics maps
-        global.redirectsMap.delete(inFlowBuf);
-        global.statisticsMap.delete(infFlowBuf);
-        break;
-    default:
+        redirectsMap.delete(inFlowBuf);
+        statisticsMap.delete(infFlowBuf);
         // Delete flow from local flow storage
         flows.delete(inFlow);
+        break;
+    default:
         throw new Error("Invalid action for requestOffload");
     }
 }
 
 function getStat(inFlow) {
-    const statBuf = global.statisticsMap.get(inFlow.toBuffer());
+    const statBuf = statisticsMap.get(inFlow.toBuffer());
     const flowStat = new FlowStat().fromBuffer(statBuf);
     var ret = {}
     for (const metric of inFlow.metrics) {
