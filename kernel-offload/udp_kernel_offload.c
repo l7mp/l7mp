@@ -131,7 +131,7 @@ struct bpf_elf_map SEC("maps") sidecar_redirects = {
 };
 
 struct bpf_elf_map SEC("maps") sidecar_statistics = {
-	.type = BPF_MAP_TYPE_PERCPU_HASH,
+	.type = BPF_MAP_TYPE_LRU_HASH,
 	.size_key = sizeof(struct flow_id),
 	.size_value = sizeof(struct flow_stat),
 	.max_elem = MAPSIZE,
