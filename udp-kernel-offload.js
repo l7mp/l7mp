@@ -13,7 +13,7 @@ const STATMAP_PATH = "/sys/fs/bpf/tc/globals/sidecar_statistics";
 const BPF_OBJ_FILE = "kernel-offload/udp_kernel_offload.o";
 
 
-var flows = [];
+var flows = new Set();
 
 class Flow {
     constructor(src_ip4=0, src_port=0, dst_ip4=0, dst_port=0, proto=0,
@@ -180,7 +180,7 @@ function requestOffload(inFlow, redirFlow, action, metrics=null) {
             inFlow.metrics = metrics;
         }
         // Store flow
-        flows.push(inFlow);
+        flows.add(inFlow);
         break;
     case "remove":
         // Delete 5-tuple from both redirects and statistics maps
@@ -188,6 +188,8 @@ function requestOffload(inFlow, redirFlow, action, metrics=null) {
         global.statisticsMap.delete(infFlowBuf);
         break;
     default:
+        // Delete flow from local flow storage
+        flows.delete(inFlow);
         throw new Error("Invalid action for requestOffload");
     }
 }
