@@ -18,58 +18,53 @@ var statisticsMap;
 var statistics = {};
 
 
-function Flow(src_ip4=0, src_port=0, dst_ip4=0, dst_port=0, proto=0) {
-    this.src_ip4 = src_ip4;
-    this.src_port = src_port;
-    this.dst_ip4 = dst_ip4;
-    this.dst_port = dst_port;
-    this.proto = proto;
+class Flow {
+    constructor(src_ip4=0, src_port=0, dst_ip4=0, dst_port=0, proto=0) {
+        this.src_ip4 = src_ip4;
+        this.src_port = src_port;
+        this.dst_ip4 = dst_ip4;
+        this.dst_port = dst_port;
+        this.proto = proto;
+    }
+    toBuffer(buffer_size=16) {
+        var buf = Buffer.alloc(buffer_size);
+        buf.writeUInt32BE(this.src_ip4, 0);
+        buf.writeUInt32BE(this.dst_ip4, 4);
+        buf.writeUInt16BE(this.src_port, 8);
+        buf.writeUInt16BE(this.dst_port, 10);
+        buf.writeUInt32LE(this.proto, 12);
+        return buf;
+    }
+    fromBuffer(buffer) {
+        this.src_ip4 = buffer.readUInt32BE(0);
+        this.dst_ip4 = buffer.readUInt32BE(4);
+        this.src_port = buffer.readUInt16BE(8);
+        this.dst_port = buffer.readUInt16BE(10);
+        this.proto = buffer.readUInt32LE(12);
+        return this;
+    }
 }
 
-function FlowStat(pkts=0, bytes=0, timestamp_last=0) {
-    this.pkts = BigInt(pkts);
-    this.bytes = BigInt(bytes);
-    this.timestamp_last = BigInt(timestamp_last);
+class FlowStat {
+    constructor(pkts=0, bytes=0, timestamp_last=0) {
+        this.pkts = BigInt(pkts);
+        this.bytes = BigInt(bytes);
+        this.timestamp_last = BigInt(timestamp_last);
+    }
+    toBuffer(buffer_size=24) {
+        var buf = Buffer.alloc(buffer_size);
+        buf.writeBigUInt64LE(BigInt(this.pkts), 0);
+        buf.writeBigUInt64LE(BigInt(this.bytes), 8);
+        buf.writeBigUInt64LE(BigInt(this.timestamp_last), 16);
+        return buf;
+    }
+    fromBuffer(buffer) {
+        this.pkts = buffer.readBigUInt64LE(0);
+        this.bytes = buffer.readBigUInt64LE(8);
+        this.timestamp_last = buffer.readBigUInt64LE(16);
+        return this;
+    }
 }
-
-function convertFlowToBuffer(flow, map, buf_size=16) {
-    var buf = Buffer.alloc(buf_size);
-    buf.writeUInt32BE(flow.src_ip4, 0);
-    buf.writeUInt32BE(flow.dst_ip4, 4);
-    buf.writeUInt16BE(flow.src_port, 8);
-    buf.writeUInt16BE(flow.dst_port, 10);
-    buf.writeUInt32LE(flow.proto, 12);
-    return buf;
-}
-
-function convertBufferToFlow(buf) {
-    var flow_ = new Flow(
-        buf.readUInt32BE(0),  // src_ip4
-        buf.readUInt32BE(4),  // dst_ip5
-        buf.readUInt16BE(8),  // src_port
-        buf.readUInt16BE(10), // dst_port
-        buf.readUInt32LE(12)  // proto
-    );
-    return flow_;
-}
-
-function convertFlowStatToBuffer(flow_stat, buf_size=24) {
-    var buf = Buffer.alloc(buf_size);
-    buf.writeBigUInt64LE(BigInt(flow_stat.pkts), 0);
-    buf.writeBigUInt64LE(BigInt(flow_stat.bytes), 8);
-    buf.writeBigUInt64LE(BigInt(flow_stat.timestamp_last), 16);
-    return buf;
-}
-
-function convertBufferToFlowStat(buf) {
-    var flow_stat_ = new FlowStat(
-        buf.readBigUInt64LE(0),  // pkts
-        buf.readBigUInt64LE(8),  // bytes
-        buf.readBigUInt64LE(16)  // timestamp_last
-    );
-    return flow_stat_;
-}
-
 
 
 function loadBpf(ifName, bpfObjFile="udp_kernel_offload.o") {
@@ -166,27 +161,29 @@ function initOffloadEngine() {
 }
 
 function shutdownOffloadEngine() {
-   for (const ifName of Object.keys(os.networkInterfaces())) {
+    // unload BPF object on network interfaces
+    for (const ifName of Object.keys(os.networkInterfaces())) {
         unloadBpf(ifName);
     }
+    // unlink BPF maps
     fs.unlinkSync(REDIRMAP_PATH);
     fs.unlinkSync(STATMAP_PATH);
 }
 
 function requestOffload(inFlow, redirFlow, action, metrics=null) {
+    const inFlowBuf = inFlow.toBuffer();
     //  Action param: “create”, “remove”
     switch (action) {
     case "create":
         //  Register 5-tuple to statistics and redirects map
         const zeroStatBuf = Buffer.alloc(global.statisticsMap.ref.valueSize, 0);
-        global.statisticsMap.set(convertFlowToBuffer(inFlow), zeroStatBuf);
-        global.redirectsMap.set(convertFlowToBuffer(inFlow),
-                                convertFlowToBuffer(redirFlow));
+        global.statisticsMap.set(inFlowBuf, zeroStatBuf);
+        global.redirectsMap.set(inFlowBuf, redirFlow.toBuffer());
         break;
     case "remove":
         // Delete 5-tuple from both redirects and statistics maps
-        global.redirectsMap.delete(convertFlowToBuffer(inFlow));
-        global.statisticsMap.delete(convertFlowToBuffer(inFlow));
+        global.redirectsMap.delete(inFlowBuf);
+        global.statisticsMap.delete(infFlowBuf);
         break;
     default:
         throw new Error("Invalid action for requestOffload");
@@ -197,15 +194,17 @@ function requestOffload(inFlow, redirFlow, action, metrics=null) {
 }
 
 function getStat(inFlow) {
-    //  Collect metrics:
-    const statBuf = global.statisticsMap.get(convertFlowToBuffer(inFlow));
-    statistics[inFlow] = convertBufferToFlowStat(statBuf);
+    const statBuf = global.statisticsMap.get(inFlow.toBuffer());
+    statistics[inFlow] = new FlowStat().fromBuffer(statBuf);
     return statistics[inFlow];
 }
 
+
 module.exports = {
+    Flow,
+    FlowStat,
     initOffloadEngine,
     shutdownOffloadEngine,
     requestOffload,
-    getStat
+    getStat,
 };
