@@ -69,7 +69,7 @@ class FlowStat {
 }
 
 
-function loadBpf(ifName, bpfObjFile="udp_kernel_offload.o") {
+function loadBpf(ifName, bpfObjFile) {
     // Check if BPF object file exists
     if (!fs.existsSync(bpfObjFile)) {
         throw new Error("Error during checking BPF object. " +
@@ -199,7 +199,7 @@ function requestOffload(inFlow, redirFlow, action, metrics=null) {
 function getStat(inFlow) {
     const statBuf = statisticsMap.get(inFlow.toBuffer());
     const flowStat = new FlowStat().fromBuffer(statBuf);
-    var ret = {}
+    var ret = {};
     for (const metric of inFlow.metrics) {
         ret[metric] = flowStat[metric];
     }
