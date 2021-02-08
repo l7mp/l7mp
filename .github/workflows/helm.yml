@@ -10,6 +10,7 @@ jobs:
   release:
     name: 'Helm release'
     runs-on: ubuntu-latest
+    if: github.repository == 'l7mp/l7mp'
     steps:
       - name: 'checkout'
         uses: actions/checkout@v2
