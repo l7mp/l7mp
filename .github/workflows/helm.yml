@@ -2,6 +2,7 @@ name: 'Helm release'
 
 on:
   push:
+    brances: [ master ]
     paths:
       - 'helm-charts/l7mp-operator/Chart.yml'
       - 'helm-charts/l7mp-ingress/Chart.yml'
@@ -16,10 +17,10 @@ jobs:
         uses: actions/checkout@v2
       - name: 'pyhton_client generate'
         shell: bash
-        run: .python-client/generate
+        run: ./python-client/generate
       - name: 'k8s-operator build'
         shell: bash
-        run: .k8s-operator/build
+        run: ./openapi/convert-schema -i k8s-operator/crd.template.yml -o k8s-operator/crd.yml -t k8s
       - name: 'build helm charts'
         run: |
           cd helm-charts
@@ -30,7 +31,8 @@ jobs:
           git clone https://github.com/l7mp/l7mp.io.git
           copy helm-charts/*.tgz l7mp.io/charts
           helm repo index l7mp.io/charts/ --url https://l7mp.io/charts
-          git add l7mp.io
-          git commit -m "Automatic publish from l7mp/l7mp Helm release action"
-          git push l7mp.io master
+          cd l7mp.io
+          git add .
+          git commit -m "Update helm charts from l7mp/l7mp" -m "(triggered by the 'Helm release' github action.)"
+          git push origin master
 
