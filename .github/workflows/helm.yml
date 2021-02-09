@@ -2,7 +2,7 @@ name: 'Helm release'
 
 on:
   push:
-    brances: [ master ]
+    branches: [ master ]
     paths:
       - 'helm-charts/l7mp-operator/Chart.yml'
       - 'helm-charts/l7mp-ingress/Chart.yml'
