@@ -4,8 +4,8 @@ on:
   push:
     branches: [ master ]
     paths:
-      - 'helm-charts/l7mp-operator/Chart.yml'
-      - 'helm-charts/l7mp-ingress/Chart.yml'
+      - 'helm-charts/l7mp-operator/Chart.yaml'
+      - 'helm-charts/l7mp-ingress/Chart.yaml'
 
 jobs:
   release:
