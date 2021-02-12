@@ -50,6 +50,8 @@ jobs:
           cp l7mp/helm-charts/*.tgz l7mp.io/charts
           helm repo index l7mp.io/charts/ --url https://l7mp.io/charts
           cd l7mp.io
+          git config --global user.email "l7mpBot@example.com"
+          git config --global user.name "l7mpBot"
           git add .
           git commit -m "Update helm charts from l7mp/l7mp" -m "(triggered by the 'Helm release' github action.)"
           git push origin master
