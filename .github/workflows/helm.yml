@@ -15,21 +15,39 @@ jobs:
     steps:
       - name: 'checkout'
         uses: actions/checkout@v2
+        with:
+          path: l7mp
+      - name: 'second checkout'
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.WEB_PAT_TOKEN }}
+          path: l7mp.io
+          repository: l7mp/l7mp.io
       - name: 'pyhton_client generate'
         shell: bash
-        run: ./python-client/generate
+        run: |
+          echo "Test"
+          ls
+          cd l7mp
+          ./python-client/generate
       - name: 'k8s-operator build'
         shell: bash
-        run: ./openapi/convert-schema -i k8s-operator/crd.template.yml -o k8s-operator/crd.yml -t k8s
+        run: |
+          echo "Test"
+          ls
+          cd l7mp
+          ./openapi/convert-schema -i k8s-operator/crd.template.yml -o k8s-operator/crd.yml -t k8s
       - name: 'build helm charts'
         run: |
-          cd helm-charts
+          echo "Test"
+          ls
+          cd l7mp/helm-charts
           helm package l7mp-operator l7mp-ingress
-          cd ..
       - name: 'update l7mp.io/charts'
         run: |
-          git clone https://github.com/l7mp/l7mp.io.git
-          cp helm-charts/*.tgz l7mp.io/charts
+          echo "Test"
+          ls
+          cp l7mp/helm-charts/*.tgz l7mp.io/charts
           helm repo index l7mp.io/charts/ --url https://l7mp.io/charts
           cd l7mp.io
           git add .
