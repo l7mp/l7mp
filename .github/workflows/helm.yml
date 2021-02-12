@@ -26,31 +26,23 @@ jobs:
       - name: 'pyhton_client generate'
         shell: bash
         run: |
-          echo "Test"
-          ls
           cd l7mp
           ./python-client/generate
       - name: 'k8s-operator build'
         shell: bash
         run: |
-          echo "Test"
-          ls
           cd l7mp
           ./openapi/convert-schema -i k8s-operator/crd.template.yml -o k8s-operator/crd.yml -t k8s
       - name: 'build helm charts'
         run: |
-          echo "Test"
-          ls
           cd l7mp/helm-charts
           helm package l7mp-operator l7mp-ingress
       - name: 'update l7mp.io/charts'
         run: |
-          echo "Test"
-          ls
           cp l7mp/helm-charts/*.tgz l7mp.io/charts
           helm repo index l7mp.io/charts/ --url https://l7mp.io/charts
           cd l7mp.io
-          git config --global user.email "l7mpBot@example.com"
+          git config --global user.email "info.l7mp@gmail.com"
           git config --global user.name "l7mpBot"
           git add .
           git commit -m "Update helm charts from l7mp/l7mp" -m "(triggered by the 'Helm release' github action.)"

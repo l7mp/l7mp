@@ -21,8 +21,8 @@ jobs:
         run: npm version --new-version "${GITHUB_REF:11}" --no-git-tag-version
       - name: commit changes
         run: |
-          git config --global user.email "robot@l7mp.invalid"
-          git config --global user.name "Git Robot"
+          git config --global user.email "info.l7mp@gmail.com"
+          git config --global user.name "l7mpBot"
           git add .
           git commit -m "Sync package version with the latest git tag"
       - name: push changes
