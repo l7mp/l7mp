@@ -28,12 +28,11 @@ struct flow_id {
 } __attribute__((packed));
 
 struct flow_stat {
-  	uint64_t pkts;
+	uint64_t pkts;
 	uint64_t bytes;
 	uint64_t timestamp_last;
 } __attribute__((packed));
 
-/* from include/net/ip.h */
 static __always_inline int ip_decrease_ttl(struct iphdr *iph)
 {
 	__u32 check = iph->check;
@@ -42,7 +41,6 @@ static __always_inline int ip_decrease_ttl(struct iphdr *iph)
 	return --iph->ttl;
 }
 
-/* from katran/lib/bpf/csum_helpers.h */
 __attribute__((__always_inline__)) static inline __u16 csum_fold_helper(__u64 csum)
 {
 	int i;
@@ -54,7 +52,6 @@ __attribute__((__always_inline__)) static inline __u16 csum_fold_helper(__u64 cs
 	return ~csum;
 }
 
-/* from katran/lib/bpf/csum_helpers.h */
 __attribute__((__always_inline__)) static inline void ipv4_csum(void *data_start, int data_size,
 								__u64 *csum)
 {
@@ -62,15 +59,6 @@ __attribute__((__always_inline__)) static inline void ipv4_csum(void *data_start
 	*csum = csum_fold_helper(*csum);
 }
 
-/* from AirVantage/sbulb/sbulb/bpf/checksum.c */
-// Update checksum following RFC 1624 (Eqn. 3):
-// https://tools.ietf.org/html/rfc1624
-//     HC' = ~(~HC + ~m + m')
-// Where :
-//   HC  - old checksum in header
-//   HC' - new checksum in header
-//   m   - old value
-//   m'  - new value
 __attribute__((__always_inline__)) static inline void update_csum(__u64 *csum, __be32 old_addr,
 								  __be32 new_addr)
 {
@@ -87,27 +75,12 @@ __attribute__((__always_inline__)) static inline void update_csum(__u64 *csum, _
 	*csum = csum_fold_helper(*csum);
 }
 
-/* from AirVantage/sbulb/sbulb/bpf/ipv4.c */
 __attribute__((__always_inline__)) static inline int update_udp_checksum(__u64 cs, int old_addr,
 									 int new_addr)
 {
 	update_csum(&cs, old_addr, new_addr);
 	return cs;
 }
-
-/* struct bpf_map_def SEC("maps") redirects = { */
-/* 	.type = BPF_MAP_TYPE_PERCPU_HASH, */
-/* 	.key_size = sizeof(struct flow_id), */
-/* 	.value_size = sizeof(struct flow_id), */
-/* 	.max_entries = MAPSIZE, */
-/* }; */
-
-/* struct bpf_map_def SEC("maps") statistics = { */
-/* 	.type = BPF_MAP_TYPE_PERCPU_HASH, */
-/* 	.key_size = sizeof(struct flow_id), */
-/* 	.value_size = sizeof(struct flow_stat), */
-/* 	.max_entries = MAPSIZE, */
-/* }; */
 
 #define PIN_NONE 0
 #define PIN_OBJECT_NS 1
@@ -200,8 +173,8 @@ int sidecar(struct __sk_buff *skb)
 				update_udp_checksum(udphdr->check, flow_in.dst_port, udphdr->dest);
 		}
 		if (udphdr->source != flow_in.src_port) {
-			udphdr->check = update_udp_checksum(udphdr->check, flow_in.src_port,
-							    udphdr->source);
+			udphdr->check =
+				update_udp_checksum(udphdr->check, flow_in.src_port, udphdr->source);
 		}
 
 		/* Redirect */
@@ -259,8 +232,7 @@ int sidecar(struct __sk_buff *skb)
 				flow_in_stat_new.pkts = 1;
 				flow_in_stat_new.bytes = skb->len;
 				flow_in_stat_new.timestamp_last = bpf_ktime_get_ns();
-				bpf_map_update_elem(&sidecar_statistics,
-						    &flow_in, &flow_in_stat_new,
+				bpf_map_update_elem(&sidecar_statistics, &flow_in, &flow_in_stat_new,
 						    BPF_ANY);
 			}
 		}
