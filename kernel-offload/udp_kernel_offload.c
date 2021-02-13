@@ -143,101 +143,104 @@ int sidecar(struct __sk_buff *skb)
 		return TC_ACT_OK;
 	}
 
+	/* Lookup flow in redirects-map */
+	// step1: lookup fully-specified flow
 	flow_in.proto = IPPROTO_UDP;
 	flow_in.src_ip4 = iphdr->saddr;
 	flow_in.src_port = udphdr->source;
 	flow_in.dst_ip4 = iphdr->daddr;
 	flow_in.dst_port = udphdr->dest;
-
 	flow_redir = bpf_map_lookup_elem(&sidecar_redirects, &flow_in);
 	if (!flow_redir) {
-		return TC_ACT_OK;
-	} else {
-		/* Replace 5-tuple */
-		iphdr->saddr = flow_redir->src_ip4;
-		iphdr->daddr = flow_redir->dst_ip4;
-		udphdr->source = flow_redir->src_port;
-		udphdr->dest = flow_redir->dst_port;
-
-		/* Update IPv4 checksum */
-		iphdr->check = 0;
-		__u64 csum = 0;
-		ipv4_csum(iphdr, sizeof(*iphdr), &csum);
-		iphdr->check = csum;
-
-		/* Update UDP checksum */
-		udphdr->check = update_udp_checksum(udphdr->check, flow_in.src_ip4, iphdr->saddr);
-		udphdr->check = update_udp_checksum(udphdr->check, flow_in.dst_ip4, iphdr->daddr);
-		if (udphdr->dest != flow_in.dst_port) {
-			udphdr->check =
-				update_udp_checksum(udphdr->check, flow_in.dst_port, udphdr->dest);
-		}
-		if (udphdr->source != flow_in.src_port) {
-			udphdr->check =
-				update_udp_checksum(udphdr->check, flow_in.src_port, udphdr->source);
-		}
-
-		/* Redirect */
-		if (iphdr->daddr == 0x100007f) {
-			/* ip_decrease_ttl(iphdr); */
-			memcpy(eth->h_dest, &zero_mac, ETH_ALEN);
-			memcpy(eth->h_source, &zero_mac, ETH_ALEN);
-			action = bpf_skb_change_type(skb, PACKET_HOST);
-			if (!action) {
-				// FIXME hardcoded loopback dev idx
-				action = bpf_redirect(1, BPF_F_INGRESS);
-			}
-		} else {
-			fib_params.family = AF_INET;
-			fib_params.tos = iphdr->tos;
-			fib_params.l4_protocol = iphdr->protocol;
-			fib_params.sport = 0;
-			fib_params.dport = 0;
-			fib_params.tot_len = __constant_ntohs(iphdr->tot_len);
-			fib_params.ipv4_src = iphdr->saddr;
-			fib_params.ipv4_dst = iphdr->daddr;
-
-			fib_params.ifindex = skb->ingress_ifindex;
-
-			rc = bpf_fib_lookup(skb, &fib_params, sizeof(fib_params), 0);
-
-			switch (rc) {
-			case BPF_FIB_LKUP_RET_SUCCESS: /* lookup successful */
-				ip_decrease_ttl(iphdr);
-				memcpy(eth->h_dest, fib_params.dmac, ETH_ALEN);
-				memcpy(eth->h_source, fib_params.smac, ETH_ALEN);
-				action = bpf_redirect(fib_params.ifindex, 0);
-				break;
-			case BPF_FIB_LKUP_RET_BLACKHOLE:   /* dest is blackholed; can be dropped */
-			case BPF_FIB_LKUP_RET_UNREACHABLE: /* dest is unreachable; can be dropped */
-			case BPF_FIB_LKUP_RET_PROHIBIT:	   /* dest not allowed; can be dropped */
-				action = TC_ACT_SHOT;
-				break;
-			case BPF_FIB_LKUP_RET_NOT_FWDED:    /* packet is not forwarded */
-			case BPF_FIB_LKUP_RET_FWD_DISABLED: /* fwding is not enabled on ingress */
-			case BPF_FIB_LKUP_RET_UNSUPP_LWT:   /* fwd requires encapsulation */
-			case BPF_FIB_LKUP_RET_NO_NEIGH:	    /* no neighbor entry for nh */
-			case BPF_FIB_LKUP_RET_FRAG_NEEDED:  /* fragmentation required to fwd */
-				break;
-			}
-		}
-		/* Account sent packet */
-		if ((action == TC_ACT_OK) || (action == TC_ACT_REDIRECT)) {
-			flow_in_stat = bpf_map_lookup_elem(&sidecar_statistics, &flow_in);
-			if (flow_in_stat) {
-				flow_in_stat->pkts += 1;
-				flow_in_stat->bytes += skb->len;
-				flow_in_stat->timestamp_last = bpf_ktime_get_ns();
-			} else {
-				flow_in_stat_new.pkts = 1;
-				flow_in_stat_new.bytes = skb->len;
-				flow_in_stat_new.timestamp_last = bpf_ktime_get_ns();
-				bpf_map_update_elem(&sidecar_statistics, &flow_in, &flow_in_stat_new,
-						    BPF_ANY);
-			}
+		// step2: lookup flow with no source info
+		flow_in.src_ip4 = 0;
+		flow_in.src_port = 0;
+		flow_redir = bpf_map_lookup_elem(&sidecar_redirects, &flow_in);
+		if (!flow_redir) {
+			return TC_ACT_OK;
 		}
 	}
 
+	/* Replace 5-tuple */
+	iphdr->saddr = flow_redir->src_ip4;
+	iphdr->daddr = flow_redir->dst_ip4;
+	udphdr->source = flow_redir->src_port;
+	udphdr->dest = flow_redir->dst_port;
+
+	/* Update IPv4 checksum */
+	iphdr->check = 0;
+	__u64 csum = 0;
+	ipv4_csum(iphdr, sizeof(*iphdr), &csum);
+	iphdr->check = csum;
+
+	/* Update UDP checksum */
+	udphdr->check = update_udp_checksum(udphdr->check, flow_in.src_ip4, iphdr->saddr);
+	udphdr->check = update_udp_checksum(udphdr->check, flow_in.dst_ip4, iphdr->daddr);
+	if (udphdr->dest != flow_in.dst_port) {
+		udphdr->check = update_udp_checksum(udphdr->check, flow_in.dst_port, udphdr->dest);
+	}
+	if (udphdr->source != flow_in.src_port) {
+		udphdr->check = update_udp_checksum(udphdr->check, flow_in.src_port, udphdr->source);
+	}
+
+	/* Redirect */
+	if (iphdr->daddr == 0x100007f) {
+		/* ip_decrease_ttl(iphdr); */
+		memcpy(eth->h_dest, &zero_mac, ETH_ALEN);
+		memcpy(eth->h_source, &zero_mac, ETH_ALEN);
+		action = bpf_skb_change_type(skb, PACKET_HOST);
+		if (!action) {
+			// FIXME hardcoded loopback dev idx
+			action = bpf_redirect(1, BPF_F_INGRESS);
+		}
+	} else {
+		fib_params.family = AF_INET;
+		fib_params.tos = iphdr->tos;
+		fib_params.l4_protocol = iphdr->protocol;
+		fib_params.sport = 0;
+		fib_params.dport = 0;
+		fib_params.tot_len = __constant_ntohs(iphdr->tot_len);
+		fib_params.ipv4_src = iphdr->saddr;
+		fib_params.ipv4_dst = iphdr->daddr;
+
+		fib_params.ifindex = skb->ingress_ifindex;
+
+		rc = bpf_fib_lookup(skb, &fib_params, sizeof(fib_params), 0);
+
+		switch (rc) {
+		case BPF_FIB_LKUP_RET_SUCCESS: /* lookup successful */
+			ip_decrease_ttl(iphdr);
+			memcpy(eth->h_dest, fib_params.dmac, ETH_ALEN);
+			memcpy(eth->h_source, fib_params.smac, ETH_ALEN);
+			action = bpf_redirect(fib_params.ifindex, 0);
+			break;
+		case BPF_FIB_LKUP_RET_BLACKHOLE:   /* dest is blackholed; can be dropped */
+		case BPF_FIB_LKUP_RET_UNREACHABLE: /* dest is unreachable; can be dropped */
+		case BPF_FIB_LKUP_RET_PROHIBIT:	   /* dest not allowed; can be dropped */
+			action = TC_ACT_SHOT;
+			break;
+		case BPF_FIB_LKUP_RET_NOT_FWDED:    /* packet is not forwarded */
+		case BPF_FIB_LKUP_RET_FWD_DISABLED: /* fwding is not enabled on ingress */
+		case BPF_FIB_LKUP_RET_UNSUPP_LWT:   /* fwd requires encapsulation */
+		case BPF_FIB_LKUP_RET_NO_NEIGH:	    /* no neighbor entry for nh */
+		case BPF_FIB_LKUP_RET_FRAG_NEEDED:  /* fragmentation required to fwd */
+			break;
+		}
+	}
+	/* Account sent packet */
+	if ((action == TC_ACT_OK) || (action == TC_ACT_REDIRECT)) {
+		flow_in_stat = bpf_map_lookup_elem(&sidecar_statistics, &flow_in);
+		if (flow_in_stat) {
+			flow_in_stat->pkts += 1;
+			flow_in_stat->bytes += skb->len;
+			flow_in_stat->timestamp_last = bpf_ktime_get_ns();
+		} else {
+			flow_in_stat_new.pkts = 1;
+			flow_in_stat_new.bytes = skb->len;
+			flow_in_stat_new.timestamp_last = bpf_ktime_get_ns();
+			bpf_map_update_elem(&sidecar_statistics, &flow_in, &flow_in_stat_new, BPF_ANY);
+		}
+	}
 	return action;
 }
 
