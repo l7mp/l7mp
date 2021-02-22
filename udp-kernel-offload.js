@@ -146,13 +146,21 @@ function unloadBpf(ifName) {
     }
 }
 
+function unlinkBpfMaps() {
+    const mapPaths = [REDIRMAP_PATH, STATMAP_PATH]
+    mapPaths.forEach( (path) => {
+        if (fs.existsSync(path)) {
+            fs.unlinkSync(path);
+        }
+    });
+}
 
 function setKernelParameters() {
     // Enable forwarding and localhost routing
     const targets = ["/proc/sys/net/ipv4/conf/all/forwarding",
                      "/proc/sys/net/ipv4/conf/lo/route_localnet",
                      "/proc/sys/net/ipv4/conf/lo/accept_local"];
-    targets.forEach(function (fp) {
+    targets.forEach( (fp) => {
         fs.writeFile(fp, "1",
                      function (err) {
                          if (err) { throw new Error(err); }
@@ -161,6 +169,9 @@ function setKernelParameters() {
 }
 
 function initOffloadEngine() {
+    // Unlink globally pinned maps
+    unlinkBpfMaps();
+
     // Prepare host kernel
     setKernelParameters();
 
@@ -184,8 +195,7 @@ function shutdownOffloadEngine() {
         unloadBpf(ifName);
     }
     // unlink BPF maps
-    fs.unlinkSync(REDIRMAP_PATH);
-    fs.unlinkSync(STATMAP_PATH);
+    unlinkBpfMaps();
 }
 
 function requestOffload(inFlow, redirFlow, action, metrics=null) {
