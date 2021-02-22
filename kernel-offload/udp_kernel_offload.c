@@ -200,49 +200,39 @@ int sidecar(struct __sk_buff *skb)
 	}
 
 	/* Redirect */
-	if (iphdr->daddr == 0x100007f) {
-		/* ip_decrease_ttl(iphdr); */
-		memcpy(eth->h_dest, &zero_mac, ETH_ALEN);
-		memcpy(eth->h_source, &zero_mac, ETH_ALEN);
-		action = bpf_skb_change_type(skb, PACKET_HOST);
-		if (!action) {
-			// FIXME hardcoded loopback dev idx
-			action = bpf_redirect(1, BPF_F_INGRESS);
-		}
-	} else {
-		fib_params.family = AF_INET;
-		fib_params.tos = iphdr->tos;
-		fib_params.l4_protocol = iphdr->protocol;
-		fib_params.sport = 0;
-		fib_params.dport = 0;
-		fib_params.tot_len = __constant_ntohs(iphdr->tot_len);
-		fib_params.ipv4_src = iphdr->saddr;
-		fib_params.ipv4_dst = iphdr->daddr;
+	fib_params.family = AF_INET;
+	fib_params.tos = iphdr->tos;
+	fib_params.l4_protocol = iphdr->protocol;
+	fib_params.sport = 0;
+	fib_params.dport = 0;
+	fib_params.tot_len = __constant_ntohs(iphdr->tot_len);
+	fib_params.ipv4_src = iphdr->saddr;
+	fib_params.ipv4_dst = iphdr->daddr;
 
-		fib_params.ifindex = skb->ingress_ifindex;
+	fib_params.ifindex = skb->ingress_ifindex;
 
-		rc = bpf_fib_lookup(skb, &fib_params, sizeof(fib_params), 0);
+	rc = bpf_fib_lookup(skb, &fib_params, sizeof(fib_params), 0);
 
-		switch (rc) {
-		case BPF_FIB_LKUP_RET_SUCCESS: /* lookup successful */
-			ip_decrease_ttl(iphdr);
-			memcpy(eth->h_dest, fib_params.dmac, ETH_ALEN);
-			memcpy(eth->h_source, fib_params.smac, ETH_ALEN);
-			action = bpf_redirect(fib_params.ifindex, 0);
-			break;
-		case BPF_FIB_LKUP_RET_BLACKHOLE:   /* dest is blackholed; can be dropped */
-		case BPF_FIB_LKUP_RET_UNREACHABLE: /* dest is unreachable; can be dropped */
-		case BPF_FIB_LKUP_RET_PROHIBIT:	   /* dest not allowed; can be dropped */
-			action = TC_ACT_SHOT;
-			break;
-		case BPF_FIB_LKUP_RET_NOT_FWDED:    /* packet is not forwarded */
-		case BPF_FIB_LKUP_RET_FWD_DISABLED: /* fwding is not enabled on ingress */
-		case BPF_FIB_LKUP_RET_UNSUPP_LWT:   /* fwd requires encapsulation */
-		case BPF_FIB_LKUP_RET_NO_NEIGH:	    /* no neighbor entry for nh */
-		case BPF_FIB_LKUP_RET_FRAG_NEEDED:  /* fragmentation required to fwd */
-			break;
-		}
+	switch (rc) {
+	case BPF_FIB_LKUP_RET_SUCCESS: /* lookup successful */
+		ip_decrease_ttl(iphdr);
+		memcpy(eth->h_dest, fib_params.dmac, ETH_ALEN);
+		memcpy(eth->h_source, fib_params.smac, ETH_ALEN);
+		action = bpf_redirect(fib_params.ifindex, 0);
+		break;
+	case BPF_FIB_LKUP_RET_BLACKHOLE:   /* dest is blackholed; can be dropped */
+	case BPF_FIB_LKUP_RET_UNREACHABLE: /* dest is unreachable; can be dropped */
+	case BPF_FIB_LKUP_RET_PROHIBIT:	   /* dest not allowed; can be dropped */
+		action = TC_ACT_SHOT;
+		break;
+	case BPF_FIB_LKUP_RET_NOT_FWDED:    /* packet is not forwarded */
+	case BPF_FIB_LKUP_RET_FWD_DISABLED: /* fwding is not enabled on ingress */
+	case BPF_FIB_LKUP_RET_UNSUPP_LWT:   /* fwd requires encapsulation */
+	case BPF_FIB_LKUP_RET_NO_NEIGH:	    /* no neighbor entry for nh */
+	case BPF_FIB_LKUP_RET_FRAG_NEEDED:  /* fragmentation required to fwd */
+		break;
 	}
+
 	/* Account sent packet */
 	if ((action == TC_ACT_OK) || (action == TC_ACT_REDIRECT)) {
 		flow_in_stat = bpf_map_lookup_elem(&sidecar_statistics, &flow_in);
