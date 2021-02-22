@@ -147,24 +147,22 @@ function unloadBpf(ifName) {
 }
 
 
+function setKernelParameters() {
+    // Enable forwarding and localhost routing
+    const targets = ["/proc/sys/net/ipv4/conf/all/forwarding",
+                     "/proc/sys/net/ipv4/conf/lo/route_localnet",
+                     "/proc/sys/net/ipv4/conf/lo/accept_local"];
+    targets.forEach(function (fp) {
+        fs.writeFile(fp, "1",
+                     function (err) {
+                         if (err) { throw new Error(err); }
+                     });
+    });
+}
+
 function initOffloadEngine() {
-    //  Create maps and objs
-
-    // const redirectsMap = bpf.createMap({  // TODO?
-    //     type: bpf.MapType.LRU_HASH,
-    //     name: "sidecar_redirects",
-    //     keySize: 16,
-    //     valueSize: 16,
-    //     maxEntries: 10240
-    // });
-
-    // const statisticsMap = bpf.createMap({
-    //     type: bpf.MapType.LRU_HASH,
-    //     name: "sidecar_statistics",
-    //     keySize: 16,
-    //     valueSize: 24,
-    //     maxEntries: 10240
-    // });
+    // Prepare host kernel
+    setKernelParameters();
 
     //  Load BPF object on all interfaces
     for (const ifName of Object.keys(os.networkInterfaces())) {
