@@ -167,7 +167,6 @@ int sidecar(struct __sk_buff *skb)
 	}
 
 	/* Lookup flow in redirects-map */
-	// step1: lookup fully-specified flow
 	flow_in.proto = IPPROTO_UDP;
 	flow_in.src_ip4 = iphdr->saddr;
 	flow_in.src_port = udphdr->source;
@@ -175,13 +174,7 @@ int sidecar(struct __sk_buff *skb)
 	flow_in.dst_port = udphdr->dest;
 	flow_redir = bpf_map_lookup_elem(&sidecar_redirects, &flow_in);
 	if (!flow_redir) {
-		// step2: lookup flow with no source info
-		flow_in.src_ip4 = 0;
-		flow_in.src_port = 0;
-		flow_redir = bpf_map_lookup_elem(&sidecar_redirects, &flow_in);
-		if (!flow_redir) {
-			return TC_ACT_OK;
-		}
+		return TC_ACT_OK;
 	}
 
 	/* Replace 5-tuple */
