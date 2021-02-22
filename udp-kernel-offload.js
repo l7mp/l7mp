@@ -175,7 +175,7 @@ function initOffloadEngine() {
     // Prepare host kernel
     setKernelParameters();
 
-    //  Load BPF object on all interfaces
+    // Load BPF object on all interfaces
     for (const ifName of Object.keys(os.networkInterfaces())) {
         loadBpf(ifName, BPF_OBJ_FILE);
     }
@@ -190,24 +190,23 @@ function initOffloadEngine() {
 }
 
 function shutdownOffloadEngine() {
-    // unload BPF object on network interfaces
+    // Unload BPF object on network interfaces
     for (const ifName of Object.keys(os.networkInterfaces())) {
         unloadBpf(ifName);
     }
-    // unlink BPF maps
+    // Unlink BPF maps
     unlinkBpfMaps();
 }
 
 function requestOffload(inFlow, redirFlow, action, metrics=null) {
     const inFlowBuf = inFlow.toBuffer();
-    //  Action param: “create”, “remove”
     switch (action) {
     case "create":
-        //  Register 5-tuple to statistics and redirects map
+        // Register 5-tuple to statistics and redirects map
         const zeroStatBuf = Buffer.alloc(statisticsMap.ref.valueSize, 0);
         statisticsMap.set(inFlowBuf, zeroStatBuf);
         redirectsMap.set(inFlowBuf, redirFlow.toBuffer());
-        //  Register metrics
+        // Register metrics
         if (metrics !== null) {
             inFlow.metrics = metrics;
         }
@@ -215,7 +214,7 @@ function requestOffload(inFlow, redirFlow, action, metrics=null) {
         flows.add(inFlow);
         break;
     case "remove":
-        // Delete 5-tuple from both redirects and statistics maps
+        // Delete flow from both redirects and statistics maps
         redirectsMap.delete(inFlowBuf);
         statisticsMap.delete(infFlowBuf);
         // Delete flow from local flow storage
