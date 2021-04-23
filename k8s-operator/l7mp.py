@@ -52,7 +52,7 @@ s = {
 
 # https://stackoverflow.com/a/3233356
 def dict_update(d, u):
-    for k, v in u.items():
+    for k, v in u.items(): 
         if isinstance(v, collections.abc.Mapping):
             d[k] = dict_update(d.get(k, {}), v)
         else:
@@ -61,7 +61,11 @@ def dict_update(d, u):
 
 def get_fqn(obj):
     "Get a name unambiguously identifying the object OBJ."
-    return (obj['metadata']['selfLink'])
+    apiVersion = obj['apiVersion']
+    kind = obj['kind']
+    namespace = obj['metadata']['namespace']
+    name = obj['metadata']['name']
+    return (f'/{apiVersion}/{kind}/{namespace}/{name}')
 
 def get_l7mp_instance(pod):
     # cache the instance?
