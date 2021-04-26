@@ -52,7 +52,7 @@ s = {
 
 # https://stackoverflow.com/a/3233356
 def dict_update(d, u):
-    for k, v in u.items(): 
+    for k, v in u.items():
         if isinstance(v, collections.abc.Mapping):
             d[k] = dict_update(d.get(k, {}), v)
         else:
