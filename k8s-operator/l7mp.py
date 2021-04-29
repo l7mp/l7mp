@@ -285,10 +285,37 @@ def convert_to_old_api(logger, plural, obj):
     # So, this function converts object conforming to the new Api back
     # to the old one.
     schema = get_conv_db()[plural]
-    logger.debug('obj %s', obj)
+    logger.info('Need to get important fields from this obj %s', obj)
     _, obj =  convert_sub(schema['properties']['spec'], 'all', deepcopy(obj))
-    logger.debug('new obj: %s', obj)
+    logger.info('new obj: %s', obj)
     return obj
+
+def convert_for_envoy(logger, plural, obj):
+    '''
+    Converted listener should look like this:
+    {'listener': {'rules': [{
+        'action': {
+            'rewrite': [{
+                'path': 'HTTP/headers/', 
+                'value': {
+                    'place-holder': 'place-holder'
+                    }}],
+     'route': {
+         'destination': '/l7mp.io/v1/Target/default/ingress-controller-target'
+         }}}],
+     'spec': {
+         'port': 22222, 
+         'protocol': 'UDP'
+         }}, 
+     'selector': {'matchLabels': {'app': 'l7mp-ingress'}}, 
+     'updateOwners': False}
+    '''
+    schema = get_conv_db()[plural]
+    _, obj =  convert_sub(schema['properties']['spec'], 'all', deepcopy(obj))
+    logger.info('Need to get important fields from this obj %s', obj)
+    if obj ['listener']:
+        listener_port = obj['listener']['spec']['port']
+        listener_cluster = obj[]
 
 def convert_sub(schema, key, obj):
     if obj is None:
@@ -343,6 +370,7 @@ async def exec_add_vsvc(s, pod, _old, action, logger):
     except urllib3.exceptions.MaxRetryError as e:
         raise kopf.TemporaryError(f'{e}', delay=5)
     await set_owner_status(s, 'virtualservices', vname, logger)
+
 
 async def exec_delete_vsvc(s, pod, action, _new, logger):
     fqn = action['name']
@@ -596,10 +624,10 @@ async def pod_status_fn(new, body, logger, **kw):
         await delete_fn(body=body, logger=logger, **kw)
 
 
-@kopf.on.create('', 'v1', 'pods')
-@kopf.on.resume('', 'v1', 'pods')
 @kopf.on.create('', 'v1', 'endpoints')
 @kopf.on.resume('', 'v1', 'endpoints')
+@kopf.on.create('', 'v1', 'pods')
+@kopf.on.resume('', 'v1', 'pods')
 @kopf.on.create('l7mp.io', 'v1', 'virtualservices')
 @kopf.on.resume('l7mp.io', 'v1', 'virtualservices')
 @kopf.on.create('l7mp.io', 'v1', 'targets')
