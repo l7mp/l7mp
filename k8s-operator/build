@@ -19,6 +19,11 @@ cat <<EOF >>requirements.txt
 pyyaml
 kubernetes
 pykube-ng
+grpcio
+numpy
+futures
+protobuf
+xds-protos
 EOF
 
 docker build $BUILD_ARGS . -t $name:$version -t $name:latest

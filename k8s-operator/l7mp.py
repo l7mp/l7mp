@@ -40,6 +40,24 @@ import kopf
 import l7mp_client
 from kopf.structs.diffs import diff
 
+import grpc
+import google.protobuf as protobuf
+import logging
+import numpy as np
+import threading
+import asyncio
+from concurrent import futures
+# from pprint import pprint
+
+import envoy
+import envoy.service.listener.v3.lds_pb2_grpc as envoy_lds
+import envoy.service.cluster.v3.cds_pb2_grpc as envoy_cds
+import envoy.extensions.filters.udp.udp_proxy.v3.udp_proxy_pb2 as envoy_udp
+import envoy.config.listener.v3.listener_pb2 as envoy_listener
+import envoy.config.listener.v3.listener_components_pb2 as envoy_listener_components 
+import envoy.service.discovery.v3.discovery_pb2 as envoy_discovery
+import envoy.config.core.v3.address_pb2 as envoy_address
+
 # State of the k8s cluster
 s = {
     'pods': defaultdict(dict),
@@ -48,6 +66,24 @@ s = {
     'targets': defaultdict(dict),
     'rules': defaultdict(dict),
 }
+
+# envoy_listener_template = {
+#     'envoy_instance': str, #ingress, sidecar, etc
+#     'name': str, # call-id_3002-3004_rtp_a_listener
+#     'call-id': str, # 3002-3004
+#     'listening_port': np.uint32, #18002
+#     'cluster': str, # call-id_3002-3004_rtp_a_cluster
+# }
+
+# envoy_cluster_template = {
+#     'name': str, # call-id_3002-3004_rtp_a_cluster
+#     'upstream_port': np.uint32, #18000
+#     'upstream_host': str,
+# }
+
+# envoy_resources = {
+
+# }
 
 
 # https://stackoverflow.com/a/3233356
@@ -268,7 +304,7 @@ async def set_owner_status(s, o_type, fqn, logger):
         )
 
 conv_db = {}
-def get_conv_db():
+def get_conv_db(logger):
     if conv_db:
         return conv_db
 
@@ -288,7 +324,7 @@ def convert_to_old_api(logger, plural, obj):
     # https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#specifying-a-structural-schema
     # So, this function converts object conforming to the new Api back
     # to the old one.
-    schema = get_conv_db()[plural]
+    schema = get_conv_db(logger)[plural]
     logger.info('Need to get important fields from this obj %s', obj)
     _, obj =  convert_sub(schema['properties']['spec'], 'all', deepcopy(obj))
     logger.info('new obj: %s', obj)
@@ -314,12 +350,11 @@ def convert_for_envoy(logger, plural, obj):
      'selector': {'matchLabels': {'app': 'l7mp-ingress'}}, 
      'updateOwners': False}
     '''
-    schema = get_conv_db()[plural]
+    schema = get_conv_db(logger)[plural]
     _, obj =  convert_sub(schema['properties']['spec'], 'all', deepcopy(obj))
     logger.info('Need to get important fields from this obj %s', obj)
     if obj ['listener']:
         listener_port = obj['listener']['spec']['port']
-        listener_cluster = obj[]
 
 def convert_sub(schema, key, obj):
     if obj is None:
@@ -352,8 +387,14 @@ async def exec_add_vsvc(s, pod, _old, action, logger):
     vsvc_spec = action['spec']
     vsvc_spec = convert_to_old_api(logger, 'virtualservices', vsvc_spec)
     logger.info(f'configuring pod:{pname} for vsvc:{vname}')
+    #printer = pprint.PrettyPrinter(depth=1)
+
+    # printer.pprint(action)
 
     l7mp_instance = get_l7mp_instance(pod)
+
+    # printer.pprint(l7mp_instance)
+    # printer.pprint(vsvc_spec.get('listener', {}).get('spec'))
 
     listener = l7mp_client.IoL7mpApiV1Listener(
         name=vname,
@@ -769,3 +810,87 @@ def iter_matching_pods(s, selector, pods_to_search):
     for pod in pods_to_search.values():
         if does_selector_match(s, selector, pod):
             yield pod
+
+
+
+def grpc_thread():
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    envoy_lds.add_ListenerDiscoveryServiceServicer_to_server(
+        ListenerDiscoveryServiceServicer(), server)
+    server.add_insecure_port('[::]:1234')
+    logging.info("Server started")
+    server.start()
+    server.wait_for_termination()
+
+thread = threading.Thread(target=grpc_thread)
+thread.daemon = True
+thread.start()
+
+class ListenerDiscoveryServiceServicer(envoy_lds.ListenerDiscoveryServiceServicer):
+    last_update=[]
+    current=[]
+
+    def __init__(self):
+        logging.info("Servicer init")
+        udpAny = protobuf.any_pb2.Any()
+        udpListener = envoy_udp.UdpProxyConfig(
+            stat_prefix= "test",
+            cluster= "testcluster",
+        )
+        udpAny.Pack(udpListener)
+
+        test = envoy_listener.Listener(
+            name="testlistener",
+            reuse_port=True,
+            address=
+                envoy_address.Address(
+                    socket_address=
+                        envoy_address.SocketAddress(
+                            protocol='UDP',
+                            address="0.0.0.0",
+                            port_value=np.uint32(8080),
+                        )
+                ),
+            listener_filters=[
+                envoy_listener_components.ListenerFilter(
+                    name="envoy.filters.udp_listener.udp_proxy",
+                    typed_config=udpAny,
+                )
+            ]
+        )
+
+        test_any= protobuf.any_pb2.Any()
+        test_any.Pack(test)
+        self.current.append(test_any)
+
+    def DeltaListeners(self, request_iterator, context):
+        for req in request_iterator:
+            if(self.current != self.last_update ):
+                logging.info("There's a need for update the list of listeners. current list not equal last_update list")
+                if req.error_detail.message:
+                    logging.warning(req.error_detail.message)
+                if hasattr(req, 'resource_names_subsrcibe'):
+                    logging.info(req.resource_names_subsrcibe)
+                self.last_update = self.current
+                yield self.create_response()
+
+    def create_response(self):
+        resources = []
+        for res in self.current:
+            resource = envoy_discovery.Resource(
+                name="testlistener",
+                version="1",
+                resource=res,
+                ttl=protobuf.duration_pb2.Duration().FromSeconds(120),
+            )
+            resources.append(resource)
+
+        response = envoy_discovery.DeltaDiscoveryResponse(
+                    system_version_info='0',
+                    resources=[],
+                    type_url= "type.googleapis.com/envoy.config.listener.v3.Listener",
+                    nonce="idontknowwhatcomeshere",
+                )
+        for res in resources:
+            response.resources.append(res)
+        return response    
