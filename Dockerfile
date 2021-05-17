@@ -17,6 +17,7 @@ RUN cd /app && npm install --production
 
 # Bundle app source
 COPY *.js ./
+COPY protocols/*.js protocols/
 COPY openapi/l7mp-openapi.yaml openapi/
 
 # Expose the control port

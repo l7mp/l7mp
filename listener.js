@@ -37,6 +37,8 @@ const pEvent       = require('p-event');
 
 const StreamCounter = require('./stream-counter.js').StreamCounter;
 const utils         = require('./stream.js');
+const DNSProtocol   = require('./protocols/dns.js').DNSProtocol;
+
 const {L7mpError, Ok, InternalError, BadRequestError, NotFoundError, GeneralError} = require('./error.js');
 
 // for get/setAtPath()
@@ -437,7 +439,7 @@ class UDPListener extends Listener {
         }
 
         this.reconnect = this.reconnectSingleton.bind(this);
-        
+
         log.verbose(`UDPListener.runSingleton: "${this.name}"/${this.mode}`,
                     `connected to remote`,
                     `${connection.remote_address}:`+
@@ -463,7 +465,7 @@ class UDPListener extends Listener {
         this.onRequest = onconn;
         return stream;
     }
-    
+
     // SERVER
     async runServer(){
         log.silly('UDPListener:runServer', `"${this.name}"`);
@@ -868,6 +870,104 @@ class JSONSocketListener extends Listener {
         // Do not reemit header!: setImmediate(() => { l.stream.emit("data", chunk); });
 };
 
+class L7ProtocolListener extends Listener {
+    constructor(l){
+        super(l);
+
+        // create transport
+        let li = {
+            name: this.name + '-transport-listener',
+            spec: l.spec.transport_spec || l.spec.transport,
+        };
+        if(!li.spec){
+            let e = 'L7ProtocolListener: No transport specified';
+            log.warning(e);
+            throw new Error(e);
+        }
+        this.transport = Listener.create(li);
+        this.type = this.transport.type;
+
+        switch(this.protocol){
+        case 'DNS':
+            this.l7_proto = new DNSProtocol;
+            break;
+        default:
+            log.info('L7ProtocolListener:', `protocol: ${this.protocol}:`, `${this.name}:`,
+                     `Unknown protocol ${this.protocol}`);
+            return null; // will break soon
+        }
+
+        log.info('L7ProtocolListener:', `protocol: ${this.protocol}: ${this.name} initialized,`,
+                 `using transport:`, dumper(this.transport.spec, 2));
+    }
+
+    async run(){
+        log.info('L7ProtocolListener.run');
+        // this.transport.on('emit', this.onSession.bind(this));
+        this.transport.emitter = this.onSession.bind(this);
+        try {
+            await this.transport.run();
+        } catch(err){
+            log.info(`L7ProtocolListener.run: Cannot add transport: ${err.message}`);
+            throw err;
+        }
+        // eventDebug(socket);
+    }
+
+    close(){
+        log.info('L7ProtocolListener.close');
+        this.transport.close();
+    }
+
+    // WARNING: we may lose the JSON header here when the transport (e.g., UDP) re-emits the packet
+    // using setImmediate();
+    async onSession(s){
+        log.silly('L7ProtocolListener:', `protocol: ${this.protocol}:`,
+                  `New connection request: "${s.metadata.name}"`);
+        let m = s.metadata;
+        let l = s.source;
+
+        // 2. wait for first packet: stream should be in object mode so we should be able to read
+        // the entire "JSON header" in one shot
+        let data = await pEvent(l.stream, 'data', {
+            rejectionEvents: ['close', 'error'],
+            multiArgs: false, // TODO: support TIMEOUT: timeout: this.timeout
+        });
+
+        log.silly('L7ProtocolListener:', `protocol: ${this.protocol}:`, `${this.name}:`,
+                  `Received packet, checking for ${this.protocol} header`);
+
+        // warn if we are not in object mode
+        if(typeof data !== 'object' ||
+           !(l.stream.readableObjectMode || l.stream.writableObjectMode))
+            log.warn('L7ProtocolListener:', `protocol: ${this.protocol}:`, `${this.name}:`,
+                     `Transport is not message-based, ${this.protocol} header may be fragmented`);
+
+        let l7_header = {};
+        switch(this.protocol){
+        case 'DNS':
+            try {
+                l7_header = this.l7_proto.decode(data, 'queryMessage').val;
+            } catch(err){
+                log.info('L7ProtocolListener:', `protocol: ${this.protocol}:`, `${this.name}:`,
+                         `Invalid ${this.protocol} header:`, dumper(err,3));
+                l.stream.end();
+                return;
+            }
+            break;
+        }
+
+        m[this.protocol] = l7_header;
+        let session = await this.emitSession(m, l.stream, {res: l.stream, error: this.error});
+
+        return session;
+    }
+
+    error(priv, err){
+        priv.res.write('error');
+    }
+};
+
 Listener.create = (l) => {
     log.silly('Listener.create', dumper(l, 8));
     let protocol = l.spec.protocol;
@@ -878,6 +978,7 @@ Listener.create = (l) => {
     case 'TCP':              return new NetServerListener(l);
     case 'UnixDomainSocket': return new NetServerListener(l);
     case 'JSONSocket':       return new JSONSocketListener(l);
+    case 'DNS':              return new L7ProtocolListener(l);
     case 'Test':             return new TestListener(l);
     default:
         let err = 'Listener.create:'+ `Unknown protocol: "${protocol}"`;

@@ -117,6 +117,7 @@ components:
             - $ref: '#/components/schemas/io.l7mp.api.v1.TCPListenerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.JSONSocketListenerSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.L7ProtocolListenerSpec'
           discriminator:
             propertyName: protocol
             mapping:
@@ -126,6 +127,7 @@ components:
               TCP: '#/components/schemas/io.l7mp.api.v1.TCPListenerSpec'
               UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
               JSONSocket: '#/components/schemas/io.l7mp.api.v1.JSONSocketListenerSpec'
+              DNS: '#/components/schemas/io.l7mp.api.v1.L7ProtocolListenerSpec'
         rules:
           description: >
             The name of a match-action table or an inline list of match-action
@@ -327,6 +329,41 @@ components:
               UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
               TCP: '#/components/schemas/io.l7mp.api.v1.TCPListenerSpec'
 
+    io.l7mp.api.v1.L7ProtocolListenerSpec:
+        # - protocol: JSONSocket
+        # - session ID: Listener name + ID
+        # - type: datagram-stream
+        # - mode: "singleton/server"
+      description: >
+        TODO.  Can be established over any datagram transport.
+      type: object
+      required:
+        - protocol
+        - transport
+      properties:
+        protocol:
+          type: string
+          enum:
+            - DNS
+          description: L7 protocol type, e.g., "DNS".
+        transport:
+          description: >
+            The specification of the listener that provides the transport
+            service to JSONSocket.
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.UDPListenerSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.TCPListenerSpec'
+          discriminator:
+            propertyName: protocol
+            mapping:
+              WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketListenerSpec'
+              UDP: '#/components/schemas/io.l7mp.api.v1.UDPListenerSpec'
+              UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketListenerSpec'
+              TCP: '#/components/schemas/io.l7mp.api.v1.TCPListenerSpec'
+
     io.l7mp.api.v1.EndPointRequest:
       description: >
         Wrapper for addEndPoint calls. Contains only a single EndPoint object.
@@ -365,6 +402,7 @@ components:
             - $ref: '#/components/schemas/io.l7mp.api.v1.TCPClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.JSONSocketClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.L7ProtocolClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.L7mpControllerSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
             - $ref: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
@@ -382,6 +420,7 @@ components:
               UDP: '#/components/schemas/io.l7mp.api.v1.UDPClusterSpec'
               TCP: '#/components/schemas/io.l7mp.api.v1.TCPClusterSpec'
               JSONSocket: '#/components/schemas/io.l7mp.api.v1.JSONSocketClusterSpec'
+              DNS: '#/components/schemas/io.l7mp.api.v1.L7ProtocolClusterSpec'
               UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
               L7mpController: '#/components/schemas/io.l7mp.api.v1.L7mpControllerSpec'
               Stdio: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
@@ -585,6 +624,44 @@ components:
                   value:
                     type: string
                     description: Value to be set for the specified key.
+
+    io.l7mp.api.v1.L7ProtocolClusterSpec:
+      description: >
+        Forwards L7 protocol connections to an upstream cluster over a
+        specified transport.
+      type: object
+      required:
+        - protocol
+        - transport
+      properties:
+        protocol:
+          type: string
+          enum:  # fixed value
+            - DNS
+          description: The protocol; e,g., "DNS".
+        transport:
+          description: >
+            The specification of the cluster that provides the transport
+            service.
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.UDPClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.TCPClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
+            - $ref: '#/components/schemas/io.l7mp.api.v1.DiscardClusterSpec'
+          discriminator:
+            propertyName: protocol
+            mapping:
+              WebSocket: '#/components/schemas/io.l7mp.api.v1.WebSocketClusterSpec'
+              UDP: '#/components/schemas/io.l7mp.api.v1.UDPClusterSpec'
+              TCP: '#/components/schemas/io.l7mp.api.v1.TCPClusterSpec'
+              UnixDomainSocket: '#/components/schemas/io.l7mp.api.v1.UnixDomainSocketClusterSpec'
+              Stdio: '#/components/schemas/io.l7mp.api.v1.StdioClusterSpec'
+              Echo: '#/components/schemas/io.l7mp.api.v1.EchoClusterSpec'
+              Discard: '#/components/schemas/io.l7mp.api.v1.DiscardClusterSpec'
 
     io.l7mp.api.v1.L7mpControllerSpec:
       description: >
