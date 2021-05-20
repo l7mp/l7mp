@@ -47,7 +47,7 @@ import numpy as np
 import threading
 import asyncio
 from concurrent import futures
-# from pprint import pprint
+from pprint import pp, pprint
 
 import envoy
 import envoy.service.listener.v3.lds_pb2_grpc as envoy_lds
@@ -67,23 +67,25 @@ s = {
     'rules': defaultdict(dict),
 }
 
-# envoy_listener_template = {
-#     'envoy_instance': str, #ingress, sidecar, etc
-#     'name': str, # call-id_3002-3004_rtp_a_listener
-#     'call-id': str, # 3002-3004
-#     'listening_port': np.uint32, #18002
-#     'cluster': str, # call-id_3002-3004_rtp_a_cluster
-# }
+envoy_listener_template = {
+    'envoy_instance_node': str, # envoy instance node field should equal its pod's metadata.uid
+    'envoy_instance_type': str, #ingress, sidecar, etc
+    'name': str, # call-id_3002-3004_rtp_a_listener
+    'call-id': str, # 3002-3004
+    'listening_port': np.uint32, #18002
+    'cluster': str, # call-id_3002-3004_rtp_a_cluster
+}
 
-# envoy_cluster_template = {
-#     'name': str, # call-id_3002-3004_rtp_a_cluster
-#     'upstream_port': np.uint32, #18000
-#     'upstream_host': str,
-# }
+envoy_cluster_template = {
+    'name': str, # call-id_3002-3004_rtp_a_cluster
+    'upstream_port': np.uint32, #18000
+    'upstream_host': str,
+}
 
-# envoy_resources = {
-
-# }
+envoy_resources = {
+    'listeners': defaultdict(dict),
+    'clusters': defaultdict(dict),
+}
 
 
 # https://stackoverflow.com/a/3233356
@@ -387,14 +389,14 @@ async def exec_add_vsvc(s, pod, _old, action, logger):
     vsvc_spec = action['spec']
     vsvc_spec = convert_to_old_api(logger, 'virtualservices', vsvc_spec)
     logger.info(f'configuring pod:{pname} for vsvc:{vname}')
-    #printer = pprint.PrettyPrinter(depth=1)
+    printer = pprint.PrettyPrinter(depth=1)
 
-    # printer.pprint(action)
+    printer.pprint(action)
 
     l7mp_instance = get_l7mp_instance(pod)
 
-    # printer.pprint(l7mp_instance)
-    # printer.pprint(vsvc_spec.get('listener', {}).get('spec'))
+    printer.pprint(l7mp_instance)
+    printer.pprint(vsvc_spec.get('listener', {}).get('spec'))
 
     listener = l7mp_client.IoL7mpApiV1Listener(
         name=vname,
@@ -864,6 +866,8 @@ class ListenerDiscoveryServiceServicer(envoy_lds.ListenerDiscoveryServiceService
         self.current.append(test_any)
 
     def DeltaListeners(self, request_iterator, context):
+        pprint(request_iterator)
+        pprint(context)
         for req in request_iterator:
             if(self.current != self.last_update ):
                 logging.info("There's a need for update the list of listeners. current list not equal last_update list")
@@ -871,6 +875,7 @@ class ListenerDiscoveryServiceServicer(envoy_lds.ListenerDiscoveryServiceService
                     logging.warning(req.error_detail.message)
                 if hasattr(req, 'resource_names_subsrcibe'):
                     logging.info(req.resource_names_subsrcibe)
+                logging.info(req.node.id)
                 self.last_update = self.current
                 yield self.create_response()
 
