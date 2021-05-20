@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: envoy-ingress
+  labels:
+    app: envoy-ingress
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: envoy-ingress
+      app: l7mp-ingress
+  template:
+    metadata:
+      labels:
+        app: envoy-ingress
+        app: l7mp-ingress
+    spec:
+      volumes:
+        - name: envoy-ingress-config
+          configMap:
+            name: envoy-ingress-config
+      containers:
+        - name: net-debug
+          image: l7mp/net-debug:0.5.3
+        - name: envoy-ingress
+          image: l7mp/envoy-parameterizable
+          imagePullPolicy: Never
+          env:
+            - name: "NODE_POD_UID"
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: "GRPC_SERVICE_NAME"
+              value: "operator-service.default.svc"
+          ports:
+            - containerPort: 19000
+              name: admin
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
