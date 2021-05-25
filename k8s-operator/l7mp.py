@@ -894,11 +894,10 @@ class ListenerDiscoveryServiceServicer(envoy_lds.ListenerDiscoveryServiceService
         self.current.append(test_any)
 
     def DeltaListeners(self, request_iterator, context):
-        self.pp.pprint(request_iterator)
-        self.pp.pprint(context)
         for req in request_iterator:
             if(self.current != self.last_update ):
-                logging.info("There's a need for update the list of listeners. current list not equal last_update list")
+                # must change somehow to handle multiple clients in this single function
+                logging.info("Need to update the config of the one and only client. current list not equal last_update list")
                 if req.error_detail.message:
                     logging.warning(req.error_detail.message)
                 if hasattr(req, 'resource_names_subsrcibe'):
