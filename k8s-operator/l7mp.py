@@ -38,7 +38,7 @@ from collections import defaultdict
 
 import kopf
 import l7mp_client
-from kopf.structs.diffs import diff
+from kopf._cogs.structs import diffs
 
 import grpc
 import google.protobuf as protobuf
@@ -47,7 +47,7 @@ import numpy as np
 import threading
 import asyncio
 from concurrent import futures
-from pprint import pp, pprint
+import pprint
 
 import envoy
 import envoy.service.listener.v3.lds_pb2_grpc as envoy_lds
@@ -67,20 +67,30 @@ s = {
     'rules': defaultdict(dict),
 }
 
-envoy_listener_template = {
-    'envoy_instance_node': str, # envoy instance node field should equal its pod's metadata.uid
-    'envoy_instance_type': str, #ingress, sidecar, etc
-    'name': str, # call-id_3002-3004_rtp_a_listener
-    'call-id': str, # 3002-3004
-    'listening_port': np.uint32, #18002
-    'cluster': str, # call-id_3002-3004_rtp_a_cluster
-}
+class envoy_listener_data :
 
-envoy_cluster_template = {
-    'name': str, # call-id_3002-3004_rtp_a_cluster
-    'upstream_port': np.uint32, #18000
-    'upstream_host': str,
-}
+    envoy_instance_node: str # envoy instance node field should equal its pod's metadata.uid
+    envoy_instance_type: str #ingress, worker, etc
+    name: str # call-id_3002-3004_rtp_a_listener
+    call_id: str # 3002-3004
+    listening_port: np.uint32 #18002
+    cluster_ref: str # call-id_3002-3004_rtp_a_cluster
+    tag: str # to-tag from-tag
+
+    def __init__(self,ein='',eit='',name='',call_id='',listening_port=0,cluster_ref='',tag=''):
+        self.envoy_instance_node = ein
+        self.envoy_instance_type = eit
+        self.name = name
+        self.call_id = call_id
+        self.listening_port = listening_port
+        self.cluster_ref = cluster_ref
+        self.tag = tag
+    
+class envoy_cluster_data :
+    name: str # call-id_3002-3004_rtp_a_cluster
+    upstream_port: np.uint32 #18000
+    upstream_host: str #pod['status'].get(podIP) direct IP address
+    call_id: str #3002-3004
 
 envoy_resources = {
     'listeners': defaultdict(dict),
@@ -116,6 +126,7 @@ def get_l7mp_instance(pod):
     l7mp_conf = l7mp_client.Configuration(host=host)
     l7mp_api = l7mp_client.ApiClient(configuration=l7mp_conf)
     return l7mp_client.DefaultApi(l7mp_api)
+
 
 def get_target_extended_spec(s, target, logger):
     """Return target's spec extended with linked elements.
@@ -266,7 +277,7 @@ async def update(s_old, s_new, logger=None, **kw):
             if cmd:
                 id = f'{pod_fqn}/{a_type}/{a_name}'
                 fns[id] = functools.partial(call,
-                                            fn_name=f'exec_{cmd}_{a_type}',
+                                            fn_name=f'exec_envoy_{cmd}_{a_type}',
                                             s=s_new,
                                             pod_fqn=pod_fqn,
                                             action_old=action_old,
@@ -332,31 +343,39 @@ def convert_to_old_api(logger, plural, obj):
     logger.info('new obj: %s', obj)
     return obj
 
-def convert_for_envoy(logger, plural, obj):
-    '''
-    Converted listener should look like this:
-    {'listener': {'rules': [{
-        'action': {
-            'rewrite': [{
-                'path': 'HTTP/headers/', 
-                'value': {
-                    'place-holder': 'place-holder'
-                    }}],
-     'route': {
-         'destination': '/l7mp.io/v1/Target/default/ingress-controller-target'
-         }}}],
-     'spec': {
-         'port': 22222, 
-         'protocol': 'UDP'
-         }}, 
-     'selector': {'matchLabels': {'app': 'l7mp-ingress'}}, 
-     'updateOwners': False}
-    '''
-    schema = get_conv_db(logger)[plural]
-    _, obj =  convert_sub(schema['properties']['spec'], 'all', deepcopy(obj))
-    logger.info('Need to get important fields from this obj %s', obj)
+def convert_listener_for_envoy(logger, listener, uid):
+    
+    call_id = None 
+    listening_port = None 
+    cluster_ref = None
+    tag = None
+    name = listener['name'].rpartition('/')[-1] + '-l'
+    envoy_instance_type = name.split('-',1)[0]
+    obj = listener['spec']
     if obj ['listener']:
-        listener_port = obj['listener']['spec']['port']
+        if obj['listener']['spec']['UDP']:
+            if obj['listener']['spec']['UDP']['port']:
+                listening_port = obj['listener']['spec']['UDP']['port']
+        else:
+            logger.error('Listener protocol is not UDP, or vsvc spec does not have field at all')
+        if obj['listener']['rules'][0]['action']['rewrite']:
+            for item in obj['listener']['rules'][0]['action']['rewrite']:
+                if item['path'] == "/labels/callid":
+                    call_id = item['valueStr']
+                if item['path'] == "/labels/tag":
+                    tag = item['valueStr']
+        else: 
+            logger.error('Rewrite field is missing from the vsvc object')
+
+        if obj['listener']['rules'][0]['action']['route']:
+            if obj['listener']['rules'][0]['action']['route']['destinationRef']:
+                cluster_ref = obj['listener']['rules'][0]['action']['route']['destinationRef']
+            else: 
+                logger.error('destinationRef field is missing')
+        else:
+            logger.error('Route field is missing')
+
+    return envoy_listener_data(ein=uid, eit=envoy_instance_type, name = name, call_id = call_id, listening_port = listening_port, cluster_ref = cluster_ref, tag = tag)
 
 def convert_sub(schema, key, obj):
     if obj is None:
@@ -389,14 +408,15 @@ async def exec_add_vsvc(s, pod, _old, action, logger):
     vsvc_spec = action['spec']
     vsvc_spec = convert_to_old_api(logger, 'virtualservices', vsvc_spec)
     logger.info(f'configuring pod:{pname} for vsvc:{vname}')
-    printer = pprint.PrettyPrinter(depth=1)
 
-    printer.pprint(action)
+    
+
+    pprint(action)
 
     l7mp_instance = get_l7mp_instance(pod)
 
-    printer.pprint(l7mp_instance)
-    printer.pprint(vsvc_spec.get('listener', {}).get('spec'))
+    pprint(l7mp_instance)
+    pprint(vsvc_spec.get('listener', {}).get('spec'))
 
     listener = l7mp_client.IoL7mpApiV1Listener(
         name=vname,
@@ -417,6 +437,13 @@ async def exec_add_vsvc(s, pod, _old, action, logger):
     except urllib3.exceptions.MaxRetryError as e:
         raise kopf.TemporaryError(f'{e}', delay=5)
     await set_owner_status(s, 'virtualservices', vname, logger)
+
+async def exec_envoy_add_vsvc(s, pod, _old, action, logger):
+    envoy_listener_spec = convert_listener_for_envoy(logger, action,pod['metadata']['uid']) #get necessary field values for envoy
+    logger.info(f'envoy instance: {envoy_listener_spec.__dict__}')
+    # logger.info(f'configuring pod:{pname} for vsvc:{vname}\n')
+    
+
 
 
 async def exec_delete_vsvc(s, pod, action, _new, logger):
@@ -831,6 +858,7 @@ thread.start()
 class ListenerDiscoveryServiceServicer(envoy_lds.ListenerDiscoveryServiceServicer):
     last_update=[]
     current=[]
+    pp = pprint.PrettyPrinter(indent=4)
 
     def __init__(self):
         logging.info("Servicer init")
@@ -866,8 +894,8 @@ class ListenerDiscoveryServiceServicer(envoy_lds.ListenerDiscoveryServiceService
         self.current.append(test_any)
 
     def DeltaListeners(self, request_iterator, context):
-        pprint(request_iterator)
-        pprint(context)
+        self.pp.pprint(request_iterator)
+        self.pp.pprint(context)
         for req in request_iterator:
             if(self.current != self.last_update ):
                 logging.info("There's a need for update the list of listeners. current list not equal last_update list")
