@@ -67,6 +67,11 @@ s = {
     'rules': defaultdict(dict),
 }
 
+envoy_resources = {
+    'listeners': defaultdict(dict), #'uid' : {'current_state': 'list of current resources in the envoy instance', 'desired_state': 'list of desired resources that must be sent to the envoy instance' }
+    'clusters': defaultdict(dict),
+}
+
 class envoy_listener_data :
 
     envoy_instance_node: str # envoy instance node field should equal its pod's metadata.uid
@@ -92,10 +97,7 @@ class envoy_cluster_data :
     upstream_host: str #pod['status'].get(podIP) direct IP address
     call_id: str #3002-3004
 
-envoy_resources = {
-    'listeners': defaultdict(dict),
-    'clusters': defaultdict(dict),
-}
+
 
 
 # https://stackoverflow.com/a/3233356
@@ -439,9 +441,17 @@ async def exec_add_vsvc(s, pod, _old, action, logger):
     await set_owner_status(s, 'virtualservices', vname, logger)
 
 async def exec_envoy_add_vsvc(s, pod, _old, action, logger):
-    envoy_listener_spec = convert_listener_for_envoy(logger, action,pod['metadata']['uid']) #get necessary field values for envoy
-    logger.info(f'envoy instance: {envoy_listener_spec.__dict__}')
-    # logger.info(f'configuring pod:{pname} for vsvc:{vname}\n')
+    uid = pod.get('metadata', {}).get('uid')
+    if uid:
+        envoy_listener_spec = convert_listener_for_envoy(logger, action,uid) #get necessary field values for envoy
+        logger.info(f'envoy instance: {envoy_listener_spec.__dict__}')
+        # logger.info(f'configuring pod:{pname} for vsvc:{vname}\n')
+        #'uid' : {'current_state': 'list of current resources in the envoy instance', 'desired_state': 'list of desired resources that must be sent to the envoy instance' }
+        envoy_resources['listeners'].setdefault(uid, {'current_state': [],'desired_state': []})
+        envoy_resources['listeners'][uid]['desired_state'].append(envoy_listener_spec)
+        logger.info(f'envoy resources: {envoy_resources}')
+    else:
+        logger.warning('uid is missing from pod: %s',pod.get('metadata', {}).get('name'))
     
 
 
