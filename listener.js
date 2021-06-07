@@ -553,12 +553,12 @@ class UDPListener extends Listener {
                         `${connection.remote_port} on`,
                         `${connection.local_address}:`+
                         `${connection.local_port}`);
-        } catch(e){
+        } catch(err){
             throw new Error('UDPListener.onConnectServer: '+
                             `"${this.name}:" `+
                             `Could not connect to `+
                             `${connection.remote_address}:`+
-                            `${connection.remote_port}`);
+                            `${connection.remote_port}:`, err);
         }
 
         // this.sessions[remote] = { conn: connection };

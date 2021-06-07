@@ -38,6 +38,7 @@ const Rule       = require('./rule.js').Rule;
 const RuleList   = require('./rule.js').RuleList;
 const Route      = require('./route.js').Route;
 const L7mpOpenAPI= require('./l7mp-openapi.js').L7mpOpenAPI;
+const UDPOffload = require("./udp-offload.js");
 
 const {L7mpError, Ok, InternalError, BadRequestError, NotFoundError, ValidationError, GeneralError} = require('./error.js');
 
@@ -170,11 +171,17 @@ class L7mp {
                           JSON.stringify(res.errors, null, 4));
         }
 
-        this.applyAdmin(this.static_config.admin || {});
-
         // override anything that was set in the config file
-        if(argv && 's' in argv) l7mp.admin.strict = true;
-        if(argv && 'l' in argv) log.level = argv.l;
+        this.static_config.admin = this.static_config.admin || {};
+        if(argv && 's' in argv) this.static_config.admin.strict = true;
+        if(argv && 'l' in argv) this.static_config.admin.log_level = argv.l;
+        if(argv && 'o' in argv) this.static_config.admin.offload = argv.o;
+        if(argv && 'i' in argv){
+            let ifs = argv.i.split(/\s*(?:,|$)\s*/);
+            this.static_config.admin.offload_ifs = ifs.indexOf('all') === -1 ? ifs : [];
+        }
+
+        this.applyAdmin(this.static_config.admin);
 
         log.info(`Starting l7mp version: ${this.admin.version} Log-level: ${log.level}`,
                  'Strict mode:', l7mp.admin.strict ? 'enabled' : 'disabled');
@@ -231,9 +238,44 @@ class L7mp {
                     fs.createWriteStream(admin.log_file);
             }
         }
+
         if('access_log_path' in admin){
             this.admin.access_log_path = admin.access_log_path;
             log.warn('L7mp.applyAdmin: access_log_path', 'TODO');
+        }
+
+        this.offload = null;
+        if('offload' in admin){
+            this.admin.offload = admin.offload;
+            let init = -1;
+            switch(admin.offload){
+            case 'disable':
+                init = -1;
+                break;
+            case 'init':
+                init = 1;
+                break;
+            case 'no_init':
+                init = 0;
+                break;
+            default:
+                log.warn('L7mp.applyAdmin: Unknown offload setting:', admin.offload);
+            }
+
+            if(init >= 0){
+                this.offload = new UDPOffload.UDPOffload(init === 1, admin.offload_ifs);
+
+                try{
+                    this.offload.init();
+                } catch(err){
+                    log.warn(`L7mp.applyAdmin: Error initializing the UDPOffload engine:`,
+                             `${err || "<UNKNOWN>"}, falling back to slow-path forwarding`);
+                    this.offload=null;
+                }
+
+                log.info('L7mp.applyAdmin: UDPOffload engine enabled on interfaces:',
+                         this.offload.ifNames);
+            }
         }
 
         // VERSION: package.jon:version + git-commit-hash + git-commit-date
@@ -247,6 +289,7 @@ class L7mp {
         log.silly('L7mp.getAdmin');
         var admin = { log_level: this.admin.log_level,
                       strict: this.admin.strict,
+                      offload: !!this.offload,
                       version: this.admin.version };
         if(this.admin.log_file) admin.log_file = this.admin.log_file;
         if(this.admin.access_log_path)
@@ -1091,7 +1134,8 @@ class L7mp {
         this.sessions.push(s);
 
         s.on('init', () => log.silly(`Session "${s.name}: initializing"`));
-        s.on('connect', () => log.info(`Session "${s.name}: successfully (re)connected"`,
+        s.on('connect', () => log.info(`Session "${s.name}": successfully (re)connected,`,
+                                       `offloaded ${s.pipes.offloaded}/${s.pipes.total} pipes:`,
                                        dumper(s.metadata, 10)));
 
         s.on('disconnect', (origin, error) => {

@@ -22,20 +22,29 @@
 
 'use strict';
 
-const log          = require('npmlog');
-const EventEmitter = require('events').EventEmitter;
-const eventDebug   = require('event-debug');
-const util         = require('util');
-const miss         = require('mississippi');
-const delay        = require('delay');
-const pRetry       = require('p-retry');
-const pTimeout     = require('p-timeout');
-const _            = require('lodash');
+const log           = require('npmlog');
+const EventEmitter  = require('events').EventEmitter;
+const eventDebug    = require('event-debug');
+const util          = require('util');
+const miss          = require('mississippi');
+const delay         = require('delay');
+const pRetry        = require('p-retry');
+const pTimeout      = require('p-timeout');
+const _             = require('lodash');
+const ipaddr        = require("ipaddr.js");
 
 const StreamCounter = require('./stream-counter.js').StreamCounter;
 const Rule          = require('./rule.js').Rule;
+const utils         = require('./stream.js');
+const UDPOffload    = require("./udp-offload.js");
 const {L7mpError, Ok, InternalError, BadRequestError, NotFoundError, GeneralError} = require('./error.js');
 
+// Returns an array of byte-sized values in network order (MSB first)
+ipaddr.IPv4.prototype.toNumeric = function () {
+    let addr = this.octets.slice(0);
+    // return a[0] << 24 || a[1] << 16 || a[2] << 8 || a[3] || 0x00000000;
+    return ((addr[0] << 24) >>> 0) + ((addr[1] << 16) >>> 0) + ((addr[2] << 8) >>> 0) + (addr[3]);
+};
 
 //------------------------------------
 //
@@ -172,6 +181,10 @@ class Stage {
                 log.silly(`Stage.event:`, `"${event}" event received:`,
                           `${this.origin}`,
                           (err) ? ` Error: ${err}` : '');
+
+                // emit an unpipe event so that all our customers can de-pipe
+                this.stream.emit('unpipe', this.stream);
+                
                 this.session.disconnect(this, err);
             };
             this.stream.on(event, this.on_disc[event]);
@@ -180,8 +193,47 @@ class Stage {
         // eh('end', stage);
         eh('close', this);
         eh('error', this);
-    }
 
+        // handle unpipe events: remove offloading if pipe is offloaded
+        this.on_disc['unpipe'] = (from) => {
+            log.silly(`Stage.event:`, `"unpipe" event received on ${this.origin}`);
+            this.session.pipes.total--;
+            if(l7mp.offload){
+                // "from" is always the readable stream side of the pipe:
+                //    readable -> writable
+                if(!(from instanceof utils.DatagramStream))
+                    return;
+                
+                let src, dst;
+                try{
+                    // may not be running any more
+                    src = from.socket.remoteAddress();
+                    dst = from.socket.address();
+                } catch(err){
+                    log.silly(`Stage.event.unpipe on ${this.origin}:`,
+                              `Could not obtain source IP/port on stream: ${err}`);
+                    return;
+                }
+                if(src.family !== 'IPv4' || dst.family !== 'IPv4')
+                    return;
+
+                let src_addr = ipaddr.IPv4.parse(src.address);
+                let dst_addr = ipaddr.IPv4.parse(dst.address);
+
+                let inflow = new UDPOffload.Flow(src_addr.toNumeric(), src.port,
+                                                 dst_addr.toNumeric(), dst.port, 17);
+                try {
+                    l7mp.offload.setOffload(inflow, null, "remove");
+                    this.session.pipes.offloaded--;
+                } catch(err){
+                    log.warn(`Stage.pipe: Could not remove offload on ${inflow}:`,
+                             err);
+                }
+            }
+        };
+        this.stream.on('unpipe', this.on_disc['unpipe']);
+    }
+    
     dump(role){
         log.silly(`Stage.dump: ${this.origin}: ${role}: Status: ${this.status}`);
         let s = this.stream;
@@ -205,19 +257,75 @@ class Stage {
 
     // local override to allow experimenting with mississippi.pipe or
     // other pipe implementations
+    // returns 1 if pipe was offloaded, 0 if not offloaded, and negative on error
     pipe(to){
+        let ret = 0;
         let from = this;
-        if(!from) log.warn('Stage.pipe: "from stage" mssing');
-        if(!to)   log.warn('Stage.pipe: "from to" mssing');
+        if(!from) log.warn('Stage.pipe: "from stage" missing');
+        if(!to)   log.warn('Stage.pipe: "from to" missing');
 
-        // default: source remains alive is destination closes/errs
-        return from.stream.pipe(to.stream);
+        // default: source remains alive if destination closes/errs
+        from.stream.pipe(to.stream);
         // this will kill the source if the destination fails
         // miss.pipe(from, to, (error) => {
         //     error = error || '';
         //     log.silly("Session.pipe.Error event: ", `${error}`);
         //     this.emit('error', error, from, to);
         // });
+
+        // try to offload the pipe
+        if(l7mp.offload){
+            log.silly(`Session.pipe: Trying to offload pipe from stage ${from.origin} to stage ${to.origin}`);
+
+            let inflow  = from.get_offload_flow('IN');
+            let outflow = to.get_offload_flow('OUT');
+
+            if(inflow && outflow){
+                log.silly(`Session.pipe: Offloading ${inflow} => ${outflow}`);
+                try {
+                    l7mp.offload.setOffload(inflow, outflow, "create");
+                } catch(err){
+                    log.warn(`Stage.pipe: Could not offload pipe ${inflow} => ${outflow}:`,
+                             err);
+                    return ret;
+                }
+                ret = 1;
+            }
+        }
+
+        return ret;
+    }
+
+    // returns
+    get_offload_flow(type) {
+        let flow = null;
+        if(this.source){
+            // listener?
+            let l = l7mp.getListener(this.origin);
+            if(l && l.spec && l.protocol === 'UDP' &&
+              this.stream){
+                flow = this.stream.socket;
+            }
+        } else {
+            // otherwise it's an endpoint
+            if(this.endpoint && this.endpoint.cluster &&
+               this.endpoint.cluster.protocol === 'UDP')
+                flow = this.stream.socket;
+        }
+        if(!flow)
+            return null;
+
+        let src = type === 'IN' ? flow.remoteAddress() : flow.address();
+        let dst = type === 'IN' ? flow.address() : flow.remoteAddress();
+
+        if(src.family !== 'IPv4' || dst.family !== 'IPv4')
+            return null;
+
+        let src_addr = ipaddr.IPv4.parse(src.address);
+        let dst_addr = ipaddr.IPv4.parse(dst.address);
+        flow = new UDPOffload.Flow(src_addr.toNumeric(), src.port, dst_addr.toNumeric(), dst.port, 17);
+
+        return flow;
     }
 
     async reconnect(retry){
@@ -252,7 +360,7 @@ class Stage {
                                      `does not support reconnecting, giving up retries`));
 
             this.stream = await source.reconnect();
-            this.set_event_handlers();            
+            this.set_event_handlers();
         } else {
             // cluster: connect as usual
             let new_stage = await this.connect(num_retries > 0 ? num_retries-1 : 0, retry.timeout);
@@ -261,7 +369,7 @@ class Stage {
             this.endpoint = new_stage.endpoint;
             this.set_event_handlers();
         }
-        
+
         this.status = 'READY';
         return;
     }
@@ -319,7 +427,7 @@ class Session {
         this.active_streams          = 0;   // except listener
         this.track                   = 0;
         this.events                  = [];  // an event log for tracked sessions
-
+        this.pipes                   = { total: 0, offloaded: 0};
         this.init();
     }
 
@@ -436,7 +544,7 @@ class Session {
             this.assert(ru, new NotFoundError(`Cannot find named rule "${rule}" ` +
                                               `in RuleList "${rulelist.name}"`));
 
-            action = ru.apply(this)
+            action = ru.apply(this);
             if(action){
                 if(action.apply && typeof action.apply === 'string'){
                     log.silly('Session.lookup:', `Session: ${this.name}:`,
@@ -547,18 +655,24 @@ class Session {
     }
 
     pipeline_finish(source, dest, chain, dir){
+        let offloaded = 0;
         var from = source;
         from.status = 'READY';
         chain.forEach( (to) => {
             log.silly("Session.pipeline:", `${dir} pipe:`,
                       `${from.origin} -> ${to.origin}`);
-            from.pipe(to);
+            offloaded = from.pipe(to);
+            this.pipes.total++;
+            this.pipes.offloaded += offloaded;
             from.status = 'READY';
             from = to;
         });
         log.silly("Session.pipeline:", `${dir} pipe:`,
                   `${from.origin} ->`, `${dest.origin}`);
-        from.pipe(dest);
+        offloaded = from.pipe(dest);
+        this.pipes.total++;
+        this.pipes.offloaded += offloaded;
+
         from.status = 'READY';
     }
 
@@ -649,7 +763,8 @@ class Session {
                 await stage.reconnect(this.route.retry);
 
                 log.info('Session.disconnect:', `Session ${this.name}:`,
-                         `stage "${stage.origin}" successfully reconnected`);
+                         `stage "${stage.origin}" successfully reconnected,`,
+                         `offloaded ${this.pipes.offloaded}/${this.pipes.total} pipes`);
 
                 // this.pipeline_dump();
 
@@ -682,16 +797,23 @@ class Session {
     repipe(stage){
         log.silly('Session.repipe:', `Session ${this.name}:`,
                   `origin: ${stage.origin}`);
+        let offloaded = 0;
 
         // was error on source?
         if(stage.id === this.source.id){
             let to = this.chain.ingress.length > 0 ?
                 this.chain.ingress[0] : this.destination;
-            stage.pipe(to);
+            offloaded = stage.pipe(to);
+            this.pipes.total++;
+            this.pipes.offloaded += offloaded;
+
             let from = this.chain.egress.length > 0 ?
                 this.chain.egress[this.chain.egress.length - 1] :
                 this.destination;
-            from.pipe(stage);
+            offloaded = from.pipe(stage);
+            this.pipes.total++;
+            this.pipes.offloaded += offloaded;
+
             stage.status = 'READY';
 
             log.silly('Session.repipe:', `Session ${this.name}:`,
@@ -704,10 +826,16 @@ class Session {
             let from = this.chain.ingress.length > 0 ?
                 this.chain.ingress[this.chain.ingress.length - 1] :
                 this.source;
-            from.pipe(stage);
+            offloaded = from.pipe(stage);
+            this.pipes.total++;
+            this.pipes.offloaded += offloaded;
+
             let to = this.chain.egress.length > 0 ?
                 this.chain.egress[0] : this.source;
-            stage.pipe(to);
+            offloaded = stage.pipe(to);
+            this.pipes.total++;
+            this.pipes.offloaded += offloaded;
+
             stage.status = 'READY';
 
             log.silly('Session.repipe:', `Session ${this.name}:`,
@@ -719,10 +847,16 @@ class Session {
         let i = this.chain.ingress.findIndex(r => r.id === stage.id);
         if(i >= 0){
             let from = i === 0 ? this.source : this.chain.ingress[i-1];
-            from.pipe(stage);
+            offloaded = from.pipe(stage);
+            this.pipes.total++;
+            this.pipes.offloaded += offloaded;
+
             let to = i === this.chain.ingress.length - 1 ?
                 this.destination : this.chain.ingress[i+1];
-            stage.pipe(to);
+            offloaded = stage.pipe(to);
+            this.pipes.total++;
+            this.pipes.offloaded += offloaded;
+
             stage.status = 'READY';
 
             log.silly('Stage.repipe:', `Session ${this.name}:`,
@@ -737,10 +871,16 @@ class Session {
                       `${stage.origin}`);
 
         let from = i === 0 ? this.destination : this.chain.egress[i-1];
-        from.pipe(stage);
+        offloaded = from.pipe(stage);
+        this.pipes.total++;
+        this.pipes.offloaded += offloaded;
+
         let to = i === this.chain.egress - 1 ?
             this.source : this.chain.egress[i+1];
-        stage.pipe(to);
+        offloaded = stage.pipe(to);
+        this.pipes.total++;
+        this.pipes.offloaded += offloaded;
+
         stage.status = 'READY';
 
         log.silly('Session.repipe:', `Session ${this.name}:`,
@@ -816,17 +956,14 @@ class Session {
             let stream = stage.stream;
             try{
                 if(stage.on_disc){
-                    // // log.info('end:', stream.listenerCount("end"));
-                    // stream.removeListener("end", stage.on_disc["end"]);
-                    // // log.info('end:', stream.listenerCount("end"));
+                    // it seems stream.end does not reliably emit the unpipe event so we call the
+                    // unpipe handlers ourselves
+                    stage.on_disc['unpipe'](stage.stream);
 
-                    // log.info('close:', stream.listenerCount("close"));
-                    stream.removeListener("close", stage.on_disc["close"]);
-                    // log.info('close:', stream.listenerCount("close"));
-
-                    // log.info('error:', stream.listenerCount("error"));
-                    stream.removeListener("error", stage.on_disc["error"]);
-                    // log.info('error:', stream.listenerCount("error"));
+                    // then remove the event handlers
+                    for(const event of ['close', 'error', 'unpipe']){
+                        stream.removeListener(event, stage.on_disc[event]);
+                    }
                 }
                 if(stage.status !== 'END' && stream){
                     stream.end();

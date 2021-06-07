@@ -38,7 +38,7 @@
 #define memcpy(dest, src, n) __builtin_memcpy((dest), (src), (n))
 #endif
 
-#define SEC(NAME) __attribute__((section(NAME), used))
+//#define SEC(NAME) __attribute__((section(NAME), used))
 
 #define MAPSIZE 10240
 

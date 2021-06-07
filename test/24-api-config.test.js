@@ -114,7 +114,7 @@ describe('Admin API', ()  => {
                 host: 'localhost', port: '1234',
                 path: '/api/v1/config',
                 method : 'GET',
-            }
+            };
             res = await httpRequest(options);
             // we get some config, content does not matter for now
             assert.containsAllKeys(res, ['admin','listeners','clusters',
@@ -127,7 +127,7 @@ describe('Admin API', ()  => {
                 host: 'localhost', port: '1234',
                 path: '/api/v1/admin',
                 method : 'GET',
-            }
+            };
             res = await httpRequest(options);
             // we get some config, content does not matter for now
             assert.containsAllKeys(res, ['version','strict']);

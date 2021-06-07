@@ -23,21 +23,20 @@
 "use strict";
 
 const child_process = require("child_process");
-const fs = require("fs");
-const os = require("os");
-
-const bpf = require("bpf");
-
+const fs            = require("fs");
+const os            = require("os");
+const log           = require('npmlog');
+const bpf           = require("bpf");
+const ipaddr        = require("ipaddr.js");
 
 const REDIRMAP_PATH = "/sys/fs/bpf/tc/globals/sidecar_redirects";
 const STATMAP_PATH = "/sys/fs/bpf/tc/globals/sidecar_statistics";
 
-const BPF_OBJ_FILE = "kernel-offload/udp_kernel_offload.o";
+const BPF_OBJ_FILE = "./kernel-offload/udp_kernel_offload.o";
 
-var redirectsMap;
-var statisticsMap;
-
-var flows = new Set();
+const PROC_TARGETS = ["/proc/sys/net/ipv4/conf/all/forwarding",
+                      "/proc/sys/net/ipv4/conf/lo/route_localnet",
+                      "/proc/sys/net/ipv4/conf/lo/accept_local"];
 
 class Flow {
     constructor(src_ip4=0, src_port=0, dst_ip4=0, dst_port=0, proto=0,
@@ -50,6 +49,7 @@ class Flow {
         this.proto = proto;
         this.metrics=metrics;
     }
+
     toBuffer(buffer_size=16) {
         var buf = Buffer.alloc(buffer_size);
         buf.writeUInt32BE(this.src_ip4, 0);
@@ -59,6 +59,7 @@ class Flow {
         buf.writeUInt32LE(this.proto, 12);
         return buf;
     }
+
     fromBuffer(buffer) {
         this.src_ip4 = buffer.readUInt32BE(0);
         this.dst_ip4 = buffer.readUInt32BE(4);
@@ -66,6 +67,12 @@ class Flow {
         this.dst_port = buffer.readUInt16BE(10);
         this.proto = buffer.readUInt32LE(12);
         return this;
+    }
+
+    toString(){
+        let from = ipaddr.IPv4.parse(`${this.src_ip4}`);
+        let to   = ipaddr.IPv4.parse(`${this.dst_ip4}`);
+        return `${from}:${this.src_port}->${to}:${this.dst_port}[${this.proto}]`;
     }
 }
 
@@ -90,157 +97,228 @@ class FlowStat {
     }
 }
 
-
-function loadBpf(ifName, bpfObjFile) {
-    // Check if BPF object file exists
-    if (!fs.existsSync(bpfObjFile)) {
-        throw new Error("Error during checking BPF object. " +
-                        "The object file '" + bpfObjFile + "' does not exist.");
+class UDPOffload {
+    constructor(setup=false, ifNames=[]){
+        this.setup = setup;
+        this.ifNames = ifNames.length > 0 ? ifNames : Object.keys(os.networkInterfaces());
+        this.redirectsMap = null;
+        this.statisticsMap = null;
+        this.flows = new Set();
     }
 
-    // Load bpf object with 'tc'
+    loadBpf(ifName, bpfObjFile) {
+        log.silly(`UDPOffload.loadBpf: if: ${ifName}`);
+        
+        // Check if BPF object file exists
+        if (!fs.existsSync(bpfObjFile)) {
+            throw new Error("UDPOffload.loadBpf: Error during checking BPF object: " +
+                            "Object file '" + bpfObjFile + "' does not exist.");
+        }
 
-    // Check if clsact is available..
-    const qdiscInfoCmdArgs = ["qdisc", "list", "dev", ifName];
-    const qdiscInfoCmd = child_process.spawnSync("tc", qdiscInfoCmdArgs,
-                                                 { encoding: "utf-8" });
-    const clsactIsLoaded = qdiscInfoCmd.stdout.includes("clsact");
+        // Load bpf object with 'tc'
 
-    // ..Add clsact if not
-    if (!clsactIsLoaded) {
-        const qdiscAddCmdArgs = ["qdisc", "add", "dev", ifName, "clsact"];
-        const qdiscAddCmd = child_process.spawnSync("tc", qdiscAddCmdArgs,
-                                                    { encoding: "utf-8" });
-        if (qdiscAddCmd.status !== 0) {
-            throw new Error("Error during qdisc creation\n" +
-                            "retval: " + qdiscAddCmd.status +
-                            "\noutput:" + qdiscAddCmd.output);
+        // Check if clsact is available..
+        const qdiscInfoCmdArgs = ["qdisc", "list", "dev", ifName];
+        const qdiscInfoCmd = child_process.spawnSync("/sbin/tc", qdiscInfoCmdArgs,
+                                                     { encoding: "utf-8" });
+        const clsactIsLoaded = qdiscInfoCmd.stdout && qdiscInfoCmd.stdout.includes("clsact");
+
+        // Add clsact if not
+        if (!clsactIsLoaded) {
+            // console.log(clsactIsLoaded);
+            if(!this.setup){
+                throw new Error(`UDPOffload.loadBpf: Qdisc unavailable on ${ifName}, ` +
+                                `(run 'tc qdisc add dev ${ifName} clsact' to fix)`);
+
+            }
+
+            const qdiscAddCmdArgs = ["qdisc", "add", "dev", ifName, "clsact"];
+            const qdiscAddCmd = child_process.spawnSync("/sbin/tc", qdiscAddCmdArgs,
+                                                        { encoding: "utf-8" });
+            if (qdiscAddCmd.status !== 0) {
+                throw new Error("UDPOffload.loadBpf: Error during qdisc creation: " +
+                                "retval: " + qdiscAddCmd.status +
+                                ", output: " + qdiscAddCmd.output);
+            }
+        }
+
+        // Load BPF code to interface
+        const command = (
+            clsactIsLoaded ? "replace" : "add"
+        );
+        const tcArgs = ["filter", command, "dev", ifName, "ingress", "bpf",
+                        "direct-action", "object-file", bpfObjFile,
+                        "section", "classifier"];
+        const tcLoadBpfCmd = child_process.spawnSync("/sbin/tc", tcArgs,
+                                                     { encoding: "utf-8" });
+        if (tcLoadBpfCmd.status !== 0) {
+            throw new Error("UDPOffload.loadBpf: Error during BPF code loading: " +
+                            "retval: " + tcLoadBpfCmd.status +
+                            ", output: " + tcLoadBpfCmd.output);
+        }
+    }
+    
+    unloadBpf(ifName) {
+        log.silly(`UDPOffload.unloadBpf: if: ${ifName}`);
+
+        if(this.setup){
+            // Unload BPF code with 'tc'
+            const tcArgs = ["filter", "del", "dev", ifName, "ingress"];
+            const tcLoadBpfCmd = child_process.spawnSync("/sbin/tc", tcArgs,
+                                                         { encoding: "utf-8" });
+            if (tcLoadBpfCmd.status !== 0) {
+                throw new Error("UDPOffload.loadBpf: Error during BPF code unloading: " +
+                                "retval: " + tcLoadBpfCmd.status +
+                                ", output: " + tcLoadBpfCmd.output);
+            }
         }
     }
 
-    // Load BPF code to interface
-    const command = (
-        clsactIsLoaded ? "replace" : "add"
-    );
-    const tcArgs = ["filter", command, "dev", ifName, "ingress", "bpf",
-                    "direct-action", "object-file", bpfObjFile,
-                    "section", "classifier"];
-    const tcLoadBpfCmd = child_process.spawnSync("tc", tcArgs,
-                                                 { encoding: "utf-8" });
-    if (tcLoadBpfCmd.status !== 0) {
-        throw new Error("Error during BPF code loading\n" +
-                        "retval: " + tcLoadBpfCmd.status +
-                        "\noutput: " + tcLoadBpfCmd.output);
-    }
-}
+    createBpfMaps() {
+        log.silly("UDPOffload.createBpfMaps");
 
-function unloadBpf(ifName) {
-    // Unload BPF code with 'tc'
-    const tcArgs = ["filter", "del", "dev", ifName, "ingress"];
-    const tcLoadBpfCmd = child_process.spawnSync("tc", tcArgs,
-                                                 { encoding: "utf-8" });
-    if (tcLoadBpfCmd.status !== 0) {
-        throw new Error("Error during BPF code unloading\n" +
-                        "retval: " + tcLoadBpfCmd.status +
-                        "\noutput: " + tcLoadBpfCmd.output);
+        // Connect maps
+        this.redirectsMap = new bpf.RawMap(
+            bpf.createMapRef(bpf.objGet(REDIRMAP_PATH), { transfer: true })
+        );
+        this.statisticsMap = new bpf.RawMap(
+            bpf.createMapRef(bpf.objGet(STATMAP_PATH), { transfer: true })
+        );
     }
-}
+   
+    unlinkBpfMaps() {
+        log.silly("UDPOffload.unlinkBpfMaps");
+        const mapPaths = [REDIRMAP_PATH, STATMAP_PATH];
+        mapPaths.forEach( (path) => {
+            if (fs.existsSync(path)) {
+                fs.unlinkSync(path);
+            }
+        });
+    }
 
-function unlinkBpfMaps() {
-    const mapPaths = [REDIRMAP_PATH, STATMAP_PATH]
-    mapPaths.forEach( (path) => {
-        if (fs.existsSync(path)) {
-            fs.unlinkSync(path);
+    setKernelParameters() {
+        log.silly('UDPOffload.setKernelParameters');
+        // Enable forwarding and localhost routing
+        PROC_TARGETS.forEach( (fp) => {
+            try{
+                fs.writeFileSync(fp, "1");
+            } catch (err) {
+                throw new Error('UDPOffload.setKernelParameters: ' +
+                                `Error setting sysctl ${fp}: ${err}`);
+            }
+        });
+    }
+
+    checkKernelParameters() {
+        // check if forwarding and localhost routing enabled
+        log.silly('UDPOffload.checkKernelParameters');
+        
+        PROC_TARGETS.forEach( (fp) => {
+            let data;
+            try {
+                data = fs.readFileSync(fp);
+            } catch (err) {
+                throw new Error('UDPOffload.checkKernelParameters: ' +
+                                `Could not read sysctl ${fp}: ${err}`);
+            }
+            if(data.toString().trim() !== '1'){
+                throw new Error('UDPOffload.checkKernelParameters: ' +
+                                `Wrong sysctl ${fp}: ${data}`);
+            }
+        });
+        return true;
+    }
+
+    init() {
+        log.silly(`UDPOffload.init: init: ${!!this.setup}, ifnames: ${this.ifNames}`);
+        
+        // Unlink globally pinned maps
+        this.unlinkBpfMaps();
+
+        // Prepare host kernel
+        try{
+            if(this.setup)
+                this.setKernelParameters();
+            else 
+                this.checkKernelParameters();
+        } catch (err) { throw err; };
+
+        // Load BPF object on required interfaces
+        for (const ifName of this.ifNames) {
+            // try{
+                this.loadBpf(ifName, BPF_OBJ_FILE);
+            // } catch(err) { throw err; };
         }
-    });
-}
 
-function setKernelParameters() {
-    // Enable forwarding and localhost routing
-    const targets = ["/proc/sys/net/ipv4/conf/all/forwarding",
-                     "/proc/sys/net/ipv4/conf/lo/route_localnet",
-                     "/proc/sys/net/ipv4/conf/lo/accept_local"];
-    targets.forEach( (fp) => {
-        fs.writeFile(fp, "1",
-                     function (err) {
-                         if (err) { throw new Error(err); }
-                     });
-    });
-}
-
-function initOffloadEngine() {
-    // Unlink globally pinned maps
-    unlinkBpfMaps();
-
-    // Prepare host kernel
-    setKernelParameters();
-
-    // Load BPF object on all interfaces
-    for (const ifName of Object.keys(os.networkInterfaces())) {
-        loadBpf(ifName, BPF_OBJ_FILE);
+        // Recreate maps
+        this.createBpfMaps();
     }
 
-    // Connect maps
-    redirectsMap = new bpf.RawMap(
-        bpf.createMapRef(bpf.objGet(REDIRMAP_PATH), { transfer: true })
-    );
-    statisticsMap = new bpf.RawMap(
-        bpf.createMapRef(bpf.objGet(STATMAP_PATH), { transfer: true })
-    );
-}
-
-function shutdownOffloadEngine() {
-    // Unload BPF object on network interfaces
-    for (const ifName of Object.keys(os.networkInterfaces())) {
-        unloadBpf(ifName);
-    }
-    // Unlink BPF maps
-    unlinkBpfMaps();
-}
-
-function requestOffload(inFlow, redirFlow, action, metrics=null) {
-    const inFlowBuf = inFlow.toBuffer();
-    switch (action) {
-    case "create":
-        // Register 5-tuple to statistics and redirects map
-        const zeroStatBuf = Buffer.alloc(statisticsMap.ref.valueSize, 0);
-        statisticsMap.set(inFlowBuf, zeroStatBuf);
-        redirectsMap.set(inFlowBuf, redirFlow.toBuffer());
-        // Register metrics
-        if (metrics !== null) {
-            inFlow.metrics = metrics;
+    shutdown() {
+        log.silly(`UDPOffload.shutdown`);
+        
+        // Unload BPF object on network interfaces
+        for (const ifName of this.ifNames) {
+            this.unloadBpf(ifName);
         }
-        // Store flow
-        flows.add(inFlow);
-        break;
-    case "remove":
-        // Delete flow from both redirects and statistics maps
-        redirectsMap.delete(inFlowBuf);
-        statisticsMap.delete(infFlowBuf);
-        // Delete flow from local flow storage
-        flows.delete(inFlow);
-        break;
-    default:
-        throw new Error("Invalid action for requestOffload");
+
+        // Unlink BPF maps
+        this.unlinkBpfMaps();
+    }
+
+    setOffload(inFlow, redirFlow, action, metrics=null) {
+        // redirFlow may not be specified on a remove command
+        log.silly(`UDPOffload.setOffload: ${inFlow} =>`,
+                  `${redirFlow ||  "<UNKNOWN>"}, action: ${action}`);
+
+        const inFlowBuf = inFlow.toBuffer();
+        switch (action) {
+        case "create":
+            // Register 5-tuple to statistics and redirects map
+            const zeroStatBuf = Buffer.alloc(this.statisticsMap.ref.valueSize, 0);
+            this.statisticsMap.set(inFlowBuf, zeroStatBuf);
+            this.redirectsMap.set(inFlowBuf, redirFlow.toBuffer());
+            // Register metrics
+            if (metrics !== null) {
+                inFlow.metrics = metrics;
+            }
+            // Store flow
+            this.flows.add(inFlow);
+            break;
+        case "remove":
+            // Delete flow from both redirects and statistics maps
+            this.redirectsMap.delete(inFlowBuf);
+            this.statisticsMap.delete(inFlowBuf);
+            // Delete flow from local flow storage
+            this.flows.delete(inFlow);
+            break;
+        default:
+            throw new Error(`UDPOffload.setOffload: Invalid action ${action}`);
+        }
+    }
+
+    getStat(inFlow) {
+        log.silly(`UDPOffload.getStat: ${inFlow}`);
+
+        const statBuf = this.statisticsMap.get(inFlow.toBuffer());
+        const flowStat = new FlowStat().fromBuffer(statBuf);
+        var ret = {};
+        for (const metric of inFlow.metrics) {
+            ret[metric] = flowStat[metric];
+        }
+        return ret;
+    }
+
+    dumpStat(){
+        log.silly(`UDPOffload.dumpStat`);
+
+        this.flows.forEach( (flow) => {
+            let m = this.getStat(flow);
+            console.log(`Src: ${flow}: ${m.pkts} pkts, ${m.bytes} bytes`);
+        });
     }
 }
 
-function getStat(inFlow) {
-    const statBuf = statisticsMap.get(inFlow.toBuffer());
-    const flowStat = new FlowStat().fromBuffer(statBuf);
-    var ret = {};
-    for (const metric of inFlow.metrics) {
-        ret[metric] = flowStat[metric];
-    }
-    return ret;
-}
-
-
-module.exports = {
-    Flow,
-    FlowStat,
-    initOffloadEngine,
-    shutdownOffloadEngine,
-    requestOffload,
-    getStat,
-};
+module.exports.UDPOffload = UDPOffload;
+module.exports.Flow = Flow;
+module.exports.FlowStat = FlowStat;
