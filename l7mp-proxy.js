@@ -61,6 +61,17 @@ for(let event of ['exit', 'SIGINT', 'SIGTERM']){
                     fs.unlinkSync(file);
                 } catch(e) { /* NOP */ }
             })
+
+        // deinit offload engine
+        if(l7mp.offload){
+            try{
+                l7mp.offload.shutdown();
+                l7mp.offload = null;
+            } catch(err) {
+                log.warn(`Could not shutdown offload engine`);
+            }
+        }
+        
         process.exit();
     });
 }
@@ -77,7 +88,7 @@ process.on('unhandledRejection', (reason, p) => {
 process.title = 'l7mp'
 
 // Command line args
-const usage = 'l7mp -c <static_config> -s -l <log-level>'
+const usage = 'l7mp -c <static_config> -s -o init -i "lo,eth0" -l <log-level>'
 var argv = parseArgs(process.argv.slice(2));
 var config = argv.c;
 

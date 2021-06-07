@@ -120,7 +120,9 @@ class DatagramStream extends Duplex {
         if(msg)this.socket.send(msg, 0, msg.length);
         setImmediate( () => {
             // this.socket.emit('end');
-            try{this.socket.close()}catch(e){
+            try{
+                this.socket.close();
+            } catch(e) {
                 // log.silly(dumper(e, 6));
                 log.silly('DatagramStream.end: Cannot end stream (probably harmless)', e.message);
             };

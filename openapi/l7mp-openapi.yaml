@@ -80,6 +80,14 @@ components:
           description: >
             Enable strict mode: validates all REST API calls against OpenAPI
             schema (default: false).
+        offload:
+          type: boolean
+          description: >
+            Set/get kernel offload status: "init": initialize offload engine, "no_init": skip initialization, "disable": disable offloading
+        offload_ifs:
+          type: array
+          description: >
+            Comma-separated list of interfaces for offloading: the special interface name "all" means to apply offloading on all interfaces
         version:
           type: string
           description: Version info.

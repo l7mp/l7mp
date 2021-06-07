@@ -229,10 +229,9 @@ describe('Session', () => {
         it('on_disc-error',           () => { assert.property(s.source.on_disc, 'error'); });
         it('pipe', () => {
             stage = new Stage({session: s, origin: s.source.origin, stream: s.source.stream, source: true});
-            to = s.source.pipe(stage)
-            assert.isOk(to);
+            to = s.source.pipe(stage);
+            assert.isOk(to === 0);
         });
-        it('pipe-passthrough',        () => { assert.instanceOf(to, PassThrough); });
         it('reconnect', async () => {
             s.source.status = 'INIT';
             await s.source.reconnect({retry_on: 'always', num_retries: 2, timeout: 2000})
