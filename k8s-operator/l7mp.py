@@ -38,7 +38,7 @@ from collections import defaultdict
 
 import kopf
 import l7mp_client
-from kopf.structs.diffs import diff
+from kopf._cogs.structs import bodies, dicts, diffs
 
 # State of the k8s cluster
 s = {
