@@ -252,18 +252,25 @@ class WebSocketEndPoint extends EndPoint {
         if(s.metadata.HTTP && s.metadata.HTTP.headers){
             options.headers = {...s.metadata.HTTP.headers};
             // use host from header if specified
-            if(s.metadata.HTTP.headers.host)
-                url.host = s.metadata.HTTP.headers.host;
+            // if(s.metadata.HTTP.headers.host)
+            //     url.host = s.metadata.HTTP.headers.host;
+
+            // remove key and subprotocols
+            delete options["headers"]["sec-websocket-key"];
+            delete options["headers"]["sec-websocket-protocol"];
         }
 
         // manually override hostname to remove port
-        options.hostname = options.host = url.host;
+        // options.hostname = options.host = url.host;
 
         url = new URL(`${url.protocol}://${url.host}:${url.port}/${url.path}`);
         log.silly(`WebSocketEndPoint.connect:`,
                   `${this.full_name}: URL: ${url.toString()}`);
-
-        var ws = new WebSocket(url, options);
+        if (s.metadata.HTTP.headers) {
+            var ws = new WebSocket(url, s.metadata.HTTP["headers"]["sec-websocket-protocol"], options);
+        } else {
+            var ws = new WebSocket(url, options);
+        }
 
         // re-emit 'open', otherwise we lose the socket in pEvent:
         // ws.open does not return ws itself so we must re-emit here

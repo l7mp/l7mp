@@ -184,4 +184,58 @@ describe('WebSocketCluster', () => {
             s.stream.end();
         });
     });
+
+    context('stream', () => {
+        var c = Cluster.create({name: 'WebSocket', spec: {protocol: 'WebSocket'}});
+        c.addEndPoint({name: 'Test', spec: {address: '127.0.0.1'}});
+        var s;
+        it('stream', async () => {
+            await c.run(); assert.isObject(c);
+            s = await c.stream({
+                route: {
+                    retry: {
+                        timeout: 1000
+                    }
+                }, 
+                metadata: {
+                    HTTP: {
+                        url: {
+                            host: '127.0.0.1', 
+                            port: 8080
+                        },
+                        headers: {
+                            "sec-websocket-protocol": "test.com",
+                            "sec-websocket-key": "testkey"
+                        }
+                    }
+                }
+            });
+        });
+        it('returns ok',   () => { assert.isOk(s.stream); });
+        it('isa stream',   () => { assert.instanceOf(s.stream, Stream); });
+        it('readable',     () => { assert.isOk(s.stream.readable); });
+        it('writeable',    () => { assert.isOk(s.stream.writable); });
+        it('has-endpoint', () => { assert.isObject(s.endpoint); });
+        it('correct-byte-stream', (done) => {
+            s.stream.on('readable', () => {
+                let data = ''; let chunk;
+                while (null !== (chunk = s.stream.read())) {
+                    data += chunk;
+                }
+                assert.equal(data, 'test');
+                done();
+            });
+            s.stream.write('test');
+        });
+        it('close', (done) =>{
+            // end() will flush the stream, emits an empty string, which makes the test in the
+            // above "readable" listener to be rerun with an empty 'data' and fail
+            s.stream.removeAllListeners();
+            s.stream.on('finish', ()=>{
+                assert.isOk(true);
+                done();
+            });
+            s.stream.end('');
+        });
+    });
 });
