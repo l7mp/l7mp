@@ -302,14 +302,15 @@ class Stage {
         if(this.source){
             // listener?
             let l = l7mp.getListener(this.origin);
-            if(l && l.spec && l.protocol === 'UDP' &&
-              this.stream){
+            if(l && l.spec && (l.protocol === 'UDP' || 
+            l.protocol === 'JSONSocket' && l.transport && l.transport.protocol === 'UDP') && this.stream ){
                 flow = this.stream.socket;
             }
         } else {
             // otherwise it's an endpoint
             if(this.endpoint && this.endpoint.cluster &&
-               this.endpoint.cluster.protocol === 'UDP')
+               (this.endpoint.cluster.protocol === 'UDP' || (this.endpoint.cluster.protocol === 'JSONSocket' 
+               && this.endpoint.cluster.transport && this.endpoint.cluster.transport.protocol === 'UDP')))
                 flow = this.stream.socket;
         }
         if(!flow)
