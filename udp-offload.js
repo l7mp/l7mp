@@ -35,8 +35,8 @@ const STATMAP_PATH = "/sys/fs/bpf/tc/globals/sidecar_statistics";
 const BPF_OBJ_FILE = "./kernel-offload/udp_kernel_offload.o";
 
 const PROC_TARGETS = ["/proc/sys/net/ipv4/conf/all/forwarding",
-                      "/proc/sys/net/ipv4/conf/lo/route_localnet",
-                      "/proc/sys/net/ipv4/conf/lo/accept_local"];
+                      "/proc/sys/net/ipv4/conf/all/route_localnet",
+                      "/proc/sys/net/ipv4/conf/all/accept_local"];
 
 class Flow {
     constructor(src_ip4=0, src_port=0, dst_ip4=0, dst_port=0, proto=0,
