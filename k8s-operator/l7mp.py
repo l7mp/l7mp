@@ -38,7 +38,7 @@ from collections import defaultdict
 
 import kopf
 import l7mp_client
-from kopf.structs.diffs import diff
+from kopf._cogs.structs import bodies, dicts, diffs
 
 # State of the k8s cluster
 s = {
@@ -61,7 +61,11 @@ def dict_update(d, u):
 
 def get_fqn(obj):
     "Get a name unambiguously identifying the object OBJ."
-    return (obj['metadata']['selfLink'])
+    apiVersion = obj['apiVersion']
+    kind = obj['kind']
+    namespace = obj['metadata']['namespace']
+    name = obj['metadata']['name']
+    return (f'/{apiVersion}/{kind}/{namespace}/{name}')
 
 def get_l7mp_instance(pod):
     # cache the instance?
