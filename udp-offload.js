@@ -268,7 +268,7 @@ class UDPOffload {
 
     setOffload(inFlow, redirFlow, action, metrics=null) {
         // redirFlow may not be specified on a remove command
-        log.silly(`UDPOffload.setOffload: ${inFlow} =>`,
+        log.info(`UDPOffload.setOffload: ${inFlow} =>`,
                   `${redirFlow ||  "<UNKNOWN>"}, action: ${action}`);
 
         const inFlowBuf = inFlow.toBuffer();
