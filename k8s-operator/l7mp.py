@@ -27,10 +27,14 @@
 
 import asyncio
 import collections.abc
+from dataclasses import asdict
 import functools
 import itertools
 import json
 import os
+import queue
+from typing import List
+from google.protobuf.struct_pb2 import Struct
 import urllib3
 import yaml
 from copy import deepcopy
@@ -38,13 +42,15 @@ from collections import defaultdict
 
 import kopf
 import l7mp_client
-from kopf._cogs.structs import diffs
+from kopf._cogs.structs import bodies, dicts, diffs
 
 import grpc
 import google.protobuf as protobuf
 import logging
 import numpy as np
 import threading
+from threading import Lock, Event
+from queue import Queue
 import asyncio
 from concurrent import futures
 import pprint
@@ -54,9 +60,14 @@ import envoy.service.listener.v3.lds_pb2_grpc as envoy_lds
 import envoy.service.cluster.v3.cds_pb2_grpc as envoy_cds
 import envoy.extensions.filters.udp.udp_proxy.v3.udp_proxy_pb2 as envoy_udp
 import envoy.config.listener.v3.listener_pb2 as envoy_listener
-import envoy.config.listener.v3.listener_components_pb2 as envoy_listener_components 
+import envoy.config.cluster.v3.cluster_pb2 as envoy_cluster
+import envoy.config.listener.v3.listener_components_pb2 as envoy_listener_components
 import envoy.service.discovery.v3.discovery_pb2 as envoy_discovery
 import envoy.config.core.v3.address_pb2 as envoy_address
+import envoy.config.endpoint.v3.endpoint_components_pb2 as envoy_endpoint_components
+import envoy.config.endpoint.v3.endpoint_pb2 as envoy_endpoint
+import envoy.config.core.v3.base_pb2 as envoy_metadata
+
 
 # State of the k8s cluster
 s = {
@@ -66,23 +77,28 @@ s = {
     'targets': defaultdict(dict),
     'rules': defaultdict(dict),
 }
-
+'''
+    'uid' : {'current_state': 'list of current resources in the envoy instance', 
+        'queue': Queue object to be able to sign to the grpc DeltaXYZ function that there is a new resource ready}
+'''
 envoy_resources = {
-    'listeners': defaultdict(dict), #'uid' : {'current_state': 'list of current resources in the envoy instance', 'desired_state': 'list of desired resources that must be sent to the envoy instance' }
+    'listeners': defaultdict(dict),
     'clusters': defaultdict(dict),
 }
 
-class envoy_listener_data :
 
-    envoy_instance_node: str # envoy instance node field should equal its pod's metadata.uid
-    envoy_instance_type: str #ingress, worker, etc
-    name: str # call-id_3002-3004_rtp_a_listener
-    call_id: str # 3002-3004
-    listening_port: np.uint32 #18002
-    cluster_ref: str # call-id_3002-3004_rtp_a_cluster
-    tag: str # to-tag from-tag
+class envoy_listener_data:
 
-    def __init__(self,ein='',eit='',name='',call_id='',listening_port=0,cluster_ref='',tag=''):
+    # envoy instance node field should equal its pod's metadata.uid
+    envoy_instance_node: str
+    envoy_instance_type: str  # ingress, worker, etc
+    name: str  # call-id_3002-3004_rtp_a_listener
+    call_id: str  # 3002-3004
+    listening_port: np.uint32  # 18002
+    cluster_ref: str  # call-id_3002-3004_rtp_a_cluster
+    tag: str  # to-tag from-tag
+
+    def __init__(self, ein='', eit='', name='', call_id='', listening_port=0, cluster_ref='', tag=''):
         self.envoy_instance_node = ein
         self.envoy_instance_type = eit
         self.name = name
@@ -90,14 +106,17 @@ class envoy_listener_data :
         self.listening_port = listening_port
         self.cluster_ref = cluster_ref
         self.tag = tag
-    
-class envoy_cluster_data :
-    name: str # call-id_3002-3004_rtp_a_cluster
-    upstream_port: np.uint32 #18000
-    upstream_host: str #pod['status'].get(podIP) direct IP address
-    call_id: str #3002-3004
 
 
+class envoy_cluster_data:
+    name: str  # call-id_3002-3004_rtp_a_cluster
+    upstream_host_port: np.uint32  # 18000
+    upstream_host_addresses: List  # pod['status'].get(podIP) direct IP address
+
+    def __init__(self, name='', uhp='', uha=[]):
+        self.name = name
+        self.upstream_host_port = uhp
+        self.upstream_host_addresses = uha
 
 
 # https://stackoverflow.com/a/3233356
@@ -109,6 +128,7 @@ def dict_update(d, u):
             d[k] = v
     return d
 
+
 def get_fqn(obj):
     "Get a name unambiguously identifying the object OBJ."
     apiVersion = obj['apiVersion']
@@ -116,6 +136,7 @@ def get_fqn(obj):
     namespace = obj['metadata']['namespace']
     name = obj['metadata']['name']
     return (f'/{apiVersion}/{kind}/{namespace}/{name}')
+
 
 def get_l7mp_instance(pod):
     # cache the instance?
@@ -168,6 +189,7 @@ def get_target_extended_spec(s, target, logger):
     # 4.
     return spec
 
+
 def get_endpoint_groups(s, target, logger):
     try:
         endpoints = target['spec']['cluster']['endpoints']
@@ -196,15 +218,16 @@ def get_endpoint_groups(s, target, logger):
 
     return static_eps, dynamic_eps
 
+
 def get_actions(s, logger):
     "Return a list of actions that are necessary to execute to reach state S"
     actions = defaultdict(dict)
     for pod in s['pods'].values():
         for vsvc in iter_matching(s, s['virtualservices'], pod):
             actions[get_fqn(pod)][get_fqn(vsvc)] = {
-                 'type': 'vsvc',
-                 'name': get_fqn(vsvc),
-                 'spec': vsvc['spec'],
+                'type': 'vsvc',
+                'name': get_fqn(vsvc),
+                'spec': vsvc['spec'],
             }
         for target in s['targets'].values():
             spec = get_target_extended_spec(s, target, logger)
@@ -220,9 +243,9 @@ def get_actions(s, logger):
             etarget['spec']['cluster']['endpoints'] = s_eps
             fqn_etarget = get_fqn(etarget)
             actions[get_fqn(pod)][fqn_etarget] = {
-                 'type': 'target',
-                 'name': get_fqn(etarget),
-                 'spec': etarget['spec'],
+                'type': 'target',
+                'name': get_fqn(etarget),
+                'spec': etarget['spec'],
             }
             for d_ep in d_eps.values():
                 ep_name = d_ep['metadata']['name']
@@ -234,13 +257,13 @@ def get_actions(s, logger):
                 }
         for rule in iter_matching(s, s['rules'], pod):
             actions[get_fqn(pod)][get_fqn(rule)] = {
-                 'type': 'rule',
-                 'name': get_fqn(rule),
-                 'spec': rule['spec'],
+                'type': 'rule',
+                'name': get_fqn(rule),
+                'spec': rule['spec'],
             }
 
-
     return actions
+
 
 async def update(s_old, s_new, logger=None, **kw):
     a_old = get_actions(s_old, logger)
@@ -287,10 +310,12 @@ async def update(s_old, s_new, logger=None, **kw):
                                             logger=logger)
     await kopf.execute(fns=fns)
 
+
 async def call(fn_name, s, pod_fqn, action_old, action_new, logger, **kw):
     pod = s['pods'].get(pod_fqn)
     if pod:
         await globals()[fn_name](s, pod, action_old, action_new, logger)
+
 
 async def set_owner_status(s, o_type, fqn, logger):
     try:
@@ -307,7 +332,7 @@ async def set_owner_status(s, o_type, fqn, logger):
         resource = kopf.structs.references.Resource(
             group=owner['apiVersion'].split('/')[0],
             version=owner['apiVersion'].split('/', 1)[1],
-            plural=owner['kind'].lower() + 's', # ?
+            plural=owner['kind'].lower() + 's',  # ?
             namespaced=True,
             subresources=['status'],
         )
@@ -319,6 +344,8 @@ async def set_owner_status(s, o_type, fqn, logger):
         )
 
 conv_db = {}
+
+
 def get_conv_db(logger):
     if conv_db:
         return conv_db
@@ -333,6 +360,7 @@ def get_conv_db(logger):
             conv_db[plural] = versions[0]['schema']['openAPIV3Schema']
     return conv_db
 
+
 def convert_to_old_api(logger, plural, obj):
     # Currently, the l7mp proxy uses an old OpenApi schema for
     # validation.  That schema is not compatible with k8s OpenApi:
@@ -341,43 +369,196 @@ def convert_to_old_api(logger, plural, obj):
     # to the old one.
     schema = get_conv_db(logger)[plural]
     logger.info('Need to get important fields from this obj %s', obj)
-    _, obj =  convert_sub(schema['properties']['spec'], 'all', deepcopy(obj))
+    _, obj = convert_sub(schema['properties']['spec'], 'all', deepcopy(obj))
     logger.info('new obj: %s', obj)
     return obj
 
-def convert_listener_for_envoy(logger, listener, uid):
-    
-    call_id = None 
-    listening_port = None 
+
+def convert_vsvc_for_envoy(logger, vsvc, uid):
+
+    listening_port = None
     cluster_ref = None
-    tag = None
-    name = listener['name'].rpartition('/')[-1] + '-l'
-    envoy_instance_type = name.split('-',1)[0]
-    obj = listener['spec']
-    if obj ['listener']:
-        if obj['listener']['spec']['UDP']:
-            if obj['listener']['spec']['UDP']['port']:
+    name = vsvc['name'].rpartition("/")[-1] + '-l'
+    cluster_ref = vsvc['name'].rpartition("/")[-1] + '-c'
+    tag = vsvc['name'].rpartition("/")[-1].split('-')[2]
+    call_id = vsvc['name'].rpartition("/")[-1].split('-')[3]
+    envoy_instance_type = name.split('-', 1)[0]
+    obj = vsvc['spec']
+    try:
+        if obj['listener']:
+            if obj['listener']['spec']['UDP'] and obj['listener']['spec']['UDP']['port']:
                 listening_port = obj['listener']['spec']['UDP']['port']
-        else:
-            logger.error('Listener protocol is not UDP, or vsvc spec does not have field at all')
-        if obj['listener']['rules'][0]['action']['rewrite']:
-            for item in obj['listener']['rules'][0]['action']['rewrite']:
-                if item['path'] == "/labels/callid":
-                    call_id = item['valueStr']
-                if item['path'] == "/labels/tag":
-                    tag = item['valueStr']
-        else: 
-            logger.error('Rewrite field is missing from the vsvc object')
+    except KeyError as e:
+        logger.warning(
+            f'KeyError occured while converting vsvc for envoy: {e}')
 
-        if obj['listener']['rules'][0]['action']['route']:
-            if obj['listener']['rules'][0]['action']['route']['destinationRef']:
-                cluster_ref = obj['listener']['rules'][0]['action']['route']['destinationRef']
-            else: 
-                logger.error('destinationRef field is missing')
-        else:
-            logger.error('Route field is missing')
+    return envoy_listener_data(ein=uid,
+                               eit=envoy_instance_type,
+                               name=name,
+                               call_id=call_id,
+                               listening_port=listening_port,
+                               cluster_ref=cluster_ref,
+                               tag=tag)
 
-    return envoy_listener_data(ein=uid, eit=envoy_instance_type, name = name, call_id = call_id, listening_port = listening_port, cluster_ref = cluster_ref, tag = tag)
+
+def create_listener(res):
+    udpAny = protobuf.any_pb2.Any()
+    asd = envoy_udp.UdpProxyConfig()
+    udpListener = envoy_udp.UdpProxyConfig(
+        stat_prefix=res.name,
+        cluster=res.cluster_ref,
+        hash_policies=[
+            envoy_udp.UdpProxyConfig.HashPolicy(
+                source_ip = True,
+            ),
+        ]
+    )
+    udpAny.Pack(udpListener)
+
+    new_listener = envoy_listener.Listener(
+        name=res.name,
+        reuse_port=True,
+        address=envoy_address.Address(
+            socket_address=envoy_address.SocketAddress(
+                protocol='UDP',
+                address="0.0.0.0",
+                port_value=np.uint32(res.listening_port),
+            )
+        ),
+        listener_filters=[
+            envoy_listener_components.ListenerFilter(
+                name="envoy.filters.udp_listener.udp_proxy",
+                typed_config=udpAny,
+            )
+        ]
+    )
+
+    listener_any = protobuf.any_pb2.Any()
+    listener_any.Pack(new_listener)
+    return listener_any
+
+
+def create_cluster(res):
+    cluster_any = protobuf.any_pb2.Any()
+    new_cluster = envoy_cluster.Cluster(
+        name=res.name,
+        connect_timeout=protobuf.duration_pb2.Duration().FromSeconds(1),
+        # cluster_discovery_type = envoy_cluster.cluster_discovery_type(
+        #     type = 'STATIC'
+        # ),
+        lb_policy='MAGLEV',
+        load_assignment=envoy_endpoint.ClusterLoadAssignment(
+            cluster_name=res.name,
+            endpoints=[
+                envoy_endpoint_components.LocalityLbEndpoints(
+                    lb_endpoints=create_endpoint_list(res)
+                )
+            ]
+        )
+    )
+    cluster_any.Pack(new_cluster)
+    return cluster_any
+
+
+def create_endpoint_list(res):
+    endpoints = []
+    # endpoint_any = protobuf.any_pb2.Any()
+
+    for address in res.upstream_host_addresses:
+        # FIXME add metadata for LB
+        ep = envoy_endpoint_components.LbEndpoint(
+            endpoint=envoy_endpoint_components.Endpoint(
+                address=envoy_address.Address(
+                    socket_address=envoy_address.SocketAddress(
+                        protocol='UDP',
+                        address=address,
+                        port_value=np.uint32(res.upstream_host_port),
+                    )
+                ),
+            ),
+            metadata = envoy_metadata.Metadata(
+                filter_metadata = create_struct(address)
+            )
+        )
+        # endpoint_any.Pack(ep)
+        endpoints.append(ep)
+    return endpoints
+
+def create_struct(hash_key):
+    struct = Struct()
+    struct.get_or_create_struct("envoy.lb")["hash_key"] = hash_key
+    return struct
+
+    # Spec:
+    #   Listener:
+    #     Rules:
+    #       Action:
+    #         Route:
+    #           Destination:
+    #             Endpoints:
+    #               Selector:
+    #                 Match Labels:
+    #                   App:  worker
+    #             Spec:
+    #               UDP:
+    #                 Port:  30016
+    # Spec:
+    #   UDP:
+    #     Port:  10016
+
+    # Spec:
+    #   Listener:
+    #     Rules:
+    #       Action:
+    #         Route:
+    #           Destination:
+    #             Endpoints:
+    #               Spec:
+    #                 Address:  127.0.0.1
+    #             Spec:
+    #               UDP:
+    #                 Port:  10016
+    #     Spec:
+    #       UDP:
+    #         Port:  30016
+
+
+def convert_target_for_envoy(logger, target, uid, s):
+
+    name = None
+    upstream_host_port = None
+    upstream_host_addresses = []
+
+    name = target['name'].rpartition("/")[-1] + '-c'
+
+    dst = target['spec']['listener']['rules'][0]['action']['route']['destination']
+    # FIXME due to [0] it is limited for only one endpoint, if necessary, expand
+    if 'spec' in dst['endpoints'][0]:
+        address = dst['endpoints'][0]['spec']['address']
+        upstream_host_addresses.append(address)
+        upstream_host_port = dst['spec']['UDP']['port']
+
+    elif 'selector' in dst['endpoints'][0]:
+        label = dst['endpoints'][0]['selector']['matchLabels']['app']
+        ips = get_pod_ip_addresses_by_label(logger, s, label)
+        upstream_host_addresses.extend(ips)
+        upstream_host_port = dst['spec']['UDP']['port']
+
+    return envoy_cluster_data(name=name, uhp=upstream_host_port, uha=upstream_host_addresses)
+
+# FIXME change to if key,value pair in .... not if app in and after if == label...
+
+
+def get_pod_ip_addresses_by_label(logger, s, label):
+    addresses = []
+    for pod in s['pods'].values():
+        if 'app' in pod['metadata']['labels']:
+            if pod['metadata']['labels']['app'] == label:
+                ip = pod['status'].get('podIP')
+                logger.info(f'PODIP: {ip}')
+                addresses.append(ip)
+    return addresses
+
 
 def convert_sub(schema, key, obj):
     if obj is None:
@@ -404,6 +585,7 @@ def convert_sub(schema, key, obj):
         obj[schema['x-l7mp-old-property']] = subkey
     return key, obj
 
+
 async def exec_add_vsvc(s, pod, _old, action, logger):
     vname = action['name']
     pname = pod['metadata']['name']
@@ -411,14 +593,7 @@ async def exec_add_vsvc(s, pod, _old, action, logger):
     vsvc_spec = convert_to_old_api(logger, 'virtualservices', vsvc_spec)
     logger.info(f'configuring pod:{pname} for vsvc:{vname}')
 
-    
-
-    pprint(action)
-
     l7mp_instance = get_l7mp_instance(pod)
-
-    pprint(l7mp_instance)
-    pprint(vsvc_spec.get('listener', {}).get('spec'))
 
     listener = l7mp_client.IoL7mpApiV1Listener(
         name=vname,
@@ -440,50 +615,54 @@ async def exec_add_vsvc(s, pod, _old, action, logger):
         raise kopf.TemporaryError(f'{e}', delay=5)
     await set_owner_status(s, 'virtualservices', vname, logger)
 
+
 async def exec_envoy_add_vsvc(s, pod, _old, action, logger):
     uid = pod.get('metadata', {}).get('uid')
-    if uid:
-        envoy_listener_spec = convert_listener_for_envoy(logger, action,uid) #get necessary field values for envoy
-        logger.info(f'envoy instance: {envoy_listener_spec.__dict__}')
-        # logger.info(f'configuring pod:{pname} for vsvc:{vname}\n')
-        #'uid' : {'current_state': 'list of current resources in the envoy instance', 'desired_state': 'list of desired resources that must be sent to the envoy instance' }
-        envoy_resources['listeners'].setdefault(uid, {'current_state': [],'desired_state': []})
-        envoy_resources['listeners'][uid]['desired_state'].append(envoy_listener_spec)
-        logger.info(f'envoy resources: {envoy_resources}')
+
+    '''
+    Listener:
+    '''
+    if uid and not envoy_resources['listeners'].get(uid) == None:
+        logger.info(f'Add vsvc to pod. uid: {uid}')
+        envoy_listener_spec = convert_vsvc_for_envoy(
+            logger, action, uid)  # get necessary field values for envoy
+        l = create_listener(envoy_listener_spec)
+        envoy_resources['listeners'][uid]['queue'].put(
+            ['add', l, envoy_listener_spec.name])
     else:
-        logger.warning('uid is missing from pod: %s',pod.get('metadata', {}).get('name'))
-    
+        logger.warning('Listener: problem occured while trying to create listener. Pod: %s', pod.get(
+            'metadata', {}).get('name'))
+
+    '''
+    Cluster:
+    '''
+    if uid and not envoy_resources['clusters'].get(uid) == None:
+        logger.info(f'Add target to pod. uid: {uid}')
+        envoy_cluster_spec = convert_target_for_envoy(
+            logger, action, uid, s)  # get necessary field values for envoy
+        c = create_cluster(envoy_cluster_spec)  # FIXME
+        envoy_resources['clusters'][uid]['queue'].put(
+            ['add', c, envoy_cluster_spec.name])
+    else:
+        logger.warning('Cluster: problem occured while trying to create cluster. Pod: %s', pod.get(
+            'metadata', {}).get('name'))
 
 
+async def exec_envoy_delete_vsvc(s, pod, action, _new, logger):
+    logging.info(f'fqn {action}')
+    uid = pod.get('metadata', {}).get('uid')
+    name = action['name'].rpartition('/')[-1] + '-l'
+    if uid and not envoy_resources['listeners'].get(uid) == None:
+        envoy_resources['listeners'][uid]['queue'].put(['delete', '', name])
 
-async def exec_delete_vsvc(s, pod, action, _new, logger):
-    fqn = action['name']
-    if not pod or get_fqn(pod) not in s['pods']:
-        logger.info('pod not found: {get_fqn(pod)}')
-        return
-    l7mp_instance = get_l7mp_instance(pod)
-    logger.info(f'Delete vsvc:{fqn} from pod:{pod["metadata"]["name"]}')
-    try:
-        l7mp_instance.delete_listener(fqn, recursive="true")
-    except l7mp_client.exceptions.ApiException as e:
-        content = json.loads(e.body).get('content', '')
-        not_found = 'Cannot delete listener: Unknown listener'
-        if e.status == 400 and content.startswith(not_found):
-            logger.info("... it's not there")
-        if e.status == 400 and content.startswith('Not running'):
-            logger.info("... ??? Not running ???")
-            # This is a bug (?) in l7mp, but the deletion is successful.
-        else:
-            logger.warn('Failed to delete vsvc on pod %s: %s',
-                        pod['metadata']['name'],
-                        e)
 
 async def exec_change_vsvc(s, pod, action_old, action_new, logger):
     # The l7mp API does not really support changing listeners, so we
     # delete the old listener and add the new one.  But as a
     # side-effect, the derived objects (connections) will be ereased.
-    await exec_delete_vsvc(s, pod, action_old, action_new, logger)
-    await exec_add_vsvc(s, pod, action_old, action_new, logger)
+    await exec_envoy_delete_vsvc(s, pod, action_old, action_new, logger)
+    await exec_envoy_add_vsvc(s, pod, action_old, action_new, logger)
+
 
 async def exec_add_target(s, pod, _old, action, logger):
     tname = action['name']
@@ -513,6 +692,18 @@ async def exec_add_target(s, pod, _old, action, logger):
         raise kopf.TemporaryError(f'{e}', delay=5)
     await set_owner_status(s, 'targets', tname, logger)
 
+
+async def exec_envoy_add_target(s, pod, _old, action, logger):
+    uid = pod.get('metadata', {}).get('uid')
+    # if uid and not envoy_resources['clusters'].get(uid) == None:
+    #     logger.info(f'Add vsvc to pod. uid: {uid}')
+    #     envoy_listener_spec = convert_target_for_envoy(logger, action, uid) #get necessary field values for envoy
+    #     l = create_listener(envoy_listener_spec)
+    #     envoy_resources['listeners'][uid]['queue'].put(['add', l, envoy_listener_spec.name])
+    # else:
+    #     logger.warning('uid is missing from pod: %s or envoy_resources missing something',pod.get('metadata', {}).get('name'))
+
+
 async def exec_delete_target(s, pod, action, _new, logger):
     fqn = action['name']
     if not pod or get_fqn(pod) not in s['pods']:
@@ -532,9 +723,11 @@ async def exec_delete_target(s, pod, action, _new, logger):
                         pod['metadata']['name'],
                         e)
 
+
 async def exec_change_target(s, pod, action_old, action_new, logger):
     await exec_delete_target(s, pod, action_old, action_new, logger)
     await exec_add_target(s, pod, action_old, action_new, logger)
+
 
 async def exec_add_dynamic_endpoint(s, pod, _old, action, logger):
     ename = action['name']
@@ -564,12 +757,14 @@ async def exec_add_dynamic_endpoint(s, pod, _old, action, logger):
     except urllib3.exceptions.MaxRetryError as e:
         raise kopf.TemporaryError(f'{e}', delay=5)
 
+
 async def exec_delete_dynamic_endpoint(s, pod, action, _new, logger):
     fqn = action['name']
     if not pod or get_fqn(pod) not in s['pods']:
         logger.info('pod not found: {get_fqn(pod)}')
         return
-    logger.info(f'Delete d_endpoint:{fqn} from pod:%s', pod['metadata']['name'])
+    logger.info(
+        f'Delete d_endpoint:{fqn} from pod:%s', pod['metadata']['name'])
     cname = action["target"]
     if cname not in s['targets']:
         # Currently, if a custer is deleted, then its endpoints is
@@ -589,6 +784,7 @@ async def exec_delete_dynamic_endpoint(s, pod, action, _new, logger):
             logger.warn('Failed to delete endpoint from pod %s: %s',
                         pod['metadata']['name'],
                         e)
+
 
 async def exec_change_dynamic_endpoint(s, pod, action_old, action_new, logger):
     # The dynamic_endpoint is so simple it cannot be changed.  But for
@@ -627,6 +823,7 @@ async def exec_add_rule(s, pod, _old, action, logger):
         raise kopf.TemporaryError(f'{e}', delay=5)
     await set_owner_status(s, 'rules', rname, logger)
 
+
 async def exec_delete_rule(s, pod, action, _new, logger):
     fqn = action['name']
     if not pod or get_fqn(pod) not in s['pods']:
@@ -661,13 +858,13 @@ async def exec_delete_rule(s, pod, action, _new, logger):
                         pod['metadata']['name'],
                         e)
 
+
 async def exec_change_rule(s, pod, action_old, action_new, logger):
     # For simplicity, we delete the old listener and add the new one.
     await exec_delete_rule(s, pod, action_old, action_new, logger)
     await exec_add_rule(s, pod, action_old, action_new, logger)
 
 
-
 # K8s API watchers
 
 def fail_if_pod_not_ready(o_type, body, **kw):
@@ -685,6 +882,7 @@ def startup_fn(settings: kopf.OperatorSettings, logger, **kw):
     settings.persistence.diffbase_storage = kopf.AnnotationsDiffBaseStorage(
         prefix='operator.l7mp.io',
     )
+
 
 @kopf.on.field('', 'v1', 'pods', field='status.containerStatuses')
 async def pod_status_fn(new, body, logger, **kw):
@@ -704,7 +902,7 @@ async def pod_status_fn(new, body, logger, **kw):
     else:
         logger.info('l7mp is not ready in %s', get_fqn(body))
         kw['old'] = body    # delete_fn only need the spec part, which
-                            # is unchanged.
+        # is unchanged.
         await delete_fn(body=body, logger=logger, **kw)
 
 
@@ -719,10 +917,11 @@ async def pod_status_fn(new, body, logger, **kw):
 @kopf.on.create('l7mp.io', 'v1', 'rules')
 @kopf.on.resume('l7mp.io', 'v1', 'rules')
 async def create_fn(body, **kw):
-    o_type = kw.get('resource').plural # Object type
+    o_type = kw.get('resource').plural  # Object type
     fail_if_pod_not_ready(o_type, body, **kw)
     s_old = deepcopy(s)
     s[o_type][get_fqn(body)] = body
+    # logging.info(s[o_type][get_fqn(body)])
     try:
         del s_old[o_type][get_fqn(body)]
     except KeyError:
@@ -736,7 +935,7 @@ async def create_fn(body, **kw):
 @kopf.on.delete('l7mp.io', 'v1', 'targets')
 @kopf.on.delete('l7mp.io', 'v1', 'rules')
 async def delete_fn(body, old, **kw):
-    o_type = kw.get('resource').plural # Object type
+    o_type = kw.get('resource').plural  # Object type
     s_old = deepcopy(s)
     try:
         del s[o_type][get_fqn(body)]
@@ -753,7 +952,7 @@ async def delete_fn(body, old, **kw):
 @kopf.on.update('l7mp.io', 'v1', 'targets')
 @kopf.on.update('l7mp.io', 'v1', 'rules')
 async def update_fn(body, old, **kw):
-    o_type = kw.get('resource').plural # Object type
+    o_type = kw.get('resource').plural  # Object type
     fail_if_pod_not_ready(o_type, body, **kw)
     fqn = get_fqn(body)
     s_old = deepcopy(s)
@@ -786,6 +985,7 @@ def does_operator_match(value, operator, values):
         raise kopf.PermanentError(f'Unkown operator: {expr["operator"]}')
     return True
 
+
 def does_selector_match(s, selector, pod):
     match = True
     for k, v in selector.items():
@@ -796,9 +996,11 @@ def does_selector_match(s, selector, pod):
             raise kopf.PermanentError(f'Selector not supported: {k}')
     return match
 
+
 def does_selector_match__matchLabels(_s, args, pod):
     labels = pod.get('metadata', {}).get('labels', {})
     return all(v == labels.get(k) for k, v in args.items())
+
 
 def does_selector_match__matchExpressions(_s, args, pod):
     labels = pod.get('metadata', {}).get('labels', {})
@@ -808,19 +1010,22 @@ def does_selector_match__matchExpressions(_s, args, pod):
             return False
     return True
 
+
 def does_selector_match__matchFields(_s, args, pod):
     for expr in args:
         value = pod
         for key in expr['key'].split('.'):
             value = value.get(key, {})
-        if value ==  {}:
+        if value == {}:
             value = None
         if not does_operator_match(value, expr['operator'], expr['values']):
             return False
     return True
 
+
 def does_selector_match__matchNamespace(_s, args: str, pod):
     return args == pod.get('metadata', {}).get('namespace')
+
 
 def does_selector_match__matchService(_s, service, pod):
     for ep in s['endpoints'].values():
@@ -839,11 +1044,13 @@ def does_selector_match__matchService(_s, service, pod):
                 return True
     return False
 
+
 def iter_matching(s, objects, pod):
     for obj in objects.values():
         selector = obj['spec']['selector']
         if does_selector_match(s, selector, pod):
             yield obj
+
 
 def iter_matching_pods(s, selector, pods_to_search):
     for pod in pods_to_search.values():
@@ -851,88 +1058,179 @@ def iter_matching_pods(s, selector, pods_to_search):
             yield pod
 
 
-
 def grpc_thread():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     envoy_lds.add_ListenerDiscoveryServiceServicer_to_server(
         ListenerDiscoveryServiceServicer(), server)
-    server.add_insecure_port('[::]:1234')
+    envoy_cds.add_ClusterDiscoveryServiceServicer_to_server(
+        ClusterDiscoveryServiceServicer(), server)
+    server.add_insecure_port('[::]:9090')
     logging.info("Server started")
     server.start()
     server.wait_for_termination()
+
 
 thread = threading.Thread(target=grpc_thread)
 thread.daemon = True
 thread.start()
 
+
 class ListenerDiscoveryServiceServicer(envoy_lds.ListenerDiscoveryServiceServicer):
-    last_update=[]
-    current=[]
-    pp = pprint.PrettyPrinter(indent=4)
 
     def __init__(self):
-        logging.info("Servicer init")
-        udpAny = protobuf.any_pb2.Any()
-        udpListener = envoy_udp.UdpProxyConfig(
-            stat_prefix= "test",
-            cluster= "testcluster",
-        )
-        udpAny.Pack(udpListener)
-
-        test = envoy_listener.Listener(
-            name="testlistener",
-            reuse_port=True,
-            address=
-                envoy_address.Address(
-                    socket_address=
-                        envoy_address.SocketAddress(
-                            protocol='UDP',
-                            address="0.0.0.0",
-                            port_value=np.uint32(8080),
-                        )
-                ),
-            listener_filters=[
-                envoy_listener_components.ListenerFilter(
-                    name="envoy.filters.udp_listener.udp_proxy",
-                    typed_config=udpAny,
-                )
-            ]
-        )
-
-        test_any= protobuf.any_pb2.Any()
-        test_any.Pack(test)
-        self.current.append(test_any)
+        logging.info("Listener servicer init")
 
     def DeltaListeners(self, request_iterator, context):
-        for req in request_iterator:
-            if(self.current != self.last_update ):
-                # must change somehow to handle multiple clients in this single function
-                logging.info("Need to update the config of the one and only client. current list not equal last_update list")
-                if req.error_detail.message:
-                    logging.warning(req.error_detail.message)
-                if hasattr(req, 'resource_names_subsrcibe'):
-                    logging.info(req.resource_names_subsrcibe)
-                logging.info(req.node.id)
-                self.last_update = self.current
-                yield self.create_response()
+        global envoy_resources
+        logging.info(f'DeltaListeners')
+        nonces = []
+        previously_added_resources = {}
 
-    def create_response(self):
-        resources = []
-        for res in self.current:
+        for req in request_iterator:
+            uid = req.node.id
+            logging.info(f'uid: {uid}')
+            # logging.info(f'envoy_resources {envoy_resources}')
+            envoy_resources['listeners'].setdefault(
+                uid, {'current_state': {}, 'queue': Queue()})
+
+            if req.response_nonce in nonces and not req.error_detail.message:
+                envoy_resources['listeners'][uid]['current_state'].update(
+                    previously_added_resources)
+                previously_added_resources = {}
+                nonces.remove(n)
+            elif req.error_detail.message:
+                # FIXME error should be handled here somehow
+                logging.warning(
+                    f'Response with nonce: {req.response_nonce} was not successful.')
+
+            # If queue is empty, wait until an item is available. It runs on a different grpc thread so it shouldn't not be blocking.
+            qe = envoy_resources['listeners'][uid]['queue'].get()
+            action = qe[0]
+            listener = qe[1]
+            n = qe[2]
+
+            if action == 'add':
+                if not n in envoy_resources['listeners'][uid]['current_state']:
+                    logging.info(
+                        "Listener update")
+                    if req.error_detail.message:
+                        logging.warning(req.error_detail.message)
+                    if hasattr(req, 'resource_names_subsrcibe'):
+                        logging.info(req.resource_names_subsrcibe)
+                    previously_added_resources[n] = listener
+                    yield self.create_response(n=n, listeners=[listener], nonces=nonces)
+                else:
+                    logging.info(
+                        f'Listener is in current_state, but it shouldnt have {n}')
+            elif action == 'delete':
+                if n in envoy_resources['listeners'][uid]['current_state']:
+                    logging.info(f'Removing {n} listener from pod {uid}')
+                    yield self.create_response(rem=[n], nonces=nonces)
+
+    def create_response(self, n='', listeners=[], rem=[], nonces=[]):
+        to_add_resources = []
+        to_remove_resources = []
+        for l in listeners:
             resource = envoy_discovery.Resource(
-                name="testlistener",
-                version="1",
-                resource=res,
+                name=n,
+                version="1",  # must be changed later on # FIXME
+                resource=l,
                 ttl=protobuf.duration_pb2.Duration().FromSeconds(120),
             )
-            resources.append(resource)
+            to_add_resources.append(resource)
+
+        for r in rem:
+            to_remove_resources.append(r)
 
         response = envoy_discovery.DeltaDiscoveryResponse(
-                    system_version_info='0',
-                    resources=[],
-                    type_url= "type.googleapis.com/envoy.config.listener.v3.Listener",
-                    nonce="idontknowwhatcomeshere",
-                )
-        for res in resources:
-            response.resources.append(res)
-        return response    
+            system_version_info='0',
+            resources=[],
+            type_url="type.googleapis.com/envoy.config.listener.v3.Listener",
+            removed_resources=[],
+            nonce=n,  # FIXME
+        )
+        response.resources.extend(to_add_resources)
+        response.removed_resources.extend(to_remove_resources)
+        nonces.append(n)
+        logging.info(f'Create response: {response}\n')
+        return response
+
+
+class ClusterDiscoveryServiceServicer(envoy_cds.ClusterDiscoveryServiceServicer):
+
+    def __init__(self) -> None:
+        logging.info("Cluster servicer init")
+        self.latest_nonce = ''
+        self.previously_added_resources = {}
+
+    def DeltaClusters(self, request_iterator, context):
+        logging.info('DeltaClusters')
+        nonces = []
+        previously_added_resources = {}
+
+        for req in request_iterator:
+            uid = req.node.id
+            envoy_resources['clusters'].setdefault(
+                uid, {'current_state': {}, 'queue': Queue()})
+
+            if req.response_nonce in nonces and not req.error_detail.message:
+                envoy_resources['clusters'][uid]['current_state'].update(
+                    previously_added_resources)
+                previously_added_resources = {}
+                nonces.remove(n)
+            elif req.error_detail.message:
+                # FIXME error should be handled here somehow
+                logging.warning(
+                    f'Response with nonce: {req.response_nonce} was not successful.')
+
+            # If queue is empty, wait until an item is available. It runs on a different grpc thread so it shouldn't not be blocking.
+            qe = envoy_resources['clusters'][uid]['queue'].get()
+            action = qe[0]
+            cluster = qe[1]
+            n = qe[2]
+
+            if action == 'add':
+                if not n in envoy_resources['clusters'][uid]['current_state']:
+                    logging.info(
+                        "Cluster update")
+                    if req.error_detail.message:
+                        logging.warning(req.error_detail.message)
+                    if hasattr(req, 'resource_names_subsrcibe'):
+                        logging.info(req.resource_names_subsrcibe)
+                    previously_added_resources[n] = cluster
+                    yield self.create_response(n=n, clusters=[cluster], nonces=nonces)
+                else:
+                    logging.info(
+                        f'Cluster is in current_state, but it shouldnt have {n}')
+            elif action == 'delete':
+                if n in envoy_resources['cluster'][uid]['current_state']:
+                    logging.info(f'Removing {n} cluster from pod {uid}')
+                    yield self.create_response(rem=[n], nonces=nonces)
+
+    def create_response(self, n='', clusters=[], rem=[], nonces=[]):
+        to_add_resources = []
+        to_remove_resources = []
+        for c in clusters:
+            resource = envoy_discovery.Resource(
+                name=n,
+                version="1",  # must be changed later on # FIXME
+                resource=c,
+                ttl=protobuf.duration_pb2.Duration().FromSeconds(120),
+            )
+            to_add_resources.append(resource)
+
+        for r in rem:
+            to_remove_resources.append(r)
+
+        response = envoy_discovery.DeltaDiscoveryResponse(
+            system_version_info='0',
+            resources=[],
+            type_url="type.googleapis.com/envoy.config.cluster.v3.Cluster",
+            removed_resources=[],
+            nonce=n,  # FIXME
+        )
+        response.resources.extend(to_add_resources)
+        response.removed_resources.extend(to_remove_resources)
+        nonces.append(n)
+        logging.info(f'Create response: {response}\n')
+        return response
