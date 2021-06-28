@@ -6,6 +6,7 @@ metadata:
     app: envoy-ingress
   namespace: default
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: envoy-ingress
@@ -33,6 +34,14 @@ spec:
                   fieldPath: metadata.uid
             - name: "GRPC_SERVICE_NAME"
               value: "operator-service.default.svc"
+            - name: "GRPC_SERVICE_PORT"
+              value: '1234'
+            - name: "NG_CONTROL_LISTENER_PORT"
+              value: '2000' #22220 on worker
+            - name: "NG_CONTROL_CLUSTER_ENDPOINT_ADDRESS"
+              value: "rtpe-controller.default.svc" #127.0.0.1 on worker
+            - name: "NG_CONTROL_CLUSTER_ENDPOINT_PORT"
+              value: '2000' #22222 on
           ports:
             - containerPort: 19000
               name: admin
