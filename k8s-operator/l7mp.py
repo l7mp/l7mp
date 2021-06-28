@@ -84,6 +84,7 @@ s = {
 envoy_resources = {
     'listeners': defaultdict(dict),
     'clusters': defaultdict(dict),
+    'endpoints': defaultdict(dict),
 }
 
 
@@ -368,7 +369,6 @@ def convert_to_old_api(logger, plural, obj):
     # So, this function converts object conforming to the new Api back
     # to the old one.
     schema = get_conv_db(logger)[plural]
-    logger.info('Need to get important fields from this obj %s', obj)
     _, obj = convert_sub(schema['properties']['spec'], 'all', deepcopy(obj))
     logger.info('new obj: %s', obj)
     return obj
@@ -465,7 +465,6 @@ def create_endpoint_list(res):
     # endpoint_any = protobuf.any_pb2.Any()
 
     for address in res.upstream_host_addresses:
-        # FIXME add metadata for LB
         ep = envoy_endpoint_components.LbEndpoint(
             endpoint=envoy_endpoint_components.Endpoint(
                 address=envoy_address.Address(
@@ -640,7 +639,7 @@ async def exec_envoy_add_vsvc(s, pod, _old, action, logger):
         logger.info(f'Add target to pod. uid: {uid}')
         envoy_cluster_spec = convert_target_for_envoy(
             logger, action, uid, s)  # get necessary field values for envoy
-        c = create_cluster(envoy_cluster_spec)  # FIXME
+        c = create_cluster(envoy_cluster_spec)  
         envoy_resources['clusters'][uid]['queue'].put(
             ['add', c, envoy_cluster_spec.name])
     else:
@@ -649,11 +648,13 @@ async def exec_envoy_add_vsvc(s, pod, _old, action, logger):
 
 
 async def exec_envoy_delete_vsvc(s, pod, action, _new, logger):
-    logging.info(f'fqn {action}')
     uid = pod.get('metadata', {}).get('uid')
-    name = action['name'].rpartition('/')[-1] + '-l'
+    name_l = action['name'].rpartition('/')[-1] + '-l'
+    name_c = action['name'].rpartition('/')[-1] + '-c'
     if uid and not envoy_resources['listeners'].get(uid) == None:
-        envoy_resources['listeners'][uid]['queue'].put(['delete', '', name])
+        envoy_resources['listeners'][uid]['queue'].put(['delete', '', name_l])
+    if uid and not envoy_resources['clusters'].get(uid) == None:
+        envoy_resources['clusters'][uid]['queue'].put(['delete', '', name_c])        
 
 
 async def exec_change_vsvc(s, pod, action_old, action_new, logger):
@@ -1097,7 +1098,8 @@ class ListenerDiscoveryServiceServicer(envoy_lds.ListenerDiscoveryServiceService
                 envoy_resources['listeners'][uid]['current_state'].update(
                     previously_added_resources)
                 previously_added_resources = {}
-                nonces.remove(n)
+                logging.info(f'responce nonce {req.response_nonce} in {nonces}')
+                nonces.remove(req.responce_nonce) 
             elif req.error_detail.message:
                 # FIXME error should be handled here somehow
                 logging.warning(
@@ -1147,7 +1149,7 @@ class ListenerDiscoveryServiceServicer(envoy_lds.ListenerDiscoveryServiceService
             resources=[],
             type_url="type.googleapis.com/envoy.config.listener.v3.Listener",
             removed_resources=[],
-            nonce=n,  # FIXME
+            nonce=n,  
         )
         response.resources.extend(to_add_resources)
         response.removed_resources.extend(to_remove_resources)
@@ -1177,7 +1179,7 @@ class ClusterDiscoveryServiceServicer(envoy_cds.ClusterDiscoveryServiceServicer)
                 envoy_resources['clusters'][uid]['current_state'].update(
                     previously_added_resources)
                 previously_added_resources = {}
-                nonces.remove(n)
+                nonces.remove(req.response_nonce)
             elif req.error_detail.message:
                 # FIXME error should be handled here somehow
                 logging.warning(
@@ -1203,7 +1205,7 @@ class ClusterDiscoveryServiceServicer(envoy_cds.ClusterDiscoveryServiceServicer)
                     logging.info(
                         f'Cluster is in current_state, but it shouldnt have {n}')
             elif action == 'delete':
-                if n in envoy_resources['cluster'][uid]['current_state']:
+                if n in envoy_resources['clusters'][uid]['current_state']:
                     logging.info(f'Removing {n} cluster from pod {uid}')
                     yield self.create_response(rem=[n], nonces=nonces)
 
@@ -1227,7 +1229,7 @@ class ClusterDiscoveryServiceServicer(envoy_cds.ClusterDiscoveryServiceServicer)
             resources=[],
             type_url="type.googleapis.com/envoy.config.cluster.v3.Cluster",
             removed_resources=[],
-            nonce=n,  # FIXME
+            nonce=n, 
         )
         response.resources.extend(to_add_resources)
         response.removed_resources.extend(to_remove_resources)
