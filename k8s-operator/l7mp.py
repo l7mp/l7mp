@@ -33,6 +33,7 @@ import itertools
 import json
 import os
 import queue
+from re import T
 from typing import List
 from google.protobuf.struct_pb2 import Struct
 import urllib3
@@ -46,6 +47,8 @@ from kopf._cogs.structs import bodies, dicts, diffs
 
 import grpc
 import google.protobuf as protobuf
+import google.protobuf.duration_pb2 as duration
+import google.protobuf.wrappers_pb2 as wrapper
 import logging
 import numpy as np
 import threading
@@ -67,7 +70,7 @@ import envoy.config.core.v3.address_pb2 as envoy_address
 import envoy.config.endpoint.v3.endpoint_components_pb2 as envoy_endpoint_components
 import envoy.config.endpoint.v3.endpoint_pb2 as envoy_endpoint
 import envoy.config.core.v3.base_pb2 as envoy_metadata
-
+import envoy.config.core.v3.health_check_pb2 as envoy_health_check
 
 # State of the k8s cluster
 s = {
@@ -113,11 +116,13 @@ class envoy_cluster_data:
     name: str  # call-id_3002-3004_rtp_a_cluster
     upstream_host_port: np.uint32  # 18000
     upstream_host_addresses: List  # pod['status'].get(podIP) direct IP address
+    label: str
 
-    def __init__(self, name='', uhp='', uha=[]):
+    def __init__(self, name='', uhp='', uha=[], label=''):
         self.name = name
         self.upstream_host_port = uhp
         self.upstream_host_addresses = uha
+        self.label = label
 
 
 # https://stackoverflow.com/a/3233356
@@ -276,7 +281,6 @@ async def update(s_old, s_new, logger=None, **kw):
         obj_fqns = itertools.chain(a_old.get(pod_fqn, {}).keys(),
                                    a_new.get(pod_fqn, {}).keys())
         a_combined[pod_fqn] = sorted(set(obj_fqns))
-
     fns = {}
     for pod_fqn, obj_fqns in a_combined.items():
         for fqn in obj_fqns:
@@ -403,13 +407,12 @@ def convert_vsvc_for_envoy(logger, vsvc, uid):
 
 def create_listener(res):
     udpAny = protobuf.any_pb2.Any()
-    asd = envoy_udp.UdpProxyConfig()
     udpListener = envoy_udp.UdpProxyConfig(
         stat_prefix=res.name,
         cluster=res.cluster_ref,
         hash_policies=[
             envoy_udp.UdpProxyConfig.HashPolicy(
-                source_ip = True,
+                source_ip=True,
             ),
         ]
     )
@@ -442,7 +445,7 @@ def create_cluster(res):
     cluster_any = protobuf.any_pb2.Any()
     new_cluster = envoy_cluster.Cluster(
         name=res.name,
-        connect_timeout=protobuf.duration_pb2.Duration().FromSeconds(1),
+        connect_timeout=create_duration(1000),
         # cluster_discovery_type = envoy_cluster.cluster_discovery_type(
         #     type = 'STATIC'
         # ),
@@ -456,13 +459,34 @@ def create_cluster(res):
             ]
         )
     )
+    # FIXME REMOVE comments if you want to add healthcheck to the ingress envoy instance
+    # if res.label:
+    #     hc = envoy_health_check.HealthCheck(
+    #         timeout=create_duration(100),
+    #         interval=create_duration(100),
+    #         unhealthy_threshold=wrapper.UInt32Value(value=1),
+    #         healthy_threshold=wrapper.UInt32Value(value=1),
+    #         no_traffic_interval=create_duration(1000),
+    #         tcp_health_check=envoy_health_check.HealthCheck.TcpHealthCheck(
+    #             send=envoy_health_check.HealthCheck.Payload(
+    #                 text='000000FF'
+    #             ),
+    #             receive=[
+    #                 envoy_health_check.HealthCheck.Payload(
+    #                     text='000000FF'
+    #                 )
+
+    #             ]
+    #         ),
+    #     )
+    #     new_cluster.health_checks.append(hc)
+
     cluster_any.Pack(new_cluster)
     return cluster_any
 
 
 def create_endpoint_list(res):
     endpoints = []
-    # endpoint_any = protobuf.any_pb2.Any()
 
     for address in res.upstream_host_addresses:
         ep = envoy_endpoint_components.LbEndpoint(
@@ -475,51 +499,32 @@ def create_endpoint_list(res):
                     )
                 ),
             ),
-            metadata = envoy_metadata.Metadata(
-                filter_metadata = create_struct(address)
-            )
         )
-        # endpoint_any.Pack(ep)
+        if res.label:
+            assert not ep.HasField('metadata')
+            md = envoy_metadata.Metadata(
+                filter_metadata=create_struct(address)
+            )
+            ep.metadata.CopyFrom(md)
+            assert ep.HasField('metadata')
+            assert not ep.endpoint.HasField('health_check_config')
+            ep.endpoint.health_check_config.port_value = np.uint32(1233)
+            assert ep.endpoint.HasField('health_check_config')
+
         endpoints.append(ep)
     return endpoints
+
+
+def create_duration(in_milliseconds):
+    d = duration.Duration()
+    d.FromMilliseconds(in_milliseconds)
+    return d
+
 
 def create_struct(hash_key):
     struct = Struct()
     struct.get_or_create_struct("envoy.lb")["hash_key"] = hash_key
     return struct
-
-    # Spec:
-    #   Listener:
-    #     Rules:
-    #       Action:
-    #         Route:
-    #           Destination:
-    #             Endpoints:
-    #               Selector:
-    #                 Match Labels:
-    #                   App:  worker
-    #             Spec:
-    #               UDP:
-    #                 Port:  30016
-    # Spec:
-    #   UDP:
-    #     Port:  10016
-
-    # Spec:
-    #   Listener:
-    #     Rules:
-    #       Action:
-    #         Route:
-    #           Destination:
-    #             Endpoints:
-    #               Spec:
-    #                 Address:  127.0.0.1
-    #             Spec:
-    #               UDP:
-    #                 Port:  10016
-    #     Spec:
-    #       UDP:
-    #         Port:  30016
 
 
 def convert_target_for_envoy(logger, target, uid, s):
@@ -529,7 +534,7 @@ def convert_target_for_envoy(logger, target, uid, s):
     upstream_host_addresses = []
 
     name = target['name'].rpartition("/")[-1] + '-c'
-
+    label = ''
     dst = target['spec']['listener']['rules'][0]['action']['route']['destination']
     # FIXME due to [0] it is limited for only one endpoint, if necessary, expand
     if 'spec' in dst['endpoints'][0]:
@@ -543,11 +548,11 @@ def convert_target_for_envoy(logger, target, uid, s):
         upstream_host_addresses.extend(ips)
         upstream_host_port = dst['spec']['UDP']['port']
 
-    return envoy_cluster_data(name=name, uhp=upstream_host_port, uha=upstream_host_addresses)
+    return envoy_cluster_data(name=name, uhp=upstream_host_port, uha=upstream_host_addresses, label=label)
 
 # FIXME change to if key,value pair in .... not if app in and after if == label...
 
-
+#FIXME replace with iter_matching_pods
 def get_pod_ip_addresses_by_label(logger, s, label):
     addresses = []
     for pod in s['pods'].values():
@@ -639,7 +644,7 @@ async def exec_envoy_add_vsvc(s, pod, _old, action, logger):
         logger.info(f'Add target to pod. uid: {uid}')
         envoy_cluster_spec = convert_target_for_envoy(
             logger, action, uid, s)  # get necessary field values for envoy
-        c = create_cluster(envoy_cluster_spec)  
+        c = create_cluster(envoy_cluster_spec)
         envoy_resources['clusters'][uid]['queue'].put(
             ['add', c, envoy_cluster_spec.name])
     else:
@@ -654,7 +659,7 @@ async def exec_envoy_delete_vsvc(s, pod, action, _new, logger):
     if uid and not envoy_resources['listeners'].get(uid) == None:
         envoy_resources['listeners'][uid]['queue'].put(['delete', '', name_l])
     if uid and not envoy_resources['clusters'].get(uid) == None:
-        envoy_resources['clusters'][uid]['queue'].put(['delete', '', name_c])        
+        envoy_resources['clusters'][uid]['queue'].put(['delete', '', name_c])
 
 
 async def exec_change_vsvc(s, pod, action_old, action_new, logger):
@@ -1060,15 +1065,19 @@ def iter_matching_pods(s, selector, pods_to_search):
 
 
 def grpc_thread():
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    envoy_lds.add_ListenerDiscoveryServiceServicer_to_server(
-        ListenerDiscoveryServiceServicer(), server)
-    envoy_cds.add_ClusterDiscoveryServiceServicer_to_server(
-        ClusterDiscoveryServiceServicer(), server)
-    server.add_insecure_port('[::]:9090')
-    logging.info("Server started")
-    server.start()
-    server.wait_for_termination()
+    try:
+        server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        envoy_lds.add_ListenerDiscoveryServiceServicer_to_server(
+            ListenerDiscoveryServiceServicer(), server)
+        envoy_cds.add_ClusterDiscoveryServiceServicer_to_server(
+            ClusterDiscoveryServiceServicer(), server)
+        server.add_insecure_port('[::]:9090')
+        logging.info("Server started")
+        server.start()
+        server.wait_for_termination()
+        logging.info(f'GRPC SERVER TERMINATED {server}')
+    except Exception as e:
+        logging.error(f'excpetion : {e}')
 
 
 thread = threading.Thread(target=grpc_thread)
@@ -1089,7 +1098,6 @@ class ListenerDiscoveryServiceServicer(envoy_lds.ListenerDiscoveryServiceService
 
         for req in request_iterator:
             uid = req.node.id
-            logging.info(f'uid: {uid}')
             # logging.info(f'envoy_resources {envoy_resources}')
             envoy_resources['listeners'].setdefault(
                 uid, {'current_state': {}, 'queue': Queue()})
@@ -1097,9 +1105,10 @@ class ListenerDiscoveryServiceServicer(envoy_lds.ListenerDiscoveryServiceService
             if req.response_nonce in nonces and not req.error_detail.message:
                 envoy_resources['listeners'][uid]['current_state'].update(
                     previously_added_resources)
+                logging.info(
+                    f'Listener {req.response_nonce} successfully added/removed ')
                 previously_added_resources = {}
-                logging.info(f'responce nonce {req.response_nonce} in {nonces}')
-                nonces.remove(req.responce_nonce) 
+                nonces.remove(req.response_nonce)
             elif req.error_detail.message:
                 # FIXME error should be handled here somehow
                 logging.warning(
@@ -1113,8 +1122,6 @@ class ListenerDiscoveryServiceServicer(envoy_lds.ListenerDiscoveryServiceService
 
             if action == 'add':
                 if not n in envoy_resources['listeners'][uid]['current_state']:
-                    logging.info(
-                        "Listener update")
                     if req.error_detail.message:
                         logging.warning(req.error_detail.message)
                     if hasattr(req, 'resource_names_subsrcibe'):
@@ -1126,7 +1133,8 @@ class ListenerDiscoveryServiceServicer(envoy_lds.ListenerDiscoveryServiceService
                         f'Listener is in current_state, but it shouldnt have {n}')
             elif action == 'delete':
                 if n in envoy_resources['listeners'][uid]['current_state']:
-                    logging.info(f'Removing {n} listener from pod {uid}')
+                    envoy_resources['listeners'][uid]['current_state'].pop(n)
+                    # logging.info(f'Removed {n} listener from pod {uid}')
                     yield self.create_response(rem=[n], nonces=nonces)
 
     def create_response(self, n='', listeners=[], rem=[], nonces=[]):
@@ -1149,12 +1157,11 @@ class ListenerDiscoveryServiceServicer(envoy_lds.ListenerDiscoveryServiceService
             resources=[],
             type_url="type.googleapis.com/envoy.config.listener.v3.Listener",
             removed_resources=[],
-            nonce=n,  
+            nonce=n,
         )
         response.resources.extend(to_add_resources)
         response.removed_resources.extend(to_remove_resources)
         nonces.append(n)
-        logging.info(f'Create response: {response}\n')
         return response
 
 
@@ -1162,8 +1169,8 @@ class ClusterDiscoveryServiceServicer(envoy_cds.ClusterDiscoveryServiceServicer)
 
     def __init__(self) -> None:
         logging.info("Cluster servicer init")
-        self.latest_nonce = ''
-        self.previously_added_resources = {}
+        # self.latest_nonce = ''
+        # self.previously_added_resources = {}
 
     def DeltaClusters(self, request_iterator, context):
         logging.info('DeltaClusters')
@@ -1176,6 +1183,8 @@ class ClusterDiscoveryServiceServicer(envoy_cds.ClusterDiscoveryServiceServicer)
                 uid, {'current_state': {}, 'queue': Queue()})
 
             if req.response_nonce in nonces and not req.error_detail.message:
+                logging.info(
+                    f'Cluster {req.response_nonce} successfully added/removed ')
                 envoy_resources['clusters'][uid]['current_state'].update(
                     previously_added_resources)
                 previously_added_resources = {}
@@ -1193,8 +1202,6 @@ class ClusterDiscoveryServiceServicer(envoy_cds.ClusterDiscoveryServiceServicer)
 
             if action == 'add':
                 if not n in envoy_resources['clusters'][uid]['current_state']:
-                    logging.info(
-                        "Cluster update")
                     if req.error_detail.message:
                         logging.warning(req.error_detail.message)
                     if hasattr(req, 'resource_names_subsrcibe'):
@@ -1206,7 +1213,8 @@ class ClusterDiscoveryServiceServicer(envoy_cds.ClusterDiscoveryServiceServicer)
                         f'Cluster is in current_state, but it shouldnt have {n}')
             elif action == 'delete':
                 if n in envoy_resources['clusters'][uid]['current_state']:
-                    logging.info(f'Removing {n} cluster from pod {uid}')
+                    envoy_resources['clusters'][uid]['current_state'].pop(n)
+                    # logging.info(f'Removed {n} cluster from pod {uid}')
                     yield self.create_response(rem=[n], nonces=nonces)
 
     def create_response(self, n='', clusters=[], rem=[], nonces=[]):
@@ -1229,10 +1237,9 @@ class ClusterDiscoveryServiceServicer(envoy_cds.ClusterDiscoveryServiceServicer)
             resources=[],
             type_url="type.googleapis.com/envoy.config.cluster.v3.Cluster",
             removed_resources=[],
-            nonce=n, 
+            nonce=n,
         )
         response.resources.extend(to_add_resources)
         response.removed_resources.extend(to_remove_resources)
         nonces.append(n)
-        logging.info(f'Create response: {response}\n')
         return response
