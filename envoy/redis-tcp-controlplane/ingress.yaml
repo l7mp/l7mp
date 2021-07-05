@@ -1,0 +1,139 @@
+
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: envoy-ingress-config
+# data:
+#   envoy.yaml: |
+#     admin:
+#       access_log_path: /dev/null
+#       address:
+#         socket_address:
+#           address: 0.0.0.0
+#           port_value: 19000
+#     dynamic_resources:
+#       cds_config:
+#         resource_api_version: V3
+#         api_config_source:
+#           api_type: DELTA_GRPC
+#           transport_api_version: V3
+#           grpc_services:
+#           - envoy_grpc:
+#               cluster_name: xds_cluster
+#           set_node_on_first_message_only: true
+#       lds_config:
+#         resource_api_version: V3
+#         api_config_source:
+#           api_type: DELTA_GRPC
+#           transport_api_version: V3
+#           grpc_services:
+#           - envoy_grpc:
+#               cluster_name: xds_cluster
+#           set_node_on_first_message_only: true
+#     node:
+#       cluster: k8s-cluster
+#       id: ingress
+#     static_resources:
+#       listeners:
+#       - name: ingress_ng_control_listener
+#         address:
+#           socket_address:
+#             protocol: TCP
+#             address: 0.0.0.0
+#             port_value: 2000
+#         filter_chains:
+#         - filters:
+#           - name: envoy.filters.network.tcp_proxy
+#             typed_config:
+#               '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+#               stat_prefix: ingressngcontrol
+#               cluster: ingress_ng_control_cluster
+#       clusters:
+#       - name: xds_cluster
+#         connect_timeout: 1s
+#         type: STRICT_DNS
+#         http2_protocol_options: {}
+#         load_assignment:
+#           cluster_name: xds_cluster
+#           endpoints:
+#           - lb_endpoints:
+#             - endpoint:
+#                 address:
+#                   socket_address:
+#                     address: operator-service.default.svc
+#                     port_value: 1234
+#       - name: ingress_ng_control_cluster
+#         connect_timeout: 0.25s
+#         type: STRICT_DNS
+#         lb_policy: ROUND_ROBIN
+#         load_assignment:
+#           cluster_name: ingress_ng_control_cluster
+#           endpoints:
+#             - lb_endpoints:
+#                 - endpoint:
+#                     address:
+#                       socket_address:
+#                         address: rtpe-controller.default.svc
+#                         port_value: 2000
+#     layered_runtime:
+#       layers:
+#         - name: runtime-0
+#           rtds_layer:
+#             rtds_config:
+#               resource_api_version: V3
+#               api_config_source:
+#                 transport_api_version: V3
+#                 api_type: GRPC
+#                 grpc_services:
+#                   envoy_grpc:
+#                     cluster_name: xds_cluster
+#             name: runtime-0
+# ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: envoy-ingress
+  labels:
+    app: envoy-ingress
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: envoy-ingress
+      # app: l7mp-ingress
+  template:
+    metadata:
+      labels:
+        app: envoy-ingress
+        # app: l7mp-ingress
+    spec:
+      volumes:
+        - name: envoy-ingress-config
+          configMap:
+            name: envoy-ingress-config
+      containers:
+        - name: net-debug
+          image: l7mp/net-debug:0.5.3
+        - name: envoy-ingress
+          image: l7mp/envoy-parameterizable
+          imagePullPolicy: Never
+          env:
+            - name: "NODE_POD_UID"
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: "GRPC_SERVICE_NAME"
+              value: "operator-service.default.svc"
+            - name: "GRPC_SERVICE_PORT"
+              value: '9090'
+            - name: "NG_CONTROL_LISTENER_PORT"
+              value: '2000' #22220 on worker
+            - name: "NG_CONTROL_CLUSTER_ENDPOINT_ADDRESS"
+              value: "rtpe-controller.default.svc" #127.0.0.1 on worker
+            - name: "NG_CONTROL_CLUSTER_ENDPOINT_PORT"
+              value: '2000' #22222 on worker
+          ports:
+            - containerPort: 1235
+              name: admin
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet

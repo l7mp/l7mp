@@ -1,0 +1,233 @@
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: envoy-worker-config
+# data:
+#   envoy.yaml: |
+#     admin:
+#       access_log_path: /dev/null
+#       address:
+#         socket_address:
+#           address: 0.0.0.0
+#           port_value: 20002
+#     dynamic_resources:
+#       cds_config:
+#         resource_api_version: V3
+#         api_config_source:
+#           api_type: DELTA_GRPC
+#           transport_api_version: V3
+#           grpc_services:
+#           - envoy_grpc:
+#               cluster_name: xds_cluster
+#           set_node_on_first_message_only: true
+#       lds_config:
+#         resource_api_version: V3
+#         api_config_source:
+#           api_type: DELTA_GRPC
+#           transport_api_version: V3
+#           grpc_services:
+#           - envoy_grpc:
+#               cluster_name: xds_cluster
+#           set_node_on_first_message_only: true
+#     node:
+#       cluster: k8s-cluster
+#       id: ${NODE_POD_UID}
+#     static_resources:
+#       listeners:
+#       - name: worker_ng_control
+#         reuse_port: true
+#         address:
+#           socket_address:
+#             protocol: TCP
+#             address: 0.0.0.0
+#             port_value: 22220
+#         filter_chains:
+#         - filters:
+#           - name: envoy.filters.network.tcp_proxy
+#             typed_config:
+#               '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+#               stat_prefix: workerngcontrol
+#               cluster: worker_ng_control_cluster
+#       - name: echo_listener
+#         address:
+#           socket_address:
+#             protocol: TCP
+#             address: 0.0.0.0
+#             port_value: 1233
+#         filter_chains:
+#         - filters:
+#           - name:  envoy.filters.network.echo
+#       clusters:
+#       - name: xds_cluster
+#         connect_timeout: 1s
+#         type: STRICT_DNS
+#         http2_protocol_options: {}
+#         load_assignment:
+#           cluster_name: xds_cluster
+#           endpoints:
+#           - lb_endpoints:
+#             - endpoint:
+#                 address:
+#                   socket_address:
+#                     address: operator-service.default.svc
+#                     port_value: 1234
+#       - name: worker_ng_control_cluster
+#         connect_timeout: 5s
+#         type: STRICT_DNS
+#         lb_policy: ROUND_ROBIN
+#         load_assignment:
+#           cluster_name: worker_ng_control_cluster
+#           endpoints:
+#             - lb_endpoints:
+#                 - endpoint:
+#                     address:
+#                       socket_address:
+#                         address: 127.0.0.1
+#                         port_value: 22222
+#     layered_runtime:
+#       layers:
+#         - name: runtime-0
+#           rtds_layer:
+#             rtds_config:
+#               resource_api_version: V3
+#               api_config_source:
+#                 transport_api_version: V3
+#                 api_type: GRPC
+#                 grpc_services:
+#                   envoy_grpc:
+#                     cluster_name: xds_cluster
+#             name: runtime-0
+---
+# worker
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  labels:
+    app: worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      volumes:
+        # - name: envoy-config-volume
+        #   configMap:
+        #     name: envoy-worker-config
+        - name: rtpengine-config-volume
+          configMap:
+            name: rtpengine-config
+        - name: kernel-debug
+          hostPath:
+            path: /sys/kernel/debug
+            type: Directory
+      containers:
+        - name: net-debug
+          image: l7mp/net-debug:0.5.3
+        # sidecar
+        - name: envoy-ingress
+          image: l7mp/envoy-parameterizable
+          imagePullPolicy: Never
+          env:
+            - name: "NODE_POD_UID"
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: "GRPC_SERVICE_NAME"
+              value: "operator-service.default.svc"
+            - name: "GRPC_SERVICE_PORT"
+              value: '9090'
+            - name: "NG_CONTROL_LISTENER_PORT"
+              value: '22220' #22220 on worker
+            - name: "NG_CONTROL_CLUSTER_ENDPOINT_ADDRESS"
+              value: "127.0.0.1" #127.0.0.1 on worker
+            - name: "NG_CONTROL_CLUSTER_ENDPOINT_PORT"
+              value: "22222" #22222 on worker
+          ports:
+            - containerPort: 1235
+              name: admin
+        - name: rtpengine
+          image: drachtio/rtpengine
+          imagePullPolicy: IfNotPresent
+          command: [ "/usr/local/bin/rtpengine" ]
+          args: [ "--config-file=/etc/rtpengine/rtpengine.conf", "-f", "-E" ]
+          volumeMounts:
+            - name: rtpengine-config-volume
+              mountPath: /etc/rtpengine
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rtpengine-config
+  namespace: default
+data:
+  rtpengine.conf: |
+    [rtpengine]
+    # access only via the sidecar proxy
+    # listen-ng=MY_IP:22222
+    # interface=MY_IP
+    listen-tcp-ng=127.0.0.1:22222
+    interface=127.0.0.1
+
+    foreground=true
+    log-stderr=true
+
+    port-min=10000
+    port-max=20000
+
+    # recording-dir=/tmp
+    # recording-method=pcap
+    # recording-format=eth
+
+    log-level=7
+    delete-delay=0
+
+    timeout=600
+
+    redis = redis:6379/1
+    subscribe-keyspace=1
+    # redis-write = password@12.23.34.45:6379/42
+    # redis-num-threads = 8
+    # no-redis-required = false
+    # redis-expires = 86400
+    # redis-allowed-errors = -1
+    # redis-disable-time = 10
+    # redis-cmd-timeout = 0
+    # redis-connect-timeout = 1000
+
+    # sip-source = false
+    # dtls-passive = false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: worker
+  name: worker
+spec:
+  clusterIP: None
+  selector:
+    app: worker
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: worker
+  name: control-worker
+spec:
+  selector:
+    app: worker
+  ports:
+    - port: 22220
+      name: control
+      protocol: TCP
+      targetPort: 22220
+---

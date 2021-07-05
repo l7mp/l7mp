@@ -1,0 +1,71 @@
+# configmap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: controller-config
+data:
+  config.conf: |
+    [controller]
+    protocol=tcp
+    rtpe_address=control-worker
+    rtpe_port=22220
+    # envoy_address=envoy-controlplane
+    envoy_port=1234
+    local_address=0.0.0.0
+    local_port=2000
+    ingress_address=192.168.99.114
+    sidecar_type=envoy 
+    envoy_operator=yes
+    without_jsonsocket=no
+    update_owners=no
+    udp_mode=server
+---
+# rtpe-controller
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rtpe-controller
+  labels:
+    app: rtpe-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rtpe-controller
+  template:
+    metadata:
+      labels:
+        app: rtpe-controller
+    spec:
+      volumes:
+        - name: controller-volume
+          configMap:
+            name: controller-config
+      containers:
+        - name: net-debug
+          image: l7mp/net-debug:0.5.3
+        - name: rtpe-controller
+          image: vidarhun/rtpe-controller
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: controller-volume
+              mountPath: /app/config
+          command: ["python"]
+          args: ["controller.py", "-c", "config/config.conf", "-l", "debug"]
+---
+# rtpe-controller-service
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: rtpe-controller
+  name: rtpe-controller
+spec:
+  ports:
+    - port: 2000
+      name: rtpe-controller-port
+      protocol: TCP
+      targetPort: 2000
+  selector:
+    app: rtpe-controller
+  type: ClusterIP
