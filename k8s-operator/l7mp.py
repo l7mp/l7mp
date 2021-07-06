@@ -552,7 +552,9 @@ def convert_target_for_envoy(logger, target, uid, s):
 
 # FIXME change to if key,value pair in .... not if app in and after if == label...
 
-#FIXME replace with iter_matching_pods
+# FIXME replace with iter_matching_pods
+
+
 def get_pod_ip_addresses_by_label(logger, s, label):
     addresses = []
     for pod in s['pods'].values():
@@ -948,7 +950,8 @@ async def delete_fn(body, old, **kw):
     except KeyError:
         pass
     s_old[o_type][get_fqn(body)] = body
-
+    pod_uid = body.get('metadata', {}).get('uid')
+    close_context(pod_uid)
     await update(s_old, s, body=body, old=old, **kw)
 
 
@@ -1064,6 +1067,8 @@ def iter_matching_pods(s, selector, pods_to_search):
             yield pod
 
 
+# gRPC
+
 def grpc_thread():
     try:
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
@@ -1083,6 +1088,12 @@ def grpc_thread():
 thread = threading.Thread(target=grpc_thread)
 thread.daemon = True
 thread.start()
+
+def close_context(uid):
+    if uid in envoy_resources['listeners']:
+        envoy_resources['listeners'][uid]['queue'].put(['close', None, None])
+    if uid in envoy_resources['clusters']:
+        envoy_resources['clusters'][uid]['queue'].put(['close', None, None])
 
 
 class ListenerDiscoveryServiceServicer(envoy_lds.ListenerDiscoveryServiceServicer):
@@ -1136,6 +1147,10 @@ class ListenerDiscoveryServiceServicer(envoy_lds.ListenerDiscoveryServiceService
                     envoy_resources['listeners'][uid]['current_state'].pop(n)
                     # logging.info(f'Removed {n} listener from pod {uid}')
                     yield self.create_response(rem=[n], nonces=nonces)
+            elif action == 'close':
+                logging.info(
+                    f'Closing DeltaListeners gRPC stream from server side')
+                context.cancel()
 
     def create_response(self, n='', listeners=[], rem=[], nonces=[]):
         to_add_resources = []
@@ -1216,6 +1231,10 @@ class ClusterDiscoveryServiceServicer(envoy_cds.ClusterDiscoveryServiceServicer)
                     envoy_resources['clusters'][uid]['current_state'].pop(n)
                     # logging.info(f'Removed {n} cluster from pod {uid}')
                     yield self.create_response(rem=[n], nonces=nonces)
+            elif action == 'close':
+                logging.info(
+                    f'Closing DeltaClusters gRPC stream from server side')
+                context.cancel()
 
     def create_response(self, n='', clusters=[], rem=[], nonces=[]):
         to_add_resources = []
