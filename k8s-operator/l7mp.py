@@ -35,6 +35,7 @@ import os
 import queue
 from re import T
 from typing import List
+from envoy.config.core.v3.grpc_service_pb2 import GrpcService
 from google.protobuf.struct_pb2 import Struct
 import urllib3
 import yaml
@@ -61,6 +62,7 @@ import pprint
 import envoy
 import envoy.service.listener.v3.lds_pb2_grpc as envoy_lds
 import envoy.service.cluster.v3.cds_pb2_grpc as envoy_cds
+import envoy.service.endpoint.v3.eds_pb2_grpc as envoy_eds
 import envoy.extensions.filters.udp.udp_proxy.v3.udp_proxy_pb2 as envoy_udp
 import envoy.config.listener.v3.listener_pb2 as envoy_listener
 import envoy.config.cluster.v3.cluster_pb2 as envoy_cluster
@@ -70,6 +72,7 @@ import envoy.config.core.v3.address_pb2 as envoy_address
 import envoy.config.endpoint.v3.endpoint_components_pb2 as envoy_endpoint_components
 import envoy.config.endpoint.v3.endpoint_pb2 as envoy_endpoint
 import envoy.config.core.v3.base_pb2 as envoy_metadata
+import envoy.config.core.v3.config_source_pb2 as envoy_config_source
 import envoy.config.core.v3.health_check_pb2 as envoy_health_check
 
 # State of the k8s cluster
@@ -446,11 +449,66 @@ def create_cluster(res):
     new_cluster = envoy_cluster.Cluster(
         name=res.name,
         connect_timeout=create_duration(1000),
-        # cluster_discovery_type = envoy_cluster.cluster_discovery_type(
-        #     type = 'STATIC'
-        # ),
         lb_policy='MAGLEV',
-        load_assignment=envoy_endpoint.ClusterLoadAssignment(
+    )
+
+    # FIXME REMOVE/ADD comments if you want to add or remove healthcheck to the ingress envoy instance
+    if res.label:
+        hc = envoy_health_check.HealthCheck(
+            timeout=create_duration(100),
+            interval=create_duration(100),
+            unhealthy_threshold=wrapper.UInt32Value(value=1),
+            healthy_threshold=wrapper.UInt32Value(value=1),
+            no_traffic_interval=create_duration(1000),
+            tcp_health_check=envoy_health_check.HealthCheck.TcpHealthCheck(
+                send=envoy_health_check.HealthCheck.Payload(
+                    text='000000FF'
+                ),
+                receive=[
+                    envoy_health_check.HealthCheck.Payload(
+                        text='000000FF'
+                    )
+
+                ]
+            ),
+        )
+        new_cluster.health_checks.append(hc)
+
+        '''
+        IN CASE OF EDS UNCOMMENT THE LINES BELOW
+        AND REMOVE THE LOAD_ASSIGNMENT FIELD ASSERTION
+        '''
+        # new_cluster.type = envoy_cluster.Cluster.DiscoveryType.EDS
+        # assert not new_cluster.HasField('eds_cluster_config')
+        # eds_cluster_config = envoy_cluster.Cluster.EdsClusterConfig(
+        #     eds_config=envoy_config_source.ConfigSource(
+        #         resource_api_version=envoy_config_source.V3,
+        #         api_config_source=envoy_config_source.ApiConfigSource(
+        #             api_type='DELTA_GRPC',
+        #             transport_api_version=envoy_config_source.V3,
+        #             grpc_services=[
+        #                 GrpcService(
+        #                     envoy_grpc=GrpcService.EnvoyGrpc(
+        #                         cluster_name='xds_cluster'
+        #                     )
+        #                 )
+        #             ]
+        #         )
+        #     )
+        # )
+        # new_cluster.eds_cluster_config.CopyFrom(eds_cluster_config)
+        # assert new_cluster.HasField('eds_cluster_config')
+        # if envoy_resources['endpoints'].setdefault(
+        #         res.name, {'current_state': {}, 'queue': Queue()}):
+
+        #     '''
+        #     Although this cluster uses EDS we must create a list of endpoints here, 
+        #     then push them into the already existing queue 
+        #     '''
+        #     envoy_resources['endpoints'][res.name]['queue'].put(
+        #         ['add', create_endpoint_list(res), res.name])
+        assert not new_cluster.HasField('load_assignment')
+        load_assignment = envoy_endpoint.ClusterLoadAssignment(
             cluster_name=res.name,
             endpoints=[
                 envoy_endpoint_components.LocalityLbEndpoints(
@@ -458,28 +516,20 @@ def create_cluster(res):
                 )
             ]
         )
-    )
-    # FIXME REMOVE comments if you want to add healthcheck to the ingress envoy instance
-    # if res.label:
-    #     hc = envoy_health_check.HealthCheck(
-    #         timeout=create_duration(100),
-    #         interval=create_duration(100),
-    #         unhealthy_threshold=wrapper.UInt32Value(value=1),
-    #         healthy_threshold=wrapper.UInt32Value(value=1),
-    #         no_traffic_interval=create_duration(1000),
-    #         tcp_health_check=envoy_health_check.HealthCheck.TcpHealthCheck(
-    #             send=envoy_health_check.HealthCheck.Payload(
-    #                 text='000000FF'
-    #             ),
-    #             receive=[
-    #                 envoy_health_check.HealthCheck.Payload(
-    #                     text='000000FF'
-    #                 )
-
-    #             ]
-    #         ),
-    #     )
-    #     new_cluster.health_checks.append(hc)
+        new_cluster.load_assignment.CopyFrom(load_assignment)
+        assert new_cluster.HasField('load_assignment')
+    else:
+        assert not new_cluster.HasField('load_assignment')
+        load_assignment = envoy_endpoint.ClusterLoadAssignment(
+            cluster_name=res.name,
+            endpoints=[
+                envoy_endpoint_components.LocalityLbEndpoints(
+                    lb_endpoints=create_endpoint_list(res)
+                )
+            ]
+        )
+        new_cluster.load_assignment.CopyFrom(load_assignment)
+        assert new_cluster.HasField('load_assignment')
 
     cluster_any.Pack(new_cluster)
     return cluster_any
@@ -561,7 +611,7 @@ def get_pod_ip_addresses_by_label(logger, s, label):
         if 'app' in pod['metadata']['labels']:
             if pod['metadata']['labels']['app'] == label:
                 ip = pod['status'].get('podIP')
-                logger.info(f'PODIP: {ip}')
+                # logger.info(f'PODIP: {ip}')
                 addresses.append(ip)
     return addresses
 
@@ -1076,18 +1126,21 @@ def grpc_thread():
             ListenerDiscoveryServiceServicer(), server)
         envoy_cds.add_ClusterDiscoveryServiceServicer_to_server(
             ClusterDiscoveryServiceServicer(), server)
+        envoy_eds.add_EndpointDiscoveryServiceServicer_to_server(
+            EndpointDiscoveryServiceServicer(), server)
         server.add_insecure_port('[::]:9090')
         logging.info("Server started")
         server.start()
         server.wait_for_termination()
-        logging.info(f'GRPC SERVER TERMINATED {server}')
+        logging.warning(f'GRPC SERVER TERMINATED {server}')
     except Exception as e:
-        logging.error(f'excpetion : {e}')
+        logging.error(f'exception : {e}')
 
 
 thread = threading.Thread(target=grpc_thread)
 thread.daemon = True
 thread.start()
+
 
 def close_context(uid):
     if uid in envoy_resources['listeners']:
@@ -1160,7 +1213,6 @@ class ListenerDiscoveryServiceServicer(envoy_lds.ListenerDiscoveryServiceService
                 name=n,
                 version="1",  # must be changed later on # FIXME
                 resource=l,
-                ttl=protobuf.duration_pb2.Duration().FromSeconds(120),
             )
             to_add_resources.append(resource)
 
@@ -1244,7 +1296,6 @@ class ClusterDiscoveryServiceServicer(envoy_cds.ClusterDiscoveryServiceServicer)
                 name=n,
                 version="1",  # must be changed later on # FIXME
                 resource=c,
-                ttl=protobuf.duration_pb2.Duration().FromSeconds(120),
             )
             to_add_resources.append(resource)
 
@@ -1255,6 +1306,94 @@ class ClusterDiscoveryServiceServicer(envoy_cds.ClusterDiscoveryServiceServicer)
             system_version_info='0',
             resources=[],
             type_url="type.googleapis.com/envoy.config.cluster.v3.Cluster",
+            removed_resources=[],
+            nonce=n,
+        )
+        response.resources.extend(to_add_resources)
+        response.removed_resources.extend(to_remove_resources)
+        nonces.append(n)
+        return response
+
+
+class EndpointDiscoveryServiceServicer(envoy_eds.EndpointDiscoveryServiceServicer):
+
+    def __init__(self) -> None:
+        logging.info("Endpoint servicer init")
+
+    def DeltaEndpoints(self, request_iterator, context):
+        logging.info('DeltaEndpoints')
+        nonces = []
+        previously_added_resources = {}
+        system_version = 0
+
+        for req in request_iterator:
+            logging.info(f'EDS req: {req.resource_names_subscribe[0]}')
+            rns = req.resource_names_subscribe[0]
+            envoy_resources['endpoints'].setdefault(
+                rns, {'current_state': {}, 'queue': Queue()})
+
+            if req.response_nonce in nonces and not req.error_detail.message:
+                logging.info(
+                    f'Endpoint {req.response_nonce} successfully added/removed ')
+                envoy_resources['endpoints'][rns]['current_state'].update(
+                    previously_added_resources)
+                previously_added_resources = {}
+                nonces.remove(req.response_nonce)
+            elif req.error_detail.message:
+                # FIXME error should be handled here somehow
+                logging.warning(
+                    f'Response with nonce: {req.response_nonce} was not successful. Error detail: {req.error_detail.message}')
+
+            # If queue is empty, wait until an item is available. It runs on a different grpc thread so it shouldn't not be blocking.
+            qe = envoy_resources['endpoints'][rns]['queue'].get()
+            action = qe[0]
+            endpoints = self.convert_endpoints_to_any(qe[1])
+            n = qe[2]
+
+            if action == 'add':
+                if not all(e in endpoints for e in envoy_resources['endpoints'][rns]['current_state']) :
+                    logging.info('')
+                    previously_added_resources[n] = endpoints
+                    yield self.create_response(n=n, endpoints=endpoints, nonces=nonces)
+                else:
+                    logging.warning(
+                        f'Endpoint is in current_state, but it shouldnt have {n}')
+            elif action == 'delete':
+                if n in envoy_resources['endpoints'][rns]['current_state']:
+                    envoy_resources['endpoints'][rns]['current_state'].pop(n)
+                    yield self.create_response(rem=[n], nonces=nonces)
+            elif action == 'close':
+                logging.info(
+                    f'Closing DeltaEndpoints gRPC stream from server side')
+                context.cancel()
+
+    def convert_endpoints_to_any(self, endpoints):
+        any_endpoints = []
+        for e in endpoints:
+            endpoint_any = protobuf.any_pb2.Any()
+            endpoint_any.Pack(e)
+            any_endpoints.append(endpoint_any)
+        return any_endpoints
+
+    def create_response(self, n='', endpoints=[], rem=[], nonces=[]):
+        to_add_resources = []
+        to_remove_resources = []
+        for e in endpoints:
+            resource = envoy_discovery.Resource(
+                name=n,
+                version="1",  # must be changed later on # FIXME
+                resource=e,
+            )
+            to_add_resources.append(resource)
+
+        for r in rem:
+            to_remove_resources.append(r)
+
+        response = envoy_discovery.DeltaDiscoveryResponse(
+            # FIXME version
+            system_version_info='0',
+            resources=[],
+            type_url="type.googleapis.com/envoy.config.endpoint.v3.Endpoint",
             removed_resources=[],
             nonce=n,
         )
