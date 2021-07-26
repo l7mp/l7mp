@@ -157,7 +157,7 @@ spec:
           image: drachtio/rtpengine
           imagePullPolicy: IfNotPresent
           command: [ "/usr/local/bin/rtpengine" ]
-          args: [ "--config-file=/etc/rtpengine/rtpengine.conf", "-f", "-E" ]
+          args: [ "--config-file=/etc/rtpengine/rtpengine.conf", "-f", "-E", "--endpoint-learning", "immediate"]
           volumeMounts:
             - name: rtpengine-config-volume
               mountPath: /etc/rtpengine

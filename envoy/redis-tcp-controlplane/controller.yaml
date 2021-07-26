@@ -9,16 +9,16 @@ data:
     protocol=tcp
     rtpe_address=control-worker
     rtpe_port=22220
+    ingress_address=192.168.99.114
     # envoy_address=envoy-controlplane
     envoy_port=1234
     local_address=0.0.0.0
     local_port=2000
-    ingress_address=192.168.99.114
     sidecar_type=envoy 
     envoy_operator=yes
-    without_jsonsocket=no
     update_owners=no
     udp_mode=server
+    without_jsonsocket=yes
 ---
 # rtpe-controller
 apiVersion: apps/v1
@@ -51,7 +51,12 @@ spec:
             - name: controller-volume
               mountPath: /app/config
           command: ["python"]
-          args: ["controller.py", "-c", "config/config.conf", "-l", "debug"]
+          args: ["new_controller.py", "-c", "config/config.conf", "-l", "debug"]
+          env:
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
 ---
 # rtpe-controller-service
 apiVersion: v1
