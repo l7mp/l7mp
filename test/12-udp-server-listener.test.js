@@ -48,6 +48,7 @@ describe('UDPListener', ()  => {
     before( async () => {
         l7mp = new L7mp();
         l7mp.applyAdmin({ log_level: 'error'});
+        // l7mp.applyAdmin({ log_level: 'silly'});
         await l7mp.run();
     });
 
@@ -67,7 +68,7 @@ describe('UDPListener', ()  => {
                             port: 16000 ,
                             address: '127.0.0.1',
                         }
-                })
+                });
 
             });
             it('object',       () => { assert.isObject(ls); });
@@ -84,7 +85,7 @@ describe('UDPListener', ()  => {
                     !s1 ? s1 = x : s2 = x;
                 }
                 return { status: { status: 200 }};
-            }});
+            };});
         });
 
 
@@ -100,9 +101,9 @@ describe('UDPListener', ()  => {
                 });
                 c1.on('listening',()=>{
                     c1.connect(16000,'127.0.0.1');
-                })
+                });
                 c1.bind(16001, '127.0.0.1');
-            })
+            });
             it('connect-from-other-client', (done) =>{
                 c2 = new udp.createSocket({type: "udp4", reuseAddr: true});
                 c2.on('connect',  () => {
@@ -111,9 +112,9 @@ describe('UDPListener', ()  => {
                 });
                 c2.on('listening',()=>{
                     c2.connect(16000,'127.0.0.1');
-                })
+                });
                 c2.bind(16002, '127.0.0.1');
-            })
+            });
             it('address',        () => { assert.equal(c1.address().address, '127.0.0.1'); });
             it('port',    () => { assert.equal(c1.address().port, 16001); });
             it('remote-address', () => { assert.equal(c1.remoteAddress().address, '127.0.0.1'); });
@@ -187,14 +188,14 @@ describe('UDPListener', ()  => {
                 c1.once('message', (msg, rinfo) => {
                     assert.equal(msg.toString(), 'test1');
                     done();
-                })
+                });
                 s1.source.stream.write('test1');
             });
             it('write-2',  (done) => {
                 c2.once('message', (msg, rinfo) => {
                     assert.equal(msg.toString(), 'test2');
                     done();
-                })
+                });
                 s2.source.stream.write('test2');
             });
             it('server-stream-end',  () => {
@@ -211,14 +212,14 @@ describe('UDPListener', ()  => {
                 c1.once('close', () => {
                     assert.isOk(true);
                     done();
-                })
+                });
                 c1.close()
             });
             it('client-2-stream-end', (done) => {
                 c2.on('close', () => {
                     assert.isOk(true);
                     done();
-                })
+                });
                 c2.close()
             });
 
@@ -235,7 +236,7 @@ describe('UDPListener', ()  => {
                 });
                 c1.on('listening',()=>{
                     c1.connect(16000,'127.0.0.1');
-                })
+                });
                 c1.bind(16001, '127.0.0.1');
             });
             it('no-duplicate-sessions-on-fast-init', ()=>{
@@ -252,7 +253,7 @@ describe('UDPListener', ()  => {
                 c1.once('close', () => {
                     assert.isOk(true);
                     done();
-                })
+                });
                 c1.close()
             });
         });
@@ -290,8 +291,7 @@ describe('UDPListener', ()  => {
                                     mode: 'server'
                                 }
                         }
-                })
-
+                });
             });
             it('object',       () => { assert.isObject(ls); });
             // UDPListener is not exported so we cannot check from here
@@ -305,12 +305,12 @@ describe('UDPListener', ()  => {
             it('has-connect-port',  () => { assert.nestedProperty(ls, 'spec.connect.port', 16001); });
             it('has-connect-address',  () => { assert.nestedProperty(ls, 'spec.connect.address', '127.0.0.1'); });
             it('has-options',  () => { assert.nestedPropertyVal(ls, 'spec.options.mode', 'server'); });
-            it('can-listen',   () => { ls.emitter=(x) =>{
+            it('can-listen',   () => { ls.emitter=(x) => {
                 l7mp.sessions.push(x);
                 if(!s1){s1 = x}
                 assert.isOk(true);
-                return { status: { status: 200 }};                
-            }});
+                return { status: { status: 200 }};
+            };});
         });
 
 
@@ -326,9 +326,9 @@ describe('UDPListener', ()  => {
                 });
                 c1.on('listening',()=>{
                     c1.connect(16000,'127.0.0.1');
-                })
+                });
                 c1.bind(16001, '127.0.0.1');
-            })
+            });
             // it('connect-from-other-client', (done) =>{
             //     c2 = new udp.createSocket({type: "udp4", reuseAddr: true});
             //     c2.on('connect',  () => {
@@ -413,7 +413,7 @@ describe('UDPListener', ()  => {
                 c1.once('message', (msg, rinfo) => {
                     assert.equal(msg.toString(), 'test1');
                     done();
-                })
+                });
                 s1.source.stream.write('test1');
             });
             // it('write-2',  (done) => {
@@ -437,7 +437,7 @@ describe('UDPListener', ()  => {
                 c1.once('close', () => {
                     assert.isOk(true);
                     done();
-                })
+                });
                 c1.close()
             });
             // it('client-2-stream-end', (done) => {
@@ -461,7 +461,7 @@ describe('UDPListener', ()  => {
                 });
                 c1.on('listening',()=>{
                     c1.connect(16000,'127.0.0.1');
-                })
+                });
                 c1.bind(16001, '127.0.0.1');
             });
             it('no-duplicate-sessions-on-fast-init', ()=>{
@@ -478,7 +478,7 @@ describe('UDPListener', ()  => {
                 c1.once('close', () => {
                     assert.isOk(true);
                     done();
-                })
+                });
                 c1.close()
             });
         });
@@ -522,7 +522,7 @@ describe('UDPListener', ()  => {
             it('has-spec',     () => { assert.property(l, 'spec'); });
             it('has-protocol', () => { assert.nestedPropertyVal(l, 'spec.protocol', 'UDP'); });
             it('has-port',     () => { assert.nestedPropertyVal(l, 'spec.port', 16000); });
-            it('has-connect-address',     () => { assert.nestedPropertyVal(l, 'spec.connect.port', 16001); })
+            it('has-connect-address',     () => { assert.nestedPropertyVal(l, 'spec.connect.port', 16001); });
             it('can-listen',   () => { l.emitter=(x) =>{
                 l7mp.sessions.push(x);
                 if(!s2){
@@ -530,7 +530,7 @@ describe('UDPListener', ()  => {
                 }
                 assert.isOk(true);
                 return { status: { status: 200 }};
-            }});
+            };});
         });
 
         context('#run', () => {
@@ -547,9 +547,9 @@ describe('UDPListener', ()  => {
                 });
                 c1.on('listening',()=>{
                     c1.connect(16000,'127.0.0.1');
-                })
+                });
                 c1.bind(16001, '127.0.0.1');
-            })
+            });
             it('connect-from-other-client', (done) =>{
                 c2 = new udp.createSocket({type: "udp4", reuseAddr: true});
                 c2.on('connect',  () => {
@@ -558,9 +558,9 @@ describe('UDPListener', ()  => {
                 });
                 c2.on('listening',()=>{
                     c2.connect(16000,'127.0.0.1');
-                })
+                });
                 c2.bind(16001,'127.0.0.2');
-            })
+            });
             it('address',        () => { assert.equal(c1.address().address, '127.0.0.1'); });
             it('port',    () => { assert.equal(c1.address().port, 16001); });
             it('remote-address', () => { assert.equal(c1.remoteAddress().address, '127.0.0.1'); });
@@ -634,14 +634,14 @@ describe('UDPListener', ()  => {
                 c1.once('message', (msg, rinfo) => {
                     assert.equal(msg.toString(), 'test1');
                     done();
-                })
+                });
                 s1.source.stream.write('test1');
             });
             it('write-2',  (done) => {
                 c2.once('message', (msg, rinfo) => {
                     assert.equal(msg.toString(), 'test2');
                     done();
-                })
+                });
                 s2.source.stream.write('test2');
             });
             it('server-stream-end',  () => {
@@ -658,14 +658,14 @@ describe('UDPListener', ()  => {
                 c1.once('close', () => {
                     assert.isOk(true);
                     done();
-                })
+                });
                 c1.close()
             });
             it('client-2-stream-end', (done) => {
                 c2.on('close', () => {
                     assert.isOk(true);
                     done();
-                })
+                });
                 c2.close()
             });
         });
@@ -681,7 +681,7 @@ describe('UDPListener', ()  => {
                 });
                 c1.on('listening',()=>{
                     c1.connect(16000,'127.0.0.1');
-                })
+                });
                 c1.bind(16001, '127.0.0.1');
             });
             it('no-duplicate-sessions-on-fast-init', ()=>{
@@ -698,7 +698,7 @@ describe('UDPListener', ()  => {
                 c1.once('close', () => {
                     assert.isOk(true);
                     done();
-                })
+                });
                 c1.close()
             });
         });
@@ -750,7 +750,7 @@ describe('UDPListener', ()  => {
                 }
                 assert.isOk(true);
                 return { status: { status: 200 }};
-            }});
+            };});
         });
 
         context('#run', () => {
@@ -767,9 +767,9 @@ describe('UDPListener', ()  => {
                 });
                 c1.on('listening',()=>{
                     c1.connect(16000,'127.0.0.1');
-                })
+                });
                 c1.bind(16001, '127.0.0.1');
-            })
+            });
             it('connect-from-other-client', (done) =>{
                 c2 = new udp.createSocket({type: "udp4", reuseAddr: true});
                 c2.on('connect',  () => {
@@ -778,9 +778,9 @@ describe('UDPListener', ()  => {
                 });
                 c2.on('listening',()=>{
                     c2.connect(16000,'127.0.0.1');
-                })
+                });
                 c2.bind(16002,'127.0.0.1');
-            })
+            });
             it('address',        () => { assert.equal(c1.address().address, '127.0.0.1'); });
             it('port',    () => { assert.equal(c1.address().port, 16001); });
             it('remote-address', () => { assert.equal(c1.remoteAddress().address, '127.0.0.1'); });
@@ -854,14 +854,14 @@ describe('UDPListener', ()  => {
                 c1.once('message', (msg, rinfo) => {
                     assert.equal(msg.toString(), 'test1');
                     done();
-                })
+                });
                 s1.source.stream.write('test1');
             });
             it('write-2',  (done) => {
                 c2.once('message', (msg, rinfo) => {
                     assert.equal(msg.toString(), 'test2');
                     done();
-                })
+                });
                 s2.source.stream.write('test2');
             });
             it('server-stream-end',  () => {
@@ -878,14 +878,14 @@ describe('UDPListener', ()  => {
                 c1.once('close', () => {
                     assert.isOk(true);
                     done();
-                })
+                });
                 c1.close()
             });
             it('client-2-stream-end', (done) => {
                 c2.on('close', () => {
                     assert.isOk(true);
                     done();
-                })
+                });
                 c2.close()
             });
         });
@@ -901,7 +901,7 @@ describe('UDPListener', ()  => {
                 });
                 c1.on('listening',()=>{
                     c1.connect(16000,'127.0.0.1');
-                })
+                });
                 c1.bind(16001, '127.0.0.1');
             });
             it('no-duplicate-sessions-on-fast-init', ()=>{
@@ -918,8 +918,8 @@ describe('UDPListener', ()  => {
                 c1.once('close', () => {
                     assert.isOk(true);
                     done();
-                })
-                c1.close()
+                });
+                c1.close();
             });
         });
 
@@ -928,6 +928,76 @@ describe('UDPListener', ()  => {
                 l.close();
                 assert.isOk(true);
             });
+        });
+    });
+
+    
+     // check if failed upstream connection is correctly removed from the remote pool
+    context('server-connection-pool-test',  () => {
+        let l, c1, c2, s1, s2, ret, remote;
+        it('created',      (done) => {
+            l = Listener.create(
+                {
+                    name: 'UDP',
+                    spec:
+                    {
+                        protocol: 'UDP',
+                        port: 16000 ,
+                        address: '127.0.0.1',
+                    }
+                });
+            l7mp.listeners.push(l);
+            c1 = new udp.createSocket({type: "udp4", reuseAddr: true});
+            c1.bind(16001, '127.0.0.1');
+            c1.connect(16000,'127.0.0.1');
+            remote = '127.0.0.1:16001';
+            l.run();
+            assert.exists(l);
+            done();
+        });
+
+    //     it('connect-success-pool-ok', (done) => {
+    //         l.emitter=(x) =>{
+    //             l7mp.sessions.push(x);
+    //             s1 = x;
+    //             s1.source.stream.once('readable', () => {
+    //                 let data = ''; let chunk;
+    //                 while (null !== (chunk = s1.source.stream.read())) {
+    //                     data += chunk;
+    //                 }
+
+    //                 setImmediate(() => {
+    //             console.log('aaa');
+                        
+    //                 setTimeout(1000, () => {
+    //                     console.log('111');
+    //                     dump(s1,1);
+                        
+    //                     assert.isDefined(l.sessions);
+    //                     assert.lengthOf(l.sessions, 1);                
+    //                     assert.equal(l.sessions[0], remote);
+
+    //                     s1.source.stream.removeAllListeners();
+    //                     s1.source.stream.destroy();
+    //                     l7mp.sessions.splice(0,1);
+
+    //                     done();
+    //                 });
+
+    //                 return { status: { status: 200 }};
+    //             });
+    //         };
+    //         console.log('222');
+    //         dump(s1,1);
+    //         c1.send('req');
+    //         console.log('333');
+    //         dump(s1,1);
+    //     });
+        
+        it('stop-server',  () => {
+            l.close();
+            c1.close();
+            assert.isOk(true);
         });
     });
 });
