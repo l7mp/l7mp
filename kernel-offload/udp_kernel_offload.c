@@ -190,15 +190,23 @@ int sidecar(struct __sk_buff *skb)
 	iphdr->check = csum;
 
 	/* Update UDP checksum */
-	udphdr->check = update_udp_checksum(udphdr->check, flow_in.src_ip4, iphdr->saddr);
-	udphdr->check = update_udp_checksum(udphdr->check, flow_in.dst_ip4, iphdr->daddr);
-	if (udphdr->dest != flow_in.dst_port) {
-		udphdr->check = update_udp_checksum(udphdr->check, flow_in.dst_port, udphdr->dest);
-	}
-	if (udphdr->source != flow_in.src_port) {
-		udphdr->check = update_udp_checksum(udphdr->check, flow_in.src_port, udphdr->source);
-	}
+	/* udphdr->check = update_udp_checksum(udphdr->check, flow_in.src_ip4, iphdr->saddr); */
+	/* udphdr->check = update_udp_checksum(udphdr->check, flow_in.dst_ip4, iphdr->daddr); */
+	/* if (udphdr->dest != flow_in.dst_port) { */
+	/* 	udphdr->check = update_udp_checksum(udphdr->check, flow_in.dst_port, udphdr->dest); */
+	/* } */
+	/* if (udphdr->source != flow_in.src_port) { */
+	/* 	udphdr->check = update_udp_checksum(udphdr->check, flow_in.src_port, udphdr->source); */
+	/* } */
 
+        /* HACK: incremental checksum update does not work when offloading a proxy link from
+           localhost, as UDP packets traveling on lo do not seem to contain a valid checksum and so
+           we update the wrong sequence number. The below will explicitly set the UDP checksum to
+           zero and set skb->hash, skb->swhash and skb->l4hash to 0. This seems to magically take
+           care of wrong sequence numbers. */
+        __u16 zero = 0;
+        bpf_skb_store_bytes(skb, offsetof(struct udphdr, check), &zero, 2, BPF_F_INVALIDATE_HASH);
+        
 	/* Redirect */
 	fib_params.family = AF_INET;
 	fib_params.tos = iphdr->tos;
