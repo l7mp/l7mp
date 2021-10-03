@@ -274,7 +274,7 @@ class L7mp {
                 }
 
                 log.info('L7mp.applyAdmin: UDPOffload engine enabled on interfaces:',
-                         this.offload.ifNames);
+                         this.offload ? this.offload.ifNames : "None");
             }
         }
 
