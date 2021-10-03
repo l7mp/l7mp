@@ -222,6 +222,14 @@ class Stage {
 
                 let inflow = new UDPOffload.Flow(src_addr.toNumeric(), src.port,
                                                  dst_addr.toNumeric(), dst.port, 17);
+
+                // dump statistics
+                if(log.level === 'silly'){
+                    let stat = l7mp.offload.getStat(inflow);
+                    log.silly(`Stage offload stats: ${this.origin}: `,
+                              Object.keys(stat).map( (k, i) => `${k}: ${stat[k]}`).join(", "));
+                }
+                
                 try {
                     l7mp.offload.setOffload(inflow, null, "remove");
                     this.session.pipes.offloaded--;
