@@ -206,7 +206,16 @@ int sidecar(struct __sk_buff *skb)
            care of wrong sequence numbers. */
         __u16 zero = 0;
         bpf_skb_store_bytes(skb, offsetof(struct udphdr, check), &zero, 2, BPF_F_INVALIDATE_HASH);
-        
+	/* sanity checks needed by the eBPF verifier */
+	data = (void *)(uintptr_t)skb->data;
+	data_end = (void *)(uintptr_t)skb->data_end;
+	eth = data;
+	iphdr = (struct iphdr *)(eth + 1);
+	udphdr = (struct udphdr *)(iphdr + 1);
+	if ((void *)(udphdr + 1) > data_end) {
+		return TC_ACT_OK;
+	}
+
 	/* Redirect */
 	fib_params.family = AF_INET;
 	fib_params.tos = iphdr->tos;
