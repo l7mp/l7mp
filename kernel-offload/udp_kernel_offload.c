@@ -205,8 +205,15 @@ int sidecar(struct __sk_buff *skb)
            zero and set skb->hash, skb->swhash and skb->l4hash to 0. This seems to magically take
            care of wrong sequence numbers. */
         __u16 zero = 0;
-        bpf_skb_store_bytes(skb, offsetof(struct udphdr, check), &zero, 2, BPF_F_INVALIDATE_HASH);
-	/* sanity checks needed by the eBPF verifier */
+        /* bpf_skb_store_bytes(skb, offsetof(struct udphdr, check), &zero, 2, BPF_F_INVALIDATE_HASH); */
+        /* bpf_skb_store_bytes(skb, offsetof(struct udphdr, check), &zero, 2, BPF_F_RECOMPUTE_CSUM | BPF_F_INVALIDATE_HASH); */
+
+        /* bpf_l4_csum_replace(skb, sizeof(struct ethhdr) + offsetof(struct iphdr, check), udphdr->check, 0, BPF_F_MARK_ENFORCE); */
+
+        bpf_skb_store_bytes(skb, sizeof(struct ethhdr) + sizeof(struct iphdr) + offsetof(struct udphdr, check),
+                            &zero, 2, BPF_F_RECOMPUTE_CSUM | BPF_F_INVALIDATE_HASH);
+        
+        /* sanity checks needed by the eBPF verifier */
 	data = (void *)(uintptr_t)skb->data;
 	data_end = (void *)(uintptr_t)skb->data_end;
 	eth = data;
@@ -216,6 +223,8 @@ int sidecar(struct __sk_buff *skb)
 		return TC_ACT_OK;
 	}
 
+        /* udphdr->check = 0; */
+        
 	/* Redirect */
 	fib_params.family = AF_INET;
 	fib_params.tos = iphdr->tos;
