@@ -83,11 +83,33 @@ To enforce capabilities required for l7mp containers, set l7mp containers' `secu
 ### Host configuration
 
 #### Fix checksum calculation issues
-We experience UDP checksum errors on traffic originating from localhost. We tackle this problem by combining the following techniques.
+We experience UDP checksum errors on traffic originating from localhost. This results packet drops causing service outage.
+
+Fortunately, the bad checksum can be detected easily. For example, `tcpdump` shows bad UDP checksum on its output (e.g., `[bad udp cksum 0x1823 -> 0xe24a!]`):
+
+```
+$ sudo tcpdump -i any -neevvxX udp
+tcpdump: data link type LINUX_SLL2
+tcpdump: listening on any, link-type LINUX_SLL2 (Linux cooked v2), snapshot length 262144 bytes
+11:04:44.239698 lo    In  ifindex 1 00:00:00:00:00:00 ethertype IPv4 (0x0800), length 51: (tos 0x0, ttl 64, id 61815, offset 0, flags [DF], proto UDP (17), length 31)
+    127.0.0.1.1236 > 127.0.0.1.1235: [bad udp cksum 0xfe1e -> 0x8acb!] UDP, length 3
+        0x0000:  4500 001f f177 4000 4011 4b54 7f00 0001  E....w@.@.KT....
+        0x0010:  7f00 0001 04d4 04d3 000b fe1e 6363 0a    ............cc.
+11:04:44.239904 ens3f0 Out ifindex 2 3c:fd:fe:ba:19:98 ethertype IPv4 (0x0800), length 51: (tos 0x0, ttl 64, id 61815, offset 0, flags [DF], proto UDP (17), length 31)
+    10.0.2.3.37713 > 10.0.2.4.1234: [bad udp cksum 0x1823 -> 0xe24a!] UDP, length 3
+        0x0000:  4500 001f f177 4000 4011 3150 0a00 0203  E....w@.@.1P....
+        0x0010:  0a00 0204 9351 04d2 000b 1823 6363 0a    .....Q.....#cc.
+^C
+2 packets captured
+4 packets received by filter
+0 packets dropped by kernel
+```
+
+We tackle the bad UDP checksum issue by combining the following techniques.
 
 **Disable checksum calculation in the application:** Socket option `SO_NO_CHECK` disables the checksum calculation for IPv4/UDP packets.
 
-**Disable hardware checksum offloading:** The kernel offload might transmit packets from localhost to a network interface. During this transmit, the UDP checksum gets incrementally updated. Since the original checksum is wrong, the incrementally-updated checksum is wrong too. By disabling the hardware offload, we can force a full checksum recalculation.
+**Disable hardware checksum offloading:** The kernel offload might transmit packets from localhost to a network interface. During this transmit, the UDP checksum gets incrementally updated. Since the original checksum is bad, the incrementally-updated checksum is bad too. By disabling the hardware offload, we can force a full checksum recalculation.
 
 To disable network interface hardware offloading, we use `ethtool`. This tool enables configuring parameters of network interfaces.
 
