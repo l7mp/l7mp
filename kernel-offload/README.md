@@ -6,9 +6,9 @@ To enhanche performance, l7mp provides an experimental kernel offload feature. T
 
 ### Linux kernel
 
-The offload requires a fairly modern Linux kernel with eBPF support. Current distros use new kernels and are configured with eBPF support.
+The offload requires a quite modern Linux kernel compiled with eBPF support. Current distros use new kernels and are built with eBPF support.
 
-We tested the offload on the following systems:
+We tested the kernel offload on the following systems:
 
 | Distribution | Kernel version |
 | :---:        | :---:          |
@@ -24,7 +24,7 @@ We tested the offload on the following systems:
 - clang and llvm
 - kernel headers
 - git
-- [libbpf](https://github.com/libbpf/libbpf) (build scripts clones the upstream git repo)
+- [libbpf](https://github.com/libbpf/libbpf) (build script clones the upstream git repo)
 
 **Runtime dependencies:**
 - tc (part of iproute2 package)
@@ -32,8 +32,6 @@ We tested the offload on the following systems:
 
 
 ## Building
-
-We detail the build process for bare-metal deployments and for container deployments.
 
 ### Bare-metal l7mp
 
@@ -47,31 +45,32 @@ The make process clones the libbpf library from the [upstream repo](https://gith
 
 ### l7mp container
 
-The l7mp [Dockerfile](/Dockerfile) handles the creation of l7mp container w/ kernel offload. It uses a builder container to compile the node-bpf package from [sources](https://github.com/levaitamas/node_bpf/tree/musl). The compiled offload code and the node-bpf package is then copied to the final l7mp image.
+The l7mp [Dockerfile](/Dockerfile) can build l7mp container with kernel offload. Under the hood, a builder container build l7mp, compiles the node-bpf package from [sources](https://github.com/levaitamas/node_bpf/tree/musl) and the kernel offload object. Then, the compiled offload code and the l7mp installation with the node-bpf package is copied to the final l7mp image.
 
+The command to build an l7mp container with kernel offload support:
 ```sh
 sudo docker build -t l7mp .
 ```
 
 ## Usage
 
-The kernel offload usage has two main stages: preparation and offload configuration. First, we show the preparation steps required for using the kernel offload. After that, we configure l7mp with kernel offloading.
+The kernel offload usage has two main stages: preparation and configuration. First, we show the preparations required for the kernel offload in various environments. Then, we show how to configure l7mp to use kernel offloading.
 
 ### Set capabilities
 
-Deployments require `CAP_NET_ADMIN` and `CAP_SYS_ADMIN` capabilites to load the kernel offload object.
+Deployments require `CAP_NET_ADMIN` and `CAP_SYS_ADMIN` capabilites to load the kernel offload object. Setting these capabilities differ by deployment types. Below we show the process for bare-metal, Docker, and Kubernetes deployments.
 
 #### Bare-metal
 Set up [capabilities](https://wiki.archlinux.org/title/capabilities) or use `sudo`.
 
 #### Docker
-You canstart an l7mp container with the following command:
+Docker provides `--cap-add` arguments. To start an l7mp container, use a similar command:
 ```sh
 sudo docker run --cap-add=NET_ADMIN --cap-add=SYS_ADMIN --privileged -i -t l7mp node l7mp-proxy.js -c <config_file> -l warn -s
 ```
 
 #### Kubernetes
-To enforce these capabilities for l7mp containers, set `securityContext` of l7mp containers as the follows:
+To enforce capabilities required for l7mp containers, set l7mp containers' `securityContext`:
 ```yaml
       containers:
       - name: l7mp
@@ -79,33 +78,32 @@ To enforce these capabilities for l7mp containers, set `securityContext` of l7mp
           capabilities:
             add: ["NET_ADMIN", "SYS_ADMIN"]
           privileged: true
-		...
 ```
 
 ### Host configuration
 
-#### Fixing checksum calculation issues
-We experience UDP checksum errors on traffic originating from localhost. We tackle this problem by combining the following mitigations.
+#### Fix checksum calculation issues
+We experience UDP checksum errors on traffic originating from localhost. We tackle this problem by combining the following techniques.
 
-**Disable checksum calculation in the application:** The socket option `SO_NO_CHECK` disables the checksum calculation for IPv4/UDP packets.
+**Disable checksum calculation in the application:** Socket option `SO_NO_CHECK` disables the checksum calculation for IPv4/UDP packets.
 
-**Disable hardware checksum offloading:** The kernel offload moves packets originating from localhost to a network interface. During this transmit, the UDP checksum gets incrementally updated. Since the original checksum is wrong, the updated checksum will be wrong too. By disabling the hardware offload, we can force full checksum recalculation.
+**Disable hardware checksum offloading:** The kernel offload might transmit packets from localhost to a network interface. During this transmit, the UDP checksum gets incrementally updated. Since the original checksum is wrong, the incrementally-updated checksum is wrong too. By disabling the hardware offload, we can force a full checksum recalculation.
 
-To disable network interface hardware offloading, we use `ethtool`. This tool enables configuring parameters of network interfaces. To disable checksum offloading on an interface we use the command `sudo ethtool -K <interface_name> rx off tx off gso off`. To check the current state, we use `sudo ethtool --show-offload <interface_name>`.
+To disable network interface hardware offloading, we use `ethtool`. This tool enables configuring parameters of network interfaces. To disable checksum offloading on an interface, use the command `sudo ethtool -K <interface_name> rx off tx off gso off`. To check the current state of a network interface, use `sudo ethtool --show-offload <interface_name>`.
 
 ### l7mp configuration
 
-#### Enabling kernel offload
+#### Enable kernel offload in l7mp configurations
 
-The l7mp with kernel offload configurations containes offload specific lines, otherwise they are identical to your existing configuration:
+To enable kernel offload,  l7mp configurations require the following offload specific lines:
 ```yaml
 admin:
   offload: init
   offload_ifs: lo,eth0
 ```
-The line `offload: init` tells l7mp to enable offloading; `offload_ifs: lo,eth0` specifies the network interfaces on which the kernel offload is enabled (in this case these are `lo` and `eth0`). The interfaces can be specified with the CLI arg `-i`. To enable kernel offload on all interfaces, use `all`.
+The line `offload: init` tells l7mp to enable kernel offloading; `offload_ifs: lo,eth0` specifies the network interfaces on which the kernel offload is enabled (in this example,`lo` and `eth0`). The interfaces can be specified via the CLI arg `-i`. To enable kernel offload on all interfaces, use `all`.
 
-#### Example kernel offload config
+#### Example configuration
 
 An example l7mp config:
 
@@ -131,7 +129,7 @@ listeners:
 
 #### Expected l7mp output
 
-If the kernel offload is initiated successfully, expect to see a similar output:
+If the kernel offload is successfully initiated, expect to see a similar output:
 ```
 [...]
 2021-10-25T08:56:15.464Z sill Session.pipe: Offloading 10.0.2.4:1234->10.0.2.3:37713[17] => 127.0.0.1:1235->127.0.0.1:1236[17]
@@ -144,7 +142,7 @@ If the kernel offload is initiated successfully, expect to see a similar output:
 Last line shows all pipes are offloaded. Note, that this message requires loglevel `info`.
 
 ## Caveats
-The offload is still experimental with limitations. Some of these are:
+The l7mp kernel offload is still experimental with limitations. Some of these are:
 
 * handles UDP traffic only
-* workarounds for checksum handling on loopback devices are required
+* requires workarounds for checksums on loopback devices
