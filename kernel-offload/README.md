@@ -57,16 +57,30 @@ sudo docker build -t l7mp .
 
 The kernel offload usage has two main stages: preparation and offload configuration. First, we show the preparation steps required for using the kernel offload. After that, we configure l7mp with kernel offloading.
 
-### Granting additional capabilities
+### Set capabilities
 
-The l7mp container requires `NET_ADMIN` and `SYS_ADMIN` capabilites to be able to load the kernel offload object on the host.
+Deployments require `CAP_NET_ADMIN` and `CAP_SYS_ADMIN` capabilites to load the kernel offload object.
 
-In case of Docker, the command to start an l7mp container is the following:
+#### Bare-metal
+Set up [capabilities](https://wiki.archlinux.org/title/capabilities) or use `sudo`.
+
+#### Docker
+You canstart an l7mp container with the following command:
 ```sh
 sudo docker run --cap-add=NET_ADMIN --cap-add=SYS_ADMIN --privileged -i -t l7mp node l7mp-proxy.js -c <config_file> -l warn -s
 ```
 
-Same capabilites are required for bare-metal deployments.
+#### Kubernetes
+To enforce these capabilities for l7mp containers, set `securityContext` of l7mp containers as the follows:
+```yaml
+      containers:
+      - name: l7mp
+        securityContext:
+          capabilities:
+            add: ["NET_ADMIN", "SYS_ADMIN"]
+          privileged: true
+		...
+```
 
 ### Host configuration
 
