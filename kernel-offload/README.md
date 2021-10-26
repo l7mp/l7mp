@@ -61,9 +61,9 @@ The kernel offload usage has two main stages: preparation and offload configurat
 
 The l7mp container requires `NET_ADMIN` and `SYS_ADMIN` capabilites to be able to load the kernel offload object on the host.
 
-In case of Docker, the command to start an l7mp ocntainer is similar to the following:
+In case of Docker, the command to start an l7mp container is the following:
 ```sh
-sudo docker run --cap-add=NET_ADMIN --cap-add=SYS_ADMIN --privileged -i -t l7mp /bin/sh
+sudo docker run --cap-add=NET_ADMIN --cap-add=SYS_ADMIN --privileged -i -t l7mp node l7mp-proxy.js -c <config_file> -l warn -s
 ```
 
 ### Host configuration
