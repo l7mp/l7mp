@@ -17,17 +17,17 @@ We tested the offload on the following systems:
 | Debian 10    | 4.19           |
 | minikube     | 4.19           |
 
-### Software components
+### Dependencies
 
-* Build dependencies:
+**Build dependencies:**
 - make
 - clang and llvm
 - kernel headers
 - git
-- libbpf (taken from upstream git repo by the build script)
+- [libbpf](https://github.com/libbpf/libbpf) (build scripts clones the upstream git repo)
 
-* Runtime dependencies:
-- tc
+**Runtime dependencies:**
+- tc (part of iproute2 package)
 - [node-bpf (>=1.3.0)](https://www.npmjs.com/package/bpf)
 
 
