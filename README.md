@@ -481,7 +481,7 @@ A protocol is marked with a flag `l` if it has a listener implementation in l7mp
 
 ## Kernel offload
 
-To enhanche performance, l7mp provides an experimental kernel offload feature. The offload builds upon the [tc-bpf](https://man7.org/linux/man-pages/man8/tc-bpf.8.html) Linux kernel mechanism and supports UDP traffic. Usage and details of the kernel offload is avaialable in its [documentation](kernel-offload/README.md).
+To enhanche performance, l7mp provides an experimental kernel offload feature. The offload uses the tc-bpf Linux kernel mechanism and supports UDP traffic. We show the usage and details of the kernel offload is in its dedicated [documentation](kernel-offload/README.md).
 
 # The l7mp service mesh
 
