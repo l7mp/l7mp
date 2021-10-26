@@ -66,15 +66,25 @@ In case of Docker, the command to start an l7mp container is the following:
 sudo docker run --cap-add=NET_ADMIN --cap-add=SYS_ADMIN --privileged -i -t l7mp node l7mp-proxy.js -c <config_file> -l warn -s
 ```
 
+Same capabilites are required for bare-metal deployments.
+
 ### Host configuration
-ethtool and co
+
+#### Fixing checksum calculation issues
+We experience UDP checksum errors on traffic originating from localhost. We tackle this problem by combining the following mitigations.
+
+**Disable checksum calculation in the application:** The socket option `SO_NO_CHECK` disables the checksum calculation for IPv4/UDP packets.
+
+**Disable hardware checksum offloading:** The kernel offload moves packets originating from localhost to a network interface. During this transmit, the UDP checksum gets incrementally updated. Since the original checksum is wrong, the updated checksum will be wrong too. By disabling the hardware offload, we can force full checksum recalculation.
+
+To disable network interface hardware offloading, we use `ethtool`. This tool enables configuring parameters of network interfaces. To disable checksum offloading on an interface we use the command `sudo ethtool -K <interface_name> rx off tx off gso off`. To check the current state, we use `sudo ethtool --show-offload <interface_name>`.
 
 ### l7mp configuration
 
 #### Enabling kernel offload
 
 The l7mp with kernel offload configurations containes offload specific lines, otherwise they are identical to your existing configuration:
-```
+```yaml
 admin:
   offload: init
   offload_ifs: lo,eth0
