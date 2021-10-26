@@ -89,7 +89,17 @@ We experience UDP checksum errors on traffic originating from localhost. We tack
 
 **Disable hardware checksum offloading:** The kernel offload might transmit packets from localhost to a network interface. During this transmit, the UDP checksum gets incrementally updated. Since the original checksum is wrong, the incrementally-updated checksum is wrong too. By disabling the hardware offload, we can force a full checksum recalculation.
 
-To disable network interface hardware offloading, we use `ethtool`. This tool enables configuring parameters of network interfaces. To disable checksum offloading on an interface, use the command `sudo ethtool -K <interface_name> rx off tx off gso off`. To check the current state of a network interface, use `sudo ethtool --show-offload <interface_name>`.
+To disable network interface hardware offloading, we use `ethtool`. This tool enables configuring parameters of network interfaces.
+
+To disable checksum offloading on an interface, use the command:
+```
+sudo ethtool -K <interface_name> rx off tx off gso off
+```
+
+To check the current state of a network interface, use:
+```
+sudo ethtool --show-offload <interface_name>
+```
 
 ### l7mp configuration
 
