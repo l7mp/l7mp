@@ -1,6 +1,6 @@
 # l7mp kernel offload
 
-To enhanche performance, l7mp provides an experimental kernel offload feature. The offload builds upon the [tc-bpf](https://man7.org/linux/man-pages/man8/tc-bpf.8.html) Linux kernel mechanism.
+l7mp provides an experimental kernel offload feature to enhance performance. The offload builds upon the [tc-bpf](https://man7.org/linux/man-pages/man8/tc-bpf.8.html) Linux kernel mechanism. Below we show how to enable and use the kernel offload.
 
 ## Requirements
 
@@ -61,7 +61,7 @@ The kernel offload usage has two main stages: preparation and configuration. Fir
 Deployments require `CAP_NET_ADMIN` and `CAP_SYS_ADMIN` capabilites to load the kernel offload object. Setting these capabilities differ by deployment types. Below we show the process for bare-metal, Docker, and Kubernetes deployments.
 
 #### Bare-metal
-Set up [capabilities](https://wiki.archlinux.org/title/capabilities) or use `sudo`.
+[Setup capabilities](https://wiki.archlinux.org/title/capabilities) or use `sudo`.
 
 #### Docker
 Docker provides `--cap-add` arguments. To start an l7mp container, use a similar command:
@@ -133,7 +133,7 @@ admin:
   offload: init
   offload_ifs: lo,eth0
 ```
-The line `offload: init` tells l7mp to enable kernel offloading; `offload_ifs: lo,eth0` specifies the network interfaces on which the kernel offload is enabled (in this example,`lo` and `eth0`). The interfaces can be specified via the CLI arg `-i`. To enable kernel offload on all interfaces, use `all`.
+The line `offload: init` tells l7mp to enable kernel offloading; `offload_ifs: lo,eth0` specifies the network interfaces on which the kernel offload is enabled (in this example,  `lo` and `eth0`). The interfaces can be specified via the CLI arg `-i`. To enable kernel offload on all interfaces, use `all`.
 
 #### Example configuration
 
@@ -177,4 +177,4 @@ Last line shows all pipes are offloaded. Note, that this message requires loglev
 The l7mp kernel offload is still experimental with limitations. Some of these are:
 
 * handles UDP traffic only
-* requires workarounds for checksums on loopback devices
+* requires workarounds for checksum on loopback
