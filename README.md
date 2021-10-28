@@ -479,6 +479,9 @@ There are two *types* of streams supported by L7mp: a "byte-stream" (like TCP or
 
 A protocol is marked with a flag `l` if it has a listener implementation in l7mp, acting as a server-side protocol "plug" that listens to incoming connections from downstream peers and emits new sessions, and with flag `c` if it implements the cluster side, i.e., the client-side of the protocol that can route a connection to an upstream service and load-balance across a set of remote endpoints, `Re` means that the protocol supports *retries* and `Lb` indicates that *load-balancing* support is also available for the protocol.
 
+## Kernel offload
+
+To enhance performance, l7mp provides an experimental kernel offload feature. The offload uses the tc-bpf Linux kernel mechanism and supports UDP traffic. We show the usage and details of the kernel offload is in its dedicated [documentation](kernel-offload/README.md).
 
 # The l7mp service mesh
 
