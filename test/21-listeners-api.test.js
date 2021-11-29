@@ -148,7 +148,7 @@ describe('Listeners API', ()  => {
                 host: 'localhost', port: 1234,
                 path: '/api/v1/listeners', method: 'POST'
                 , headers: {'Content-Type' : 'text/x-json', 'Content-length': postData.length}
-            }
+            };
             await httpRequest(options, postData);
         });
 

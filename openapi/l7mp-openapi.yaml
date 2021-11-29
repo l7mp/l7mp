@@ -86,6 +86,8 @@ components:
             Set/get kernel offload status: "init": initialize offload engine, "no_init": skip initialization, "disable": disable offloading
         offload_ifs:
           type: array
+          items:
+            type: string
           description: >
             Comma-separated list of interfaces for offloading: the special interface name "all" means to apply offloading on all interfaces
         version:
