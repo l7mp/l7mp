@@ -41,7 +41,7 @@ RUN cd /kernel-offload && make build
 
 # Prepare node_bpf npm package
 # get node_bpf source
-RUN git clone --depth 1 https://github.com/levaitamas/node_bpf.git -b musl
+RUN git clone --depth 1 https://github.com/mildsunrise/node_bpf.git
 
 # patch node-gyp config to link with installed libintl
 RUN  sed -i \
