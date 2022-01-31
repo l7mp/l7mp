@@ -41,16 +41,64 @@ static_resources:
           '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
           stat_prefix: ingressngcontrol
           cluster: ng_control_cluster
-  - name: echo_listener
+  # - name: echo_listener
+  #   address:
+  #     socket_address:
+  #       protocol: TCP
+  #       address: 0.0.0.0
+  #       port_value: 1233
+  #   filter_chains:
+  #   - filters:
+  #     - name:  envoy.filters.network.echo
+  - name: http_health_check
     address:
       socket_address:
         protocol: TCP
         address: 0.0.0.0
         port_value: 1233
+    traffic_direction: INBOUND
     filter_chains:
     - filters:
-      - name:  envoy.filters.network.echo
+      - name: envoy.filters.network.http_connection_manager
+        typed_config: 
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: http_health_check
+          route_config: {}
+            # name: local_route
+            # virtual_hosts:
+            # - name: http_health_check_cluster
+            #   domains:
+            #   - "*"
+            #   routes:
+            #   - match:
+            #       prefix: "/"
+            #       headers:
+            #       - name: ":path"
+            #         exact_match: "/healthcheck"
+            #     route:
+            #       cluster: http_health_check_cluster
+          http_filters:
+          - name: envoy.filters.http.health_check
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.health_check.v3.HealthCheck
+              pass_through_mode: false
+              headers:
+              - name: ":path"
+                exact_match: "/healthcheck"
+          - name: envoy.filters.http.router
   clusters:
+  # - name: http_health_check_cluster
+  #   type: STATIC
+  #   connect_timeout: 5s
+  #   load_assignment:
+  #     cluster_name: http_health_check_cluster
+  #     endpoints:
+  #       - lb_endpoints:
+  #           - endpoint:
+  #               address:
+  #                 socket_address:
+  #                   address: 127.0.0.1
+  #                   port_value: 1235
   - name: xds_cluster
     connect_timeout: 1s
     type: STRICT_DNS
@@ -77,16 +125,3 @@ static_resources:
                   socket_address:
                     address: ${NG_CONTROL_CLUSTER_ENDPOINT_ADDRESS}
                     port_value: ${NG_CONTROL_CLUSTER_ENDPOINT_PORT}
-# layered_runtime:
-#   layers:
-#     - name: runtime-0
-#       rtds_layer:
-#         rtds_config:
-#           resource_api_version: V3
-#           api_config_source:
-#             transport_api_version: V3
-#             api_type: GRPC
-#             grpc_services:
-#               envoy_grpc:
-#                 cluster_name: xds_cluster
-#         name: runtime-0
